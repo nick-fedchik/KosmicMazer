@@ -4,7 +4,7 @@ KOSMICMAZER — Architecture Improvements & Refactoring Plan
 ================================================================================
 
 Purpose: Узгоджена архітектура, рефакторинг структури та план міграції
-Version: 3.0
+Version: 3.5
 Status: PLANNING
 Last Updated: 2026-01-07
 
@@ -1311,7 +1311,7 @@ PHASE 6: Cleanup (1 день)
 
 local module = {}
 
-module.VERSION = "3.0"
+module.VERSION = "3.5"
 module.STATUS = "PLANNING"
 module.LAST_UPDATED = "2026-01-07"
 

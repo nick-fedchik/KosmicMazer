@@ -4,7 +4,7 @@ KOSMICMAZER — Code Convention
 ================================================================================
 
 Purpose: Стандарти оформлення коду для проекту KosmicMazer
-Version: 1.0
+Version: 3.5
 Status: ACTIVE
 Last Updated: 2026-01-07
 
@@ -393,7 +393,7 @@ return module
 
 local module = {}
 
-module.VERSION = "1.0"
+module.VERSION = "3.5"
 module.STATUS = "ACTIVE"
 module.LAST_UPDATED = "2026-01-07"
 
