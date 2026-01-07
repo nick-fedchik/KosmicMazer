@@ -169,20 +169,3 @@ LoadOrder.ORDER = LoadOrder.WorkspaceObjects
 LoadOrder.GetPriority = LoadOrder.GetWorkspacePriority
 
 return LoadOrder
-end
-
--- Helper function to sort objects by load order
-function LoadOrder.SortObjects(objects: {Instance}): {Instance}
-	local sorted = {}
-	for _, obj in ipairs(objects) do
-		table.insert(sorted, obj)
-	end
-	
-	table.sort(sorted, function(a, b)
-		return LoadOrder.GetPriority(a.Name) < LoadOrder.GetPriority(b.Name)
-	end)
-	
-	return sorted
-end
-
-return LoadOrder
