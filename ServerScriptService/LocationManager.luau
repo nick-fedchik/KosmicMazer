@@ -157,7 +157,19 @@ local function loadSpaceStation()
 		-- Initialize PlanetSurfaceScanner when Space Station is loaded
 		local planetSurfaceScanner = Workspace:FindFirstChild("PlanetSurfaceScanner")
 		if planetSurfaceScanner then
-			local PlanetSurfaceScannerModule = script.Parent:FindFirstChild("PlanetSurfaceScanner")
+			-- Load PlanetSurfaceScanner module from SpaceStation scripts folder
+			local spaceStationScripts = ServerStorage:FindFirstChild("Space")
+			if spaceStationScripts then
+				spaceStationScripts = spaceStationScripts:FindFirstChild("SpaceStation")
+			end
+			if spaceStationScripts then
+				spaceStationScripts = spaceStationScripts:FindFirstChild("Scripts")
+			end
+			if spaceStationScripts then
+				spaceStationScripts = spaceStationScripts:FindFirstChild("Server")
+			end
+			
+			local PlanetSurfaceScannerModule = spaceStationScripts and spaceStationScripts:FindFirstChild("PlanetSurfaceScanner")
 			if PlanetSurfaceScannerModule then
 				local success, result = pcall(function()
 					local PlanetSurfaceScanner = require(PlanetSurfaceScannerModule)
@@ -170,10 +182,10 @@ local function loadSpaceStation()
 					warn("[Location] ❌ Не вдалося ініціалізувати PlanetSurfaceScanner: " .. tostring(result))
 				end
 			else
-				local expectedPath = "ServerScriptService/PlanetSurfaceScanner.luau"
+				local expectedPath = "ServerStorage/Space/SpaceStation/Scripts/Server/PlanetSurfaceScanner.luau"
 				warn("[Location] ⚠️ PlanetSurfaceScanner модуль не знайдено")
 				warn("  └─ Очікуваний шлях: " .. expectedPath)
-				warn("  └─ Переконайтесь що ModuleScript існує в ServerScriptService")
+				warn("  └─ Переконайтесь що ModuleScript існує в ServerStorage/Space/SpaceStation/Scripts/Server/")
 			end
 		else
 			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Workspace")

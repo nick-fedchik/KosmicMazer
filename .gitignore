@@ -16,3 +16,12 @@
 # Misc
 .DS_Store
 /Backups/
+Thumbs.db
+
+# Logs / temp
+*.log
+logs/
+tmp/
+
+# VS Code (за потреби)
+.vscode/settings.json

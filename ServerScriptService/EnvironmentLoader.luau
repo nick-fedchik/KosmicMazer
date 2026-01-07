@@ -181,21 +181,13 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
         -- Process SpaceStation Scripts
         local scriptsFolder = spaceStationFolder:FindFirstChild("Scripts")
         if scriptsFolder then
-            -- Process Server scripts (copy to Workspace)
+            -- Process Server scripts (keep in ServerStorage for LocationManager access)
             local serverFolder = scriptsFolder:FindFirstChild("Server")
             if serverFolder then
+                -- Server scripts remain in ServerStorage - LocationManager will access them directly
+                print("  ✅ Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
                 for _, script in ipairs(serverFolder:GetChildren()) do
-                    if script:IsA("ModuleScript") then
-                        -- ModuleScript: clone to workspace for local data
-                        local clone = script:Clone()
-                        clone.Parent = Workspace
-                        print("  ✅ Server ModuleScript copied:", script.Name)
-                    elseif script:IsA("Script") then
-                        -- Script: clone to workspace (will execute automatically)
-                        local clone = script:Clone()
-                        clone.Parent = Workspace
-                        print("  ✅ Server Script copied:", script.Name)
-                    end
+                    print("    -", script.Name, "(" .. script.ClassName .. ")")
                 end
             end
             
