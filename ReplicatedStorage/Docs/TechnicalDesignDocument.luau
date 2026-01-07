@@ -4,7 +4,7 @@ KOSMICMAZER — TECHNICAL DESIGN DOCUMENT (TDD)
 ================================================================================
 
 Purpose: Технічна архітектура, системи, потоки даних та обмеження реалізації
-Version: 3.6
+Version: 3.7
 Status: Active Implementation
 Owner: Development Team
 Last Updated: 2026-01-07
@@ -62,8 +62,8 @@ ServerScriptService/
 ├── DataStoreManager.luau     -- Персистенція даних гравців
 ├── PlayerDataManager.luau    -- Керування станом гравців
 ├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.5)
-├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.2)
-├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.1)
+├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.3)
+├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.4)
 ├── ObjectTypeValidator.luau  -- Валідація структур (v1.1)
 └── Helpers/
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування
@@ -91,10 +91,10 @@ ReplicatedStorage/
 ServerStorage/
 ├── Space/
 │   └── SpaceStation/
-│       ├── Models/
+│       ├── Workspace/
 │       │   ├── SpawnLocation              -- SpawnLocation: Точка спавну гравця
 │       │   ├── PlanetSurfaceScanner       -- Model: Сканер планети
-│       │   └── ...
+│       │   └── ...                        -- Весь контент копіюється в game.Workspace
 │       ├── Scripts/
 │       │   ├── Server/
 │       │   │   ├── PlanetSurfaceScanner.luau         -- ModuleScript: Логіка сканера
@@ -102,26 +102,23 @@ ServerStorage/
 │       │   └── Client/
 │       │       ├── StationUI.luau         -- LocalScript: UI станції
 │       │       └── ScannerUI.luau         -- LocalScript: UI сканера
-│       ├── Configuration/
-│       │   └── LoadOrder.luau             -- ModuleScript: Порядок завантаження об'єктів (v1.0)
-│       └── Lighting/
-│           ├── Sky                        -- Sky: Skybox станції
-│           └── ...
+│       └── Configuration/
+│           └── LoadOrder.luau             -- ModuleScript: Порядок завантаження об'єктів (v1.0)
 └── Planets/
     └── Planet_1/
-        ├── PlanetModel/
-        │   └── Planet                     -- Model: Модель планети на орбіті
+        ├── Workspace/
+        │   └── Planet                     -- Model: Модель планети на орбіті (копіюється в game.Workspace)
         ├── Lighting/
-        │   ├── Sky                        -- Sky: Skybox планети
-        │   └── Atmosphere                 -- Atmosphere: Атмосфера
+        │   ├── Sky                        -- Sky: Skybox планети (копіюється в game.Lighting)
+        │   └── Atmosphere                 -- Atmosphere: Атмосфера (копіюється в game.Lighting)
         ├── Configuration/
         │   └── PlanetConfig.luau          -- ModuleScript: Конфіг планети (v1.0)
         └── Locations/
             ├── Location_1/
-            │   ├── Models/
+            │   ├── Workspace/
             │   │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
             │   │   ├── Baseplate          -- Part: Підлога
-            │   │   └── ...
+            │   │   └── ...                -- Весь контент копіюється в game.Workspace
             │   ├── Scripts/
             │   │   ├── Server/
             │   │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
@@ -130,54 +127,80 @@ ServerStorage/
             │   ├── Configuration/
             │   │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів (v1.0)
             │   └── Lighting/
-            │       └── Sky                -- Sky: Skybox локації
+            │       └── Sky                -- Sky: Skybox локації (копіюється в game.Lighting)
             ├── Location_2/
-            │   ├── Models/
+            │   ├── Workspace/
             │   │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
-            │   │   └── ...
+            │   │   └── ...                -- Весь контент копіюється в game.Workspace
             │   ├── Scripts/
             │   │   └── Server/
             │   │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
-            │   └── Configuration/
-            │       └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
+            │   ├── Configuration/
+            │   │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
+            │   └── Lighting/
+            │       └── ...                -- Копіюється в game.Lighting
             └── Location_3/
-                ├── Models/
+                ├── Workspace/
                 │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
-                │   └── ...
+                │   └── ...                -- Весь контент копіюється в game.Workspace
                 ├── Scripts/
                 │   └── Server/
                 │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
-                └── Configuration/
-                    └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
+                ├── Configuration/
+                │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
+                └── Lighting/
+                    └── ...                -- Копіюється в game.Lighting
 
-3.2 Планована структура (див. ArchitectureImproves.luau)
+3.2 Правила іменування папок Workspace та Lighting
+
+ВАЖЛИВО: Назви папок показують призначення контенту
+
+Workspace папка:
+- Увесь контент з цієї папки копіюється в game.Workspace
+- Містить всі ігрові об'єкти: моделі, частини, SpawnLocation, тощо
+- Попередня назва: Models, PlanetModel
+- Нова назва: Workspace (показує що це → game.Workspace)
+
+Lighting папка:
+- Увесь контент з цієї папки копіюється в game.Lighting
+- Містить: Sky, Atmosphere, ColorCorrection, Bloom, тощо
+- Планети мають Lighting (Sky, Atmosphere для космосу)
+- Локації мають Lighting (Sky для поверхні планети)
+- SpaceStation НЕ має окремої Lighting (використовує Lighting планети)
+
+Cleaning правила:
+- Перед завантаженням нового середовища:
+  1. Очищується game.Workspace (крім Camera, Terrain)
+  2. Очищується game.Lighting (всі дочірні об'єкти)
+- EnvironmentLoader.clearWorkspace() виконує обидва очищення
+
+3.3 Планована структура (див. ArchitectureImproves.luau)
 
 ServerStorage/
 ├── Space/
 │   ├── SpaceStation/
-│   │   ├── Models/
+│   │   ├── Workspace/      -- Контент → game.Workspace
 │   │   ├── Scripts/
 │   │   │   ├── Server/     -- Server scripts (→ Workspace/require)
 │   │   │   └── Client/     -- Client scripts (→ StarterPlayerScripts)
-│   │   ├── Lighting/
 │   │   └── Configuration/
 │   └── Common/
 ├── Planets/
 │   └── Planet_1/
-│       ├── PlanetModel/
-│       ├── Lighting/
+│       ├── Workspace/      -- Контент → game.Workspace
+│       ├── Lighting/       -- Контент → game.Lighting
 │       ├── Locations/
 │       │   └── Location_N/
-│       │       ├── Models/
+│       │       ├── Workspace/      -- Контент → game.Workspace
 │       │       ├── Scripts/
 │       │       │   ├── Server/ -- Server scripts
 │       │       │   └── Client/ -- Client scripts
-│       │       ├── Lighting/
+│       │       ├── Lighting/       -- Контент → game.Lighting
 │       │       └── Configuration/
 │       └── Configuration/
 └── Effects/
 
-3.3 Обмеження розміщення скриптів в Roblox
+3.4 Обмеження розміщення скриптів в Roblox
 
 Типи скриптів:
 - Script (в ServerScriptService) → виконується ТІЛЬКИ на сервері

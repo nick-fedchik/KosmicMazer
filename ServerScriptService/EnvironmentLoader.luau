@@ -4,15 +4,16 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.3
+Version: 1.4
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
 - Loads Planet Environment (Location only)
-- Clears Workspace completely
+- Clears Workspace and Lighting completely
 - Verifies all objects loaded
 - Template-based loading system
-- Supports custom LoadOrder configuration
+- Workspace folder naming convention (content → game.Workspace)
+- Lighting folder content → game.Lighting
 
 API:
 - LoadSpaceEnvironment(planetId): Loads space environment with planet
@@ -26,6 +27,9 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.4: Refactored to use Workspace folders (Models→Workspace, PlanetModel→Workspace)
+- Version 1.4: Removed SpaceStation/Lighting (now uses Planet/Lighting)
+- Version 1.4: Added Lighting cleanup for game.Lighting
 - Version 1.3: Updated to use Models folder structure for planet locations
 - Version 1.2: Added LoadOrder support for custom object loading sequence
 - Version 1.1: Added detailed logging and fixed SpawnLocation verification
@@ -68,7 +72,13 @@ local function clearWorkspace()
         end
     end
     
-    print("[EnvironmentLoader] ✅ Workspace cleared")
+    -- Clear Lighting (except essential properties)
+    local Lighting = game:GetService("Lighting")
+    for _, child in ipairs(Lighting:GetChildren()) do
+        child:Destroy()
+    end
+    
+    print("[EnvironmentLoader] ✅ Workspace and Lighting cleared")
 end
 
 -- Helper function to copy folder contents with optional load order
@@ -151,7 +161,7 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     -- Clear workspace first
     clearWorkspace()
     
-    -- Load planet model and lighting
+    -- Load planet workspace (visual model) and lighting
     local planetsFolder = ServerStorage:FindFirstChild("Planets")
     if not planetsFolder then
         warn("[EnvironmentLoader] ❌ Planets folder not found")
@@ -167,33 +177,42 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
         return false
     end
     
-    -- Copy planet model
-    local planetModel = planetFolder:FindFirstChild("PlanetModel")
-    if planetModel then
-        copyFolderContents(planetModel, Workspace)
-        print("[EnvironmentLoader] ✅ Planet model loaded")
+    -- Copy planet workspace (visual model on orbit)
+    local planetWorkspace = planetFolder:FindFirstChild("Workspace")
+    if planetWorkspace then
+        copyFolderContents(planetWorkspace, Workspace)
+        print("[EnvironmentLoader] ✅ Planet workspace loaded")
+    else
+        warn("[EnvironmentLoader] ⚠️ Planet Workspace folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Workspace")
     end
     
-    -- Copy planet lighting
+    -- Copy planet lighting (Sky, Atmosphere, etc.)
     local planetLighting = planetFolder:FindFirstChild("Lighting")
     if planetLighting then
         copyFolderContents(planetLighting, game.Lighting)
         print("[EnvironmentLoader] ✅ Planet lighting loaded")
+    else
+        warn("[EnvironmentLoader] ⚠️ Planet Lighting folder not found")
     end
     
     -- Load space station
-    local spaceStationFolder = ServerStorage:FindFirstChild("Space"):FindFirstChild("SpaceStation")
+    local spaceStationFolder = ServerStorage:FindFirstChild("Space")
     if spaceStationFolder then
-        -- Copy all models with load order
-        local modelsFolder = spaceStationFolder:FindFirstChild("Models")
-        if modelsFolder then
-            print("[EnvironmentLoader] 📋 Models folder contains:", #modelsFolder:GetChildren(), "objects")
-            for _, child in ipairs(modelsFolder:GetChildren()) do
+        spaceStationFolder = spaceStationFolder:FindFirstChild("SpaceStation")
+    end
+    
+    if spaceStationFolder then
+        -- Copy all workspace objects with load order
+        local workspaceFolder = spaceStationFolder:FindFirstChild("Workspace")
+        if workspaceFolder then
+            print("[EnvironmentLoader] 📋 SpaceStation Workspace contains:", #workspaceFolder:GetChildren(), "objects")
+            for _, child in ipairs(workspaceFolder:GetChildren()) do
                 print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
             end
             
-            copyFolderContents(modelsFolder, Workspace, loadOrder)
-            print("[EnvironmentLoader] ✅ Space Station models loaded")
+            copyFolderContents(workspaceFolder, Workspace, loadOrder)
+            print("[EnvironmentLoader] ✅ Space Station workspace loaded")
             
             -- Verify what's in Workspace after copying
             print("[EnvironmentLoader] 📋 Workspace now contains:")
@@ -205,6 +224,9 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
                     end
                 end
             end
+        else
+            warn("[EnvironmentLoader] ⚠️ SpaceStation Workspace folder not found")
+            warn("  └─ Очікуваний шлях: ServerStorage/Space/SpaceStation/Workspace")
         end
         
         -- Process SpaceStation Scripts
@@ -313,19 +335,19 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         return false
     end
     
-    -- Copy location models with load order
-    local modelsFolder = locationFolder:FindFirstChild("Models")
-    if modelsFolder then
-        print("[EnvironmentLoader] 📋 Models folder contains:", #modelsFolder:GetChildren(), "objects")
-        for _, child in ipairs(modelsFolder:GetChildren()) do
+    -- Copy location workspace objects with load order
+    local workspaceFolder = locationFolder:FindFirstChild("Workspace")
+    if workspaceFolder then
+        print("[EnvironmentLoader] 📋 Location Workspace contains:", #workspaceFolder:GetChildren(), "objects")
+        for _, child in ipairs(workspaceFolder:GetChildren()) do
             print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
         end
         
-        copyFolderContents(modelsFolder, Workspace, loadOrder)
-        print("[EnvironmentLoader] ✅ Location models loaded")
+        copyFolderContents(workspaceFolder, Workspace, loadOrder)
+        print("[EnvironmentLoader] ✅ Location workspace loaded")
     else
-        warn("[EnvironmentLoader] ⚠️ Models folder not found in location")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Models")
+        warn("[EnvironmentLoader] ⚠️ Workspace folder not found in location")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Workspace")
     end
     
     -- Copy location lighting
@@ -333,6 +355,8 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
     if locationLighting then
         copyFolderContents(locationLighting, game.Lighting)
         print("[EnvironmentLoader] ✅ Location lighting loaded")
+    else
+        warn("[EnvironmentLoader] ⚠️ Lighting folder not found in location")
     end
     
     print("[EnvironmentLoader] ✅ Location contents loaded")
