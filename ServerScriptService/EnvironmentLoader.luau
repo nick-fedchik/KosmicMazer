@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.5
+Version: 1.6
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -195,6 +195,32 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
         warn("[EnvironmentLoader] ⚠️ Planet Lighting folder not found")
     end
     
+    -- Process Planet Scripts (optional - for planet-wide scripts)
+    local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
+    if planetScriptsFolder then
+        -- Process Server scripts
+        local serverFolder = planetScriptsFolder:FindFirstChild("Server")
+        if serverFolder then
+            print("[EnvironmentLoader] ✅ Planet Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
+            for _, script in ipairs(serverFolder:GetChildren()) do
+                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
+            end
+        end
+        
+        -- Process Client scripts
+        local clientFolder = planetScriptsFolder:FindFirstChild("Client")
+        if clientFolder then
+            local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+            for _, script in ipairs(clientFolder:GetChildren()) do
+                if script:IsA("LocalScript") then
+                    local clone = script:Clone()
+                    clone.Parent = StarterPlayerScripts
+                    print("[EnvironmentLoader] ✅ Planet Client Script copied to StarterPlayerScripts:", script.Name)
+                end
+            end
+        end
+    end
+    
     -- Load space station
     local spaceStationFolder = ServerStorage:FindFirstChild("Space")
     if spaceStationFolder then
@@ -304,7 +330,7 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
     -- Clear workspace first
     clearWorkspace()
     
-    -- Get location folder
+    -- Get planet and location folders
     local planetsFolder = ServerStorage:FindFirstChild("Planets")
     if not planetsFolder then
         warn("[EnvironmentLoader] ❌ Planets folder not found")
@@ -319,6 +345,33 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         return false
     end
     
+    -- Process Planet Scripts first (common for all locations)
+    local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
+    if planetScriptsFolder then
+        -- Process Server scripts
+        local serverFolder = planetScriptsFolder:FindFirstChild("Server")
+        if serverFolder then
+            print("[EnvironmentLoader] ✅ Planet Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
+            for _, script in ipairs(serverFolder:GetChildren()) do
+                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
+            end
+        end
+        
+        -- Process Client scripts
+        local clientFolder = planetScriptsFolder:FindFirstChild("Client")
+        if clientFolder then
+            local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+            for _, script in ipairs(clientFolder:GetChildren()) do
+                if script:IsA("LocalScript") then
+                    local clone = script:Clone()
+                    clone.Parent = StarterPlayerScripts
+                    print("[EnvironmentLoader] ✅ Planet Client Script copied to StarterPlayerScripts:", script.Name)
+                end
+            end
+        end
+    end
+    
+    -- Get location folder
     local locationsFolder = planetFolder:FindFirstChild("Locations")
     if not locationsFolder then
         warn("[EnvironmentLoader] ❌ Locations folder not found")

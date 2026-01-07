@@ -4,7 +4,7 @@ KOSMICMAZER — TECHNICAL DESIGN DOCUMENT (TDD)
 ================================================================================
 
 Purpose: Технічна архітектура, системи, потоки даних та обмеження реалізації
-Version: 3.8
+Version: 3.9
 Status: Active Implementation
 Owner: Development Team
 Last Updated: 2026-01-07
@@ -63,7 +63,7 @@ ServerScriptService/
 ├── PlayerDataManager.luau    -- Керування станом гравців
 ├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.5)
 ├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.3)
-├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.5)
+├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.6)
 ├── ObjectTypeValidator.luau  -- Валідація структур (v1.1)
 └── Helpers/
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування
@@ -111,6 +111,11 @@ ServerStorage/
         ├── Lighting/
         │   ├── Sky                        -- Sky: Skybox планети (копіюється в game.Lighting)
         │   └── Atmosphere                 -- Atmosphere: Атмосфера (копіюється в game.Lighting)
+        ├── Scripts/
+        │   ├── Server/
+        │   │   └── ...                    -- ModuleScript: Загальні серверні скрипти планети
+        │   └── Client/
+        │       └── ...                    -- LocalScript: Загальні клієнтські скрипти планети
         ├── Configuration/
         │   └── PlanetConfig.luau          -- ModuleScript: Конфіг планети (v1.0)
         └── Locations/
@@ -174,12 +179,26 @@ Lighting папка:
 
 Scripts папка:
 - Має дві підпапки: Server/ та Client/
-- Scripts/Server/ - ModuleScripts, залишаються в ServerStorage
-  - Доступні через require() з LocationManager
-  - Використовуються для серверної логіки (LocationGameServer, тощо)
-- Scripts/Client/ - LocalScripts, копіюються в StarterPlayerScripts
-  - Копіюються для кожного гравця при завантаженні локації
-  - Виконуються на клієнті для UI та клієнтської логіки
+- Існує на трьох рівнях:
+  1. Space/SpaceStation/Scripts - скрипти космічної станції
+  2. Planets/Planet_N/Scripts - загальні скрипти планети (для всіх локацій)
+  3. Planets/Planet_N/Locations/Location_N/Scripts - скрипти конкретної локації
+
+Scripts/Server/:
+- ModuleScripts, залишаються в ServerStorage
+- Доступні через require() з LocationManager та інших систем
+- Використовуються для серверної логіки (LocationGameServer, PlanetSurfaceScanner, тощо)
+
+Scripts/Client/:
+- LocalScripts, копіюються в StarterPlayerScripts
+- Копіюються для кожного гравця при завантаженні середовища
+- Виконуються на клієнті для UI та клієнтської логіки
+- Послідовність копіювання при завантаженні Space:
+  1. Planet/Scripts/Client/ (загальні для планети)
+  2. SpaceStation/Scripts/Client/ (специфічні для станції)
+- Послідовність при завантаженні Location:
+  1. Planet/Scripts/Client/ (загальні для планети) - при LoadSpaceEnvironment
+  2. Location/Scripts/Client/ (специфічні для локації) - при LoadPlanetEnvironment
 
 Cleaning правила:
 - Перед завантаженням нового середовища:
@@ -203,6 +222,9 @@ ServerStorage/
 │   └── Planet_1/
 │       ├── Workspace/      -- Контент → game.Workspace
 │       ├── Lighting/       -- Контент → game.Lighting
+│       ├── Scripts/
+│       │   ├── Server/     -- Загальні серверні скрипти планети
+│       │   └── Client/     -- Загальні клієнтські скрипти планети
 │       ├── Locations/
 │       │   └── Location_N/
 │       │       ├── Workspace/      -- Контент → game.Workspace
