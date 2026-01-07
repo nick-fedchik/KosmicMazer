@@ -4,7 +4,7 @@ KOSMICMAZER — Location Manager (Module)
 ================================================================================
 
 Purpose: Manages location switching and workspace organization
-Version: 2.2
+Version: 2.3
 
 Features:
 - Handles location transitions (Space Station ↔ Planet Locations)
@@ -39,6 +39,7 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 2.3: Added LoadOrder configuration support for custom loading sequences
 - Version 2.2: FIXED - Updated Called from references to reflect TeleportationManager usage
 - Version 2.1: CRITICAL - Fixed ModuleScript creation and loading issues
 - Version 2.0: CRITICAL - Converted from Script to ModuleScript for better modularity and initialization control
@@ -151,8 +152,25 @@ local function loadSpaceStation()
 	-- Load EnvironmentLoader module
 	local EnvironmentLoader = require(script.Parent:FindFirstChild("EnvironmentLoader"))
 	
-	-- Use EnvironmentLoader to load space environment
-	local success = EnvironmentLoader.LoadSpaceEnvironment(getCurrentPlanet())
+	-- Try to load LoadOrder configuration
+	local loadOrder = nil
+	local spaceStationConfig = ServerStorage:FindFirstChild("Space")
+	if spaceStationConfig then
+		spaceStationConfig = spaceStationConfig:FindFirstChild("SpaceStation")
+	end
+	if spaceStationConfig then
+		spaceStationConfig = spaceStationConfig:FindFirstChild("Configuration")
+	end
+	if spaceStationConfig then
+		local loadOrderModule = spaceStationConfig:FindFirstChild("LoadOrder")
+		if loadOrderModule then
+			loadOrder = require(loadOrderModule)
+			print("[Location] 📋 LoadOrder configuration loaded for SpaceStation")
+		end
+	end
+	
+	-- Use EnvironmentLoader to load space environment with optional load order
+	local success = EnvironmentLoader.LoadSpaceEnvironment(getCurrentPlanet(), loadOrder)
 	
 	if success then
 		-- Position Space Station
@@ -226,8 +244,31 @@ local function loadLocation(planetId, locationId)
 	-- Load EnvironmentLoader module
 	local EnvironmentLoader = require(script.Parent:FindFirstChild("EnvironmentLoader"))
 	
-	-- Use EnvironmentLoader to load planet environment
-	local success = EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
+	-- Try to load LoadOrder configuration for this location
+	local loadOrder = nil
+	local locationConfig = ServerStorage:FindFirstChild("Planets")
+	if locationConfig then
+		locationConfig = locationConfig:FindFirstChild(planetId)
+	end
+	if locationConfig then
+		locationConfig = locationConfig:FindFirstChild("Locations")
+	end
+	if locationConfig then
+		locationConfig = locationConfig:FindFirstChild(locationId)
+	end
+	if locationConfig then
+		locationConfig = locationConfig:FindFirstChild("Configuration")
+	end
+	if locationConfig then
+		local loadOrderModule = locationConfig:FindFirstChild("LoadOrder")
+		if loadOrderModule then
+			loadOrder = require(loadOrderModule)
+			print("[Location] 📋 LoadOrder configuration loaded for", locationId)
+		end
+	end
+	
+	-- Use EnvironmentLoader to load planet environment with optional load order
+	local success = EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder)
 	
 	if success then
 		print("[Location] ✅ Локацію", locationId, "завантажено")

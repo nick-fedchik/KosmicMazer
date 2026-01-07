@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.1
+Version: 1.2
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -12,6 +12,7 @@ Features:
 - Clears Workspace completely
 - Verifies all objects loaded
 - Template-based loading system
+- Supports custom LoadOrder configuration
 
 API:
 - LoadSpaceEnvironment(planetId): Loads space environment with planet
@@ -25,6 +26,8 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.2: Added LoadOrder support for custom object loading sequence
+- Version 1.1: Added detailed logging and fixed SpawnLocation verification
 - Version 1.0: Initial implementation for Phase 1 refactoring
 
 ================================================================================
@@ -67,13 +70,21 @@ local function clearWorkspace()
     print("[EnvironmentLoader] ✅ Workspace cleared")
 end
 
--- Helper function to copy folder contents
-local function copyFolderContents(sourceFolder, targetParent)
+-- Helper function to copy folder contents with optional load order
+local function copyFolderContents(sourceFolder, targetParent, loadOrder)
     if not sourceFolder or not targetParent then
         return false
     end
     
-    for _, child in ipairs(sourceFolder:GetChildren()) do
+    local children = sourceFolder:GetChildren()
+    
+    -- If loadOrder is provided, sort children by it
+    if loadOrder and loadOrder.SortObjects then
+        children = loadOrder.SortObjects(children)
+        print("[EnvironmentLoader] 📋 Using custom load order for:", sourceFolder.Name)
+    end
+    
+    for _, child in ipairs(children) do
         local clone = child:Clone()
         clone.Parent = targetParent
         print("[EnvironmentLoader] 📦 Copied:", child.Name, "(" .. child.ClassName .. ") to", targetParent:GetFullName())
@@ -112,7 +123,7 @@ local function verifyObjectsLoaded(expectedObjects)
 end
 
 -- Load Space Environment (Planet + SpaceStation)
-function EnvironmentLoader.LoadSpaceEnvironment(planetId)
+function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     print("[EnvironmentLoader] 🚀 Loading Space Environment for planet:", planetId)
     
     -- Validate planet structure first
@@ -172,7 +183,7 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
     -- Load space station
     local spaceStationFolder = ServerStorage:FindFirstChild("Space"):FindFirstChild("SpaceStation")
     if spaceStationFolder then
-        -- Copy all models
+        -- Copy all models with load order
         local modelsFolder = spaceStationFolder:FindFirstChild("Models")
         if modelsFolder then
             print("[EnvironmentLoader] 📋 Models folder contains:", #modelsFolder:GetChildren(), "objects")
@@ -180,7 +191,7 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
                 print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
             end
             
-            copyFolderContents(modelsFolder, Workspace)
+            copyFolderContents(modelsFolder, Workspace, loadOrder)
             print("[EnvironmentLoader] ✅ Space Station models loaded")
             
             -- Verify what's in Workspace after copying
@@ -252,7 +263,7 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
 end
 
 -- Load Planet Environment (Location only)
-function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
+function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder)
     print("[EnvironmentLoader] 🪐 Loading Planet Environment:", planetId, "location:", locationId)
     
     -- Validate location structure first
@@ -301,11 +312,25 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
         return false
     end
     
-    -- Copy all location contents
+    -- Copy all location contents with load order
+    local children = {}
     for _, child in ipairs(locationFolder:GetChildren()) do
-        if child.Name ~= "Configuration" then -- Don't copy config to workspace
-            child:Clone().Parent = Workspace
+        if child.Name ~= "Configuration" and child.Name ~= "Scripts" then -- Don't copy config or scripts to workspace
+            table.insert(children, child)
         end
+    end
+    
+    -- Sort by load order if provided
+    if loadOrder and loadOrder.SortObjects then
+        children = loadOrder.SortObjects(children)
+        print("[EnvironmentLoader] 📋 Using custom load order for location:", locationId)
+    end
+    
+    -- Copy sorted children
+    for _, child in ipairs(children) do
+        local clone = child:Clone()
+        clone.Parent = Workspace
+        print("[EnvironmentLoader] 📦 Copied:", child.Name, "(" .. child.ClassName .. ") to Workspace")
     end
     
     print("[EnvironmentLoader] ✅ Location contents loaded")
