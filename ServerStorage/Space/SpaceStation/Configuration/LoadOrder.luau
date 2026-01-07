@@ -6,29 +6,86 @@ KOSMICMAZER — Space Station Load Order Configuration
 Purpose: Defines the loading order for Space Station content
 Version: 2.0
 
-Description:
-This module defines the loading order for:
-- Workspace objects (copied to game.Workspace)
-- Server scripts (loaded as modules or cloned)
-- Client scripts (copied to StarterPlayerScripts)
+Features:
+- Priority-based loading for Workspace objects
+- Server scripts loading order (require/clone)
+- Client scripts loading order
+- Configurable timeout and verification settings
 
-Loading is done in the specified priority order (lower numbers load first).
+API:
+- LoadOrder.GetWorkspacePriority(objectName): Returns priority for object
+- LoadOrder.GetServerScriptPriority(scriptName): Returns priority for script
+- LoadOrder.GetClientScriptPriority(scriptName): Returns priority for script
+- LoadOrder.GetServerScriptAction(scriptName): Returns "require" or "clone"
+- LoadOrder.SortObjects(objects): Returns sorted array by priority
 
-Structure:
-- WorkspaceObjects: Objects from SpaceStation/Workspace/
-- ServerScripts: Scripts from SpaceStation/Scripts/Server/
-- ClientScripts: Scripts from SpaceStation/Scripts/Client/
+Calls to:
+- EnvironmentLoader: Reads this config during LoadSpaceEnvironment()
+- LoadOrderProcessor: Processes this configuration
 
-Priority Rules:
-- 1-100: Core infrastructure (Planet, core modules)
-- 101-500: Standard objects and scripts
-- 501-998: Optional/secondary content
-- 999: SpawnLocation and critical finalizers (load last)
-- Default (unlisted): 500
+Called from:
+- EnvironmentLoader.LoadSpaceEnvironment()
 
-Usage:
-LoadOrder is read by EnvironmentLoader during LoadSpaceEnvironment().
-Objects/scripts not listed will be loaded with default priority (500).
+Dependencies:
+- ServerStorage.Space.SpaceStation.Workspace
+- ServerStorage.Space.SpaceStation.Scripts
+
+ChangeLog:
+- Version 2.0: Added ServerScripts, ClientScripts, Settings sections
+- Version 1.0: Initial implementation (WorkspaceObjects only)
+
+================================================================================
+]]
+
+--[[
+================================================================================
+ІНСТРУКЦІЯ З НАЛАШТУВАННЯ
+================================================================================
+
+📋 СТРУКТУРА КОНФІГУРАЦІЇ:
+
+LoadOrder визначає порядок завантаження трьох типів контенту:
+
+1. WorkspaceObjects - об'єкти з папки Workspace/
+   Копіюються в game.Workspace при завантаженні
+
+2. ServerScripts - скрипти з папки Scripts/Server/
+   ModuleScripts: action="require" (завантажуються як модулі)
+   Scripts: action="clone" (копіюються в Workspace)
+
+3. ClientScripts - скрипти з папки Scripts/Client/
+   Копіюються в StarterPlayerScripts для кожного гравця
+
+⚙️ ПРАВИЛА ПРІОРИТЕТУ:
+
+Пріоритет визначає послідовність завантаження (менше число = раніше):
+- 1-100: Базова інфраструктура (Planet, основні модулі)
+- 101-500: Стандартний контент (будівлі, NPC, ігрова логіка)
+- 501-998: Опціональний контент (декорації, ефекти, UI)
+- 999: Критичні фіналізатори (SpawnLocation - ЗАВЖДИ останнім!)
+- 500: За замовчуванням (для об'єктів не вказаних в списку)
+
+⚠️ ВАЖЛИВО:
+SpawnLocation ЗАВЖДИ повинен мати priority = 999 щоб завантажуватись останнім!
+Це гарантує що точка спавну існує після завантаження всього контенту.
+
+📝 ЯК НАЛАШТУВАТИ:
+
+1. Додайте об'єкт до відповідної секції (WorkspaceObjects/ServerScripts/ClientScripts)
+2. Вкажіть назву об'єкта (name)
+3. Встановіть пріоритет (priority) згідно правил вище
+4. Для ServerScripts вкажіть дію (action): "require" або "clone"
+5. Додайте опис (description) для документації
+
+ПРИКЛАД:
+{name = "PlanetSurfaceScanner", priority = 2, description = "Сканер поверхні планети"},
+
+🔧 SETTINGS (Налаштування):
+- LoadTimeout: Максимальний час очікування завантаження (секунди)
+- EnableParallelLoading: Паралельне завантаження (експериментально)
+- VerifyAfterLoad: Перевірка успішності завантаження
+
+📚 Детальна документація: ReplicatedStorage/Docs/LoadOrderSystem.luau
 
 ================================================================================
 ]]

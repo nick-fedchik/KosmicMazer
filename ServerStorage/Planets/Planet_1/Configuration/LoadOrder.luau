@@ -7,33 +7,88 @@ Purpose: Defines the loading order for Planet-level content
 Version: 2.0
 Planet: Planet_1 (Залізяка)
 
-Description:
-This module defines the loading order for:
-- Workspace objects (copied to game.Workspace)
-- Planet-wide server scripts (loaded as modules)
-- Planet-wide client scripts (copied to StarterPlayerScripts)
+Features:
+- Priority-based loading for Planet Workspace objects
+- Planet-wide server scripts loading order
+- Planet-wide client scripts loading order
+- Configurable timeout and verification settings
 
-Loading is done in the specified priority order (lower numbers load first).
+API:
+- LoadOrder.GetWorkspacePriority(objectName): Returns priority for object
+- LoadOrder.GetServerScriptPriority(scriptName): Returns priority for script
+- LoadOrder.GetClientScriptPriority(scriptName): Returns priority for script
+- LoadOrder.GetServerScriptAction(scriptName): Returns "require" or "clone"
+- LoadOrder.SortObjects(objects): Returns sorted array by priority
 
-Structure:
-- WorkspaceObjects: Objects from Planet/Workspace/
-- ServerScripts: Scripts from Planet/Scripts/Server/
-- ClientScripts: Scripts from Planet/Scripts/Client/
+Calls to:
+- EnvironmentLoader: Reads this config during LoadPlanetEnvironment()
+- LoadOrderProcessor: Processes this configuration
 
-Priority Rules:
-- 1-100: Core infrastructure (Planet model, atmosphere)
-- 101-500: Standard objects and scripts
-- 501-998: Optional/secondary content
-- 999: Reserved for critical finalizers
-- Default (unlisted): 500
+Called from:
+- EnvironmentLoader.LoadPlanetEnvironment()
+- EnvironmentLoader.LoadSpaceEnvironment()
 
-Usage:
-LoadOrder is read by EnvironmentLoader during LoadPlanetEnvironment().
-Objects/scripts not listed will be loaded with default priority (500).
+Dependencies:
+- ServerStorage.Planets.Planet_1.Workspace
+- ServerStorage.Planets.Planet_1.Scripts
 
-Note:
-Planet-level LoadOrder is processed BEFORE Location-level LoadOrder.
-This ensures planet-wide scripts are available to all locations.
+ChangeLog:
+- Version 2.0: Added ServerScripts, ClientScripts, Settings sections
+- Version 1.0: Initial implementation
+
+================================================================================
+]]
+
+--[[
+================================================================================
+ІНСТРУКЦІЯ З НАЛАШТУВАННЯ
+================================================================================
+
+📋 СТРУКТУРА КОНФІГУРАЦІЇ:
+
+LoadOrder на рівні планети визначає порядок завантаження:
+
+1. WorkspaceObjects - об'єкти з папки Planet/Workspace/
+   Приклад: модель планети, атмосфера
+
+2. ServerScripts - загальні скрипти планети з Scripts/Server/
+   Доступні для ВСІХ локацій цієї планети
+   Приклад: PlanetConfig, PlanetManager
+
+3. ClientScripts - загальні клієнтські скрипти з Scripts/Client/
+   Копіюються для всіх гравців на цій планеті
+   Приклад: PlanetUI, PlanetEffects
+
+⚙️ ПРАВИЛА ПРІОРИТЕТУ:
+
+- 1-100: Базова інфраструктура (модель планети, атмосфера)
+- 101-500: Стандартний контент
+- 501-998: Опціональний контент
+- 999: Зарезервовано для критичних фіналізаторів
+- 500: За замовчуванням
+
+🔄 ПОСЛІДОВНІСТЬ ЗАВАНТАЖЕННЯ:
+
+1. Planet LoadOrder обробляється ПЕРЕД Location LoadOrder
+2. Це гарантує що PlanetConfig доступний для LocationGameServer
+3. Клієнтські скрипти планети завантажуються перед скриптами локації
+
+📝 ЯК НАЛАШТУВАТИ:
+
+1. WorkspaceObjects:
+   {name = "Planet", priority = 1, description = "Модель планети"}
+
+2. ServerScripts:
+   {name = "PlanetConfig", priority = 1, action = "require", description = "Конфігурація планети"}
+
+3. ClientScripts:
+   {name = "PlanetUI", priority = 1, description = "UI планети"}
+
+⚠️ ВАЖЛИВО:
+- Пріоритет ServerScripts має враховувати залежності між модулями
+- Якщо LocationGameServer потребує PlanetConfig, дайте PlanetConfig нижчий пріоритет
+
+📚 Детальна документація: ReplicatedStorage/Docs/LoadOrderSystem.luau
 
 ================================================================================
 ]]
