@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.7
+Version: 1.8
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -14,6 +14,8 @@ Features:
 - Template-based loading system
 - Workspace folder naming convention (content → game.Workspace)
 - Lighting folder content → game.Lighting
+- LoadOrder-based script processing with priority system
+- Automatic ModuleScript initialization
 
 API:
 - LoadSpaceEnvironment(planetId): Loads space environment with planet
@@ -23,10 +25,15 @@ API:
 
 Dependencies:
 - GameConfig: For environment configuration
+- LoadOrderProcessor: For LoadOrder config processing
 - ServerStorage: For template access
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.8: Integrated LoadOrder-based script processing for all levels
+- Version 1.8: ServerScripts now processed with priority system (SpaceStation/Planet/Location)
+- Version 1.8: Automatic ModuleScript.Initialize() calling with Workspace model matching
+- Version 1.8: Added LoadOrderProcessor dependency and removed hardcoded paths
 - Version 1.7: Fixed expectedObjects verification for Workspace structure (removed SpaceStation.SpawnLocation)
 - Version 1.6: Added Scripts processing for Planet level (Planets/Planet_N/Scripts)
 - Version 1.5: Added Scripts processing for planet locations (Client/Server folders)

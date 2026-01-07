@@ -63,7 +63,8 @@ ServerScriptService/
 ├── PlayerDataManager.luau    -- Керування станом гравців
 ├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.5)
 ├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.3)
-├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.6)
+├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.8 + LoadOrder)
+├── LoadOrderProcessor.luau   -- LoadOrder обробка (v1.0)
 ├── ObjectTypeValidator.luau  -- Валідація структур (v1.2)
 └── Helpers/
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування

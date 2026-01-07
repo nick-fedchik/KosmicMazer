@@ -18,7 +18,8 @@ Last Updated: 2026-01-07
 - ✅ Optional PlanetSurfaceScanner: graceful degradation implemented
 - ✅ LoadOrder Configuration: created but deferred (SpawnLocation priority)
 - ✅ ObjectTypeValidator: updated for new Workspace structure
-- ✅ EnvironmentLoader v1.7: supports Workspace loading and Planet Scripts
+- ✅ EnvironmentLoader v1.8: LoadOrder-based script processing integrated
+- ✅ LoadOrderProcessor v1.0: Utility for processing LoadOrder configs
 - ✅ TeleportationManager: fixed fallback paths for Workspace structure
 
 ⏬ PENDING IMPLEMENTATION:
