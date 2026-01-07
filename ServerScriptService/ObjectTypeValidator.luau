@@ -4,7 +4,7 @@ KOSMICMAZER — Object Type Validator
 ================================================================================
 
 Purpose: Validates object types and structure in ServerStorage
-Version: 1.1
+Version: 1.2
 
 Features:
 - Validates planet structure integrity
@@ -24,6 +24,8 @@ Dependencies:
 - ServerStorage: For accessing template structures
 
 ChangeLog:
+- Version 1.2: Updated for new folder structure (Workspace instead of Models/PlanetModel)
+- Version 1.1: Added structure validation and fixing
 - Version 1.0: Initial implementation for Phase 1 refactoring
 
 ================================================================================
@@ -36,7 +38,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 -- Expected structure definitions
 local EXPECTED_PLANET_STRUCTURE = {
-    "PlanetModel",
+    "Workspace",     -- Changed from PlanetModel
     "Lighting", 
     "Scripts",
     "Configuration",
@@ -44,7 +46,7 @@ local EXPECTED_PLANET_STRUCTURE = {
 }
 
 local EXPECTED_LOCATION_STRUCTURE = {
-    "Models",
+    "Workspace",     -- Changed from Models
     "Scripts",
     "Lighting", 
     "Configuration"
@@ -57,10 +59,10 @@ local EXPECTED_LOCATION_MODELS = {
 }
 
 local EXPECTED_SPACE_STATION_STRUCTURE = {
-    "Models",
+    "Workspace",     -- Changed from Models
     "Scripts",
-    "Lighting",
     "Configuration"
+    -- Note: Lighting removed - SpaceStation uses Planet Lighting
 }
 
 local EXPECTED_SPACE_STATION_MODELS = {
@@ -133,11 +135,11 @@ function ObjectTypeValidator.ValidatePlanetStructure(planetId)
         end
     end
     
-    -- Check PlanetModel contains Planet model
-    local planetModelFolder = planetFolder:FindFirstChild("PlanetModel")
-    if planetModelFolder then
-        local planetModel = planetModelFolder:FindFirstChild("Planet")
-        local isValid, message = validateObjectType(planetModel, "Model", "Planets." .. planetId .. ".PlanetModel.Planet")
+    -- Check Workspace contains Planet model
+    local workspaceFolder = planetFolder:FindFirstChild("Workspace")
+    if workspaceFolder then
+        local planetModel = workspaceFolder:FindFirstChild("Planet")
+        local isValid, message = validateObjectType(planetModel, "Model", "Planets." .. planetId .. ".Workspace.Planet")
         if not isValid then
             table.insert(errors, message)
         end
@@ -201,11 +203,11 @@ function ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
         end
     end
     
-    -- Check Models folder contents
-    local modelsFolder = locationFolder:FindFirstChild("Models")
-    if modelsFolder then
+    -- Check Workspace folder contents
+    local workspaceFolder = locationFolder:FindFirstChild("Workspace")
+    if workspaceFolder then
         for _, expectedModel in ipairs(EXPECTED_LOCATION_MODELS) do
-            local model = modelsFolder:FindFirstChild(expectedModel)
+            local model = workspaceFolder:FindFirstChild(expectedModel)
             
             local expectedType = "Model"
             if expectedModel == "Baseplate" then
@@ -216,7 +218,7 @@ function ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
                 expectedType = "Folder"
             end
             
-            local isValid, message = validateObjectType(model, expectedType, "Planets." .. planetId .. ".Locations." .. locationId .. ".Models." .. expectedModel)
+            local isValid, message = validateObjectType(model, expectedType, "Planets." .. planetId .. ".Locations." .. locationId .. ".Workspace." .. expectedModel)
             if not isValid then
                 table.insert(errors, message)
             end
