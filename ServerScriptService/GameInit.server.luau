@@ -4,7 +4,7 @@ KOSMICMAZER — Game Init
 ================================================================================
 
 Purpose: Complete game initialization with intelligent player data handling
-Version: 3.3
+Version: 3.5
 
 Features:
 - Player Login Screen with progress bar and avatar display
@@ -339,7 +339,10 @@ local function spawnPlayer(player, playerProfile)
 	local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
 
 	if not humanoidRootPart then
-		warn("[GameInit] HumanoidRootPart not found for:", player.Name)
+		warn("[GameInit] HumanoidRootPart not found")
+		warn("  └─ Гравець: " .. player.Name)
+		warn("  └─ Очікуваний шлях: Players/" .. player.Name .. "/Character/HumanoidRootPart")
+		warn("  └─ Можливо персонаж не завантажився за 5 секунд")
 		return
 	end
 
@@ -366,7 +369,11 @@ local function spawnPlayer(player, playerProfile)
 		end
 		print("[GameInit] ✅ Гравець з'явився на Космічній Станції")
 	else
-		warn("[GameInit] ⚠️ SpawnLocation не знайдено, використовується позиція за замовчуванням")
+		warn("[GameInit] ⚠️ SpawnLocation не знайдено")
+		warn("  └─ Перевірено шляхи:")
+		warn("    • Workspace/SpaceStation/SpawnLocation")
+		warn("    • ServerStorage/Space/SpaceStation/SpawnLocation")
+		warn("  └─ Використовується позиція за замовчуванням (0, 2, 0)")
 		-- Fallback to default position
 		humanoidRootPart.CFrame = CFrame.new(0, 2, 0)
 		-- Set current location attribute even for fallback
@@ -464,10 +471,14 @@ local function onPlayerAdded(player)
 			end
 		else
 			warn("[GameInit] ❌ LocationManager не є ModuleScript")
+			warn("  └─ Очікувано: ModuleScript")
+			warn("  └─ Отримано: " .. locationManagerModule.ClassName)
 			error("[GameInit] LocationManager має бути ModuleScript")
 		end
 	else
-		error("[GameInit] ❌ LocationManager модуль не знайдено")
+		warn("[GameInit] ❌ LocationManager модуль не знайдено")
+		warn("  └─ Очікуваний шлях: ServerScriptService/LocationManager.luau")
+		error("[GameInit] Неможливо продовжити без LocationManager")
 	end
 	task.wait(1)
 

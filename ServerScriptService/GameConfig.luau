@@ -1,6 +1,6 @@
 --[[
 KOSMICMAZER — Game Configuration
-Version: 3.2
+Version: 3.5
 Purpose: Central configuration settings for the game
 
 API:
@@ -37,7 +37,7 @@ Changes: Updated to version 3.2 with optimized architecture and unified teleport
 
 local GameConfig = {}
 GameConfig.GameName = "KosmicMazer"
-GameConfig.GameVersion = "3.3"
+GameConfig.GameVersion = "3.5"
 
 -- SpawnLocation settings
 GameConfig.SPAWN_COOLDOWN_TIME = 3 -- seconds

@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.0
+Version: 1.1
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -98,7 +98,9 @@ local function verifyObjectsLoaded(expectedObjects)
         if object then
             loadedCount = loadedCount + 1
         else
-            warn("[EnvironmentLoader] ⚠️ Object not found:", objectPath)
+            warn("[EnvironmentLoader] ⚠️ Object not found:")
+            warn("  └─ Шлях: " .. objectPath)
+            warn("  └─ Перевірте що об'єкт існує в Workspace")
         end
     end
     
@@ -137,9 +139,18 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
     clearWorkspace()
     
     -- Load planet model and lighting
-    local planetFolder = ServerStorage:FindFirstChild("Planets"):FindFirstChild(planetId)
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if not planetsFolder then
+        warn("[EnvironmentLoader] ❌ Planets folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets")
+        return false
+    end
+    
+    local planetFolder = planetsFolder:FindFirstChild(planetId)
     if not planetFolder then
-        warn("[EnvironmentLoader] ❌ Planet folder not found:", planetId)
+        warn("[EnvironmentLoader] ❌ Planet folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId)
+        warn("  └─ Доступні планети: " .. #planetsFolder:GetChildren())
         return false
     end
     
@@ -191,14 +202,12 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
             -- Process Client scripts (copy to StarterPlayerScripts)
             local clientFolder = scriptsFolder:FindFirstChild("Client")
             if clientFolder then
-                local Players = game:GetService("Players")
-                for _, player in ipairs(Players:GetPlayers()) do
-                    for _, script in ipairs(clientFolder:GetChildren()) do
-                        if script:IsA("LocalScript") then
-                            local clone = script:Clone()
-                            clone.Parent = player:WaitForChild("PlayerScripts")
-                            print("  ✅ Client Script copied for", player.Name, ":", script.Name)
-                        end
+                local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+                for _, script in ipairs(clientFolder:GetChildren()) do
+                    if script:IsA("LocalScript") then
+                        local clone = script:Clone()
+                        clone.Parent = StarterPlayerScripts
+                        print("  ✅ Client Script copied to StarterPlayerScripts:", script.Name)
                     end
                 end
             end
@@ -254,13 +263,32 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
     clearWorkspace()
     
     -- Get location folder
-    local locationFolder = ServerStorage:FindFirstChild("Planets")
-        :FindFirstChild(planetId)
-        :FindFirstChild("Locations")
-        :FindFirstChild(locationId)
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if not planetsFolder then
+        warn("[EnvironmentLoader] ❌ Planets folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets")
+        return false
+    end
     
+    local planetFolder = planetsFolder:FindFirstChild(planetId)
+    if not planetFolder then
+        warn("[EnvironmentLoader] ❌ Planet folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId)
+        return false
+    end
+    
+    local locationsFolder = planetFolder:FindFirstChild("Locations")
+    if not locationsFolder then
+        warn("[EnvironmentLoader] ❌ Locations folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations")
+        return false
+    end
+    
+    local locationFolder = locationsFolder:FindFirstChild(locationId)
     if not locationFolder then
-        warn("[EnvironmentLoader] ❌ Location folder not found:", planetId, locationId)
+        warn("[EnvironmentLoader] ❌ Location folder not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId)
+        warn("  └─ Доступні локації: " .. #locationsFolder:GetChildren())
         return false
     end
     

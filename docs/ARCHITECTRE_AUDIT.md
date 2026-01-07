@@ -1,8 +1,9 @@
 ﻿# Architecture Audit (KosmicMazer)
 
 ## Scope
-- Reviewed: `ServerScriptService/GameInit.server.luau`, `ServerScriptService/{DataStoreManager.luau,PlayerDataManager.luau,LocationManager.luau,TeleportationManager.luau,SimpleTeleportation.server.luau}`, `StarterPlayerScripts/{TeleportationClient.client.luau,PlanetSurfaceScannerClient.client.luau}`, and `ReplicatedStorage/Docs/*`.
+- Reviewed: `ServerScriptService/GameInit.server.luau`, `ServerScriptService/{DataStoreManager.luau,PlayerDataManager.luau,LocationManager.luau,TeleportationManager.luau}`, `StarterPlayerScripts/{TeleportationClient.luau,ScannerUI.luau,StationUI.luau}`, and `ReplicatedStorage/Docs/*`.
 - Focus: architecture shape, complexity, and consistency across server/client/scripts.
+- Note: `SimpleTeleportation.server.luau` has been removed (was duplicate of TeleportationManager).
 
 ## Architecture Shape
 - Orchestration: `GameInit` drives the player join flow (boot UI, data load, location load, spawn).
@@ -24,12 +25,12 @@
 ## Consistency Check
 - Good: consistent use of `GameConfig` for planet/location data.
 - Drift: TDD/GDD mention systems (ScannerService, SpawnLocationController) not present in this repo snapshot.
-- Duplication: `TeleportationManager` and `SimpleTeleportation.server.luau` both create and use `TeleportationEvent` / `TeleportationStateEvent` and can conflict.
+- [FIXED] Duplication: `SimpleTeleportation.server.luau` removed - only `TeleportationManager` handles teleportation now.
 - Version skew: headers claim versions (e.g., TeleportationManager v4.4) that may not match actual behavior or references in docs.
 
 ## Key Risks / Gaps
 - RemoteEvent ownership is inconsistent:
-  - `TeleportationManager` and `SimpleTeleportation` both create and connect `TeleportationEvent`.
+  - [FIXED] `SimpleTeleportation` removed - only `TeleportationManager` creates `TeleportationEvent` now.
   - `PlanetSurfaceScannerClient` creates a server event from the client side if missing.
   - This can cause duplicated handlers, inconsistent state, or missing server authority.
 - Teleportation state vs data model mismatch:
@@ -47,9 +48,9 @@
 - Multiple systems assume `ServerStorage.Space` and `ServerStorage.<PlanetId>` structures exist; missing assets will cause runtime errors.
 
 ## Recommendations
-- Pick one teleportation system:
-  - Remove or disable `SimpleTeleportation.server.luau` if `TeleportationManager` is the real system.
-  - Ensure a single place creates `TeleportationEvent`/`TeleportationStateEvent`.
+- [DONE] Pick one teleportation system:
+  - Removed `SimpleTeleportation.server.luau` - `TeleportationManager` is the only teleportation system.
+  - `TeleportationEvent`/`TeleportationStateEvent` created in one place.
 - Normalize player data schema:
   - Keep teleport counters in `Stats.TotalTeleports` (or rename everywhere) and migrate old data.
   - Add schema versioning + migration in `DataStoreManager`.

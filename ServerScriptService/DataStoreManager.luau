@@ -4,7 +4,7 @@ KOSMICMAZER — DataStore Manager
 ================================================================================
 
 Purpose: Simple and reliable data storage using DataStoreService
-Version: 1.1 (Fixed)
+Version: 1.2
 
 Features:
 - Automatic data loading and saving

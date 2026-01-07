@@ -4,7 +4,7 @@ KOSMICMAZER — Location Manager (Module)
 ================================================================================
 
 Purpose: Manages location switching and workspace organization
-Version: 2.1 (Fixed ModuleScript issue)
+Version: 2.2
 
 Features:
 - Handles location transitions (Space Station ↔ Planet Locations)
@@ -155,7 +155,7 @@ local function loadSpaceStation()
 		end
 		
 		-- Initialize PlanetSurfaceScanner when Space Station is loaded
-		local planetSurfaceScanner = spaceStation and spaceStation:FindFirstChild("PlanetSurfaceScanner")
+		local planetSurfaceScanner = Workspace:FindFirstChild("PlanetSurfaceScanner")
 		if planetSurfaceScanner then
 			local PlanetSurfaceScannerModule = script.Parent:FindFirstChild("PlanetSurfaceScanner")
 			if PlanetSurfaceScannerModule then
@@ -170,10 +170,15 @@ local function loadSpaceStation()
 					warn("[Location] ❌ Не вдалося ініціалізувати PlanetSurfaceScanner: " .. tostring(result))
 				end
 			else
+				local expectedPath = "ServerScriptService/PlanetSurfaceScanner.luau"
 				warn("[Location] ⚠️ PlanetSurfaceScanner модуль не знайдено")
+				warn("  └─ Очікуваний шлях: " .. expectedPath)
+				warn("  └─ Переконайтесь що ModuleScript існує в ServerScriptService")
 			end
 		else
-			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Space Station")
+			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Workspace")
+			warn("  └─ Очікуваний шлях: Workspace/PlanetSurfaceScanner (Model)")
+			warn("  └─ Модель має бути скопійована з ServerStorage/Space/SpaceStation/Models/")
 		end
 		
 		print("[Location] ✅ Космічну станцію завантажено")

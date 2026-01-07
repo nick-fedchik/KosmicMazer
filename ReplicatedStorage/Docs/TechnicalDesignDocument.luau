@@ -4,7 +4,7 @@ KOSMICMAZER — TECHNICAL DESIGN DOCUMENT (TDD)
 ================================================================================
 
 Purpose: Технічна архітектура, системи, потоки даних та обмеження реалізації
-Version: 3.0
+Version: 3.5
 Status: Active Implementation
 Owner: Development Team
 Last Updated: 2026-01-07
@@ -63,26 +63,30 @@ ServerScriptService/
 ├── PlayerDataManager.luau    -- Керування станом гравців
 ├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.1)
 ├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.0)
-├── PlanetSurfaceScanner.luau -- Сканер планет
+├── EnvironmentLoader.luau    -- Завантаження середовищ
+├── ObjectTypeValidator.luau  -- Валідація структур
 └── Helpers/
-    ├── SimpleTeleportation.server.luau -- Тестовий телепорт (DEBUG only)
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування
     ├── LoadingMonitor.server.luau      -- Моніторинг завантаження
     └── SystemTest.server.luau          -- Моніторинг систем
 
 StarterPlayer/
 └── StarterPlayerScripts/
-    ├── PlanetSurfaceScannerClient.client.luau -- UI сканера
-    └── TeleportationClient.client.luau        -- UI телепортації
+    ├── TeleportationClient.luau  -- UI телепортації (LocalScript)
+    ├── ScannerUI.luau            -- UI сканера (LocalScript)
+    └── StationUI.luau            -- UI станції (LocalScript)
 
 ReplicatedStorage/
-├── RemoteEventsRegistry.luau  -- [PLANNED] Єдиний реєстр RemoteEvents
-└── Docs/
-    ├── GameDesignDocument.luau
-    ├── TechnicalDesignDocument.luau
-    ├── ArchitectureImproves.luau
-    ├── LoggingConventions.luau
-    └── Backlog.luau
+├── Docs/
+│   ├── GameDesignDocument.luau
+│   ├── TechnicalDesignDocument.luau
+│   ├── ArchitectureImproves.luau
+│   ├── RefactoringPlan.luau
+│   └── Backlog.luau
+└── Std/
+    ├── CodeConvention.luau
+    ├── GuiConvention.luau
+    └── LoggingConvention.luau
 
 ServerStorage/
 ├── Space/
@@ -128,9 +132,15 @@ ServerStorage/
 3.3 Обмеження розміщення скриптів в Roblox
 
 Типи скриптів:
-- Script (.server.luau) → виконується ТІЛЬКИ на сервері
-- LocalScript (.client.luau) → виконується ТІЛЬКИ на клієнті
+- Script (в ServerScriptService) → виконується ТІЛЬКИ на сервері
+- LocalScript (в StarterPlayerScripts) → виконується ТІЛЬКИ на клієнті
 - ModuleScript (.luau) → може require з обох сторін
+
+Іменування файлів (див. Std/CodeConvention.luau):
+- Одна крапка тільки перед .luau
+- ServerScriptService/*.server.luau → Script
+- StarterPlayerScripts/*.luau → LocalScript
+- Всі інші *.luau → ModuleScript
 
 LocalScript працює ТІЛЬКИ в:
 - StarterPlayerScripts, StarterGui, PlayerGui

@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.4
+Version: 4.5
 
 Features:
 - Manages teleportation activation state
@@ -94,11 +94,29 @@ local LocationManager = require(game.ServerScriptService.LocationManager)
 
 -- Load teleportation effects (lazy loading)
 local function getTeleportParticle()
-    local particle = game.ServerStorage.Effects.TeleportAnimation.TeleportParticle
+    local effectsFolder = game.ServerStorage:FindFirstChild("Effects")
+    if not effectsFolder then
+        warn("[TeleportationManager] TeleportParticle not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Effects/TeleportAnimation/TeleportParticle")
+        warn("  └─ Проблема: Effects folder not found")
+        return nil
+    end
+    
+    local teleportAnim = effectsFolder:FindFirstChild("TeleportAnimation")
+    if not teleportAnim then
+        warn("[TeleportationManager] TeleportParticle not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Effects/TeleportAnimation/TeleportParticle")
+        warn("  └─ Проблема: TeleportAnimation folder not found")
+        return nil
+    end
+    
+    local particle = teleportAnim:FindFirstChild("TeleportParticle")
     if particle then
         return particle:Clone()
     else
-        warn("[TeleportationManager] TeleportParticle not found, using fallback effect")
+        warn("[TeleportationManager] TeleportParticle not found")
+        warn("  └─ Очікуваний шлях: ServerStorage/Effects/TeleportAnimation/TeleportParticle")
+        warn("  └─ Проблема: TeleportParticle об'єкт not found")
         return nil
     end
 end
@@ -563,10 +581,14 @@ local function onTouched(otherPart)
 				print("[TeleportationManager] ✅ TeleportationClient found for " .. player.Name)
 				print("[TeleportationManager] 📋 Script enabled: " .. tostring(clientScript.Enabled))
 			else
-				print("[TeleportationManager] ❌ TeleportationClient NOT found for " .. player.Name)
+				warn("[TeleportationManager] ❌ TeleportationClient NOT found for " .. player.Name)
+				warn("  └─ Очікуваний шлях: Players/" .. player.Name .. "/PlayerScripts/TeleportationClient")
+				warn("  └─ Скрипт має бути в StarterPlayerScripts/TeleportationClient.luau")
 			end
 		else
-			print("[TeleportationManager] ❌ PlayerScripts NOT found for " .. player.Name)
+			warn("[TeleportationManager] ❌ PlayerScripts NOT found for " .. player.Name)
+			warn("  └─ Очікуваний шлях: Players/" .. player.Name .. "/PlayerScripts")
+			warn("  └─ Гравець можливо ще не повністю завантажився")
 		end
 
 		-- UI state debounce to prevent flickering
@@ -626,13 +648,17 @@ local function onTouched(otherPart)
 							print("[TeleportationManager] ℹ️ Skipping current location: " .. location.DisplayName)
 						end
 					else
-						print("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId .. " - blocking teleportation")
+						warn("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId)
+						warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations/" .. location.LocationId)
+						warn("  └─ Телепортацію заблоковано")
 					end
 				else
-					print("[TeleportationManager] ❌ Locations folder not found in Planet_1")
+					warn("[TeleportationManager] ❌ Locations folder not found")
+					warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations")
 				end
 			else
-				print("[TeleportationManager] ❌ Planet_1 template not found")
+				warn("[TeleportationManager] ❌ Planet_1 template not found")
+				warn("  └─ Очікуваний шлях: ServerStorage/Planet_1")
 			end
 		end
 
@@ -823,13 +849,17 @@ local function onTeleportRequest(player, action, data)
                         print("[TeleportationManager] ℹ️ Skipping current location: " .. location.DisplayName)
                     end
                 else
-                    print("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId .. " - blocking teleportation")
+                    warn("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId)
+                    warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations/" .. location.LocationId)
+                    warn("  └─ Телепортацію заблоковано")
                 end
             else
-                print("[TeleportationManager] ❌ Locations folder not found in Planet_1")
+                warn("[TeleportationManager] ❌ Locations folder not found")
+                warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations")
             end
         else
-            print("[TeleportationManager] ❌ Planet_1 template not found")
+            warn("[TeleportationManager] ❌ Planet_1 template not found")
+            warn("  └─ Очікуваний шлях: ServerStorage/Planet_1")
         end
     end
     
@@ -848,7 +878,9 @@ local function onTeleportRequest(player, action, data)
     end
     
     if not targetLocation then
-        print("[TeleportationManager] ❌ ERROR: Target location not found: " .. locationId)
+        warn("[TeleportationManager] ❌ Target location not found: " .. locationId)
+        warn("  └─ Локація не в списку доступних (не відкрита або не існує)")
+        warn("  └─ Доступні локації: " .. #availableLocations)
         teleportEvent:FireClient(player, "TeleportError", "Локація не знайдена або не відкрита")
         return
     end

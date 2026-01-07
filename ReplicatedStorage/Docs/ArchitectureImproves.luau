@@ -111,7 +111,7 @@ Pipeline:
 
 Рішення:
 - Один TeleportationManager в продакшені
-- SimpleTeleportation перемістити до Helpers/ з Disabled = true
+- Видалити непотрібні DEBUG скрипти
 - При зміні SpawnLocation відключувати старі події
 - Зберігати підключення в таблиці для disconnect
 - Винести логіку станів у явну FSM
@@ -363,15 +363,21 @@ ServerScriptService/
 │   -- Копіювання скриптів у правильні місця
 │   -- Валідація завантаження
 │
-├── ObjectTypeValidator.luau   -- NEW: Валідатор типів об'єктів
-│   -- Перевірка структури ServerStorage
-│   -- Валідація конфігурації
-│
-└── LocationManagers/          -- NEW: Менеджери конкретних локацій
-    ├── BaseLocationManager.luau  -- Базовий клас для локацій
-    ├── Location_1_Manager.luau   -- Location 1 специфічна логіка
-    ├── Location_2_Manager.luau   -- Location 2 специфічна логіка
-    └── ...
+└── ObjectTypeValidator.luau   -- NEW: Валідатор типів об'єктів
+    -- Перевірка структури ServerStorage
+    -- Валідація конфігурації
+
+МЕНЕДЖЕРИ КОНКРЕТНИХ ЛОКАЦІЙ - В SERVERSTORAGE (НЕ В SSS!):
+============================================================
+Менеджери конкретних локацій (Location_1_Manager, Location_2_Manager, etc.)
+знаходяться в ServerStorage разом з локацією і копіюються при завантаженні.
+
+Див. секцію 12.1.1 "КАРТА КОПІЮВАННЯ СКРИПТІВ" для деталей.
+
+ServerStorage/Planets/{PlanetName}/Locations/{LocationName}/Scripts/Server/
+├── LocationController.luau    -- ModuleScript: Контролер локації
+├── ResourceController.luau    -- ModuleScript: Ресурси локації
+└── {LocationName}Manager.luau -- ModuleScript: Специфічна логіка локації
 
 ВАЖЛИВО: Різниця між ServerScriptService та ServerStorage/Scripts:
 =========================================================================
@@ -489,11 +495,10 @@ ServerScriptService/ (ВИКОНАННЯ НА СЕРВЕРІ):
 ├── SpaceStationManager.luau   -- ModuleScript: Контролер космічної станції
 ├── PlanetManager.luau         -- ModuleScript: Контролер планети
 ├── EnvironmentLoader.luau     -- ModuleScript: Завантажувач середовищ
-├── ObjectTypeValidator.luau   -- ModuleScript: Валідатор типів об'єктів
-└── LocationManagers/          -- Folder: Менеджери конкретних локацій
-    ├── BaseLocationManager.luau -- ModuleScript: Базовий клас для локацій
-    ├── Location_1_Manager.luau -- ModuleScript: Location 1 логіка
-    └── Location_2_Manager.luau -- ModuleScript: Location 2 логіка
+└── ObjectTypeValidator.luau   -- ModuleScript: Валідатор типів об'єктів
+
+ПРИМІТКА: Менеджери конкретних локацій (Location_1_Manager, etc.) 
+знаходяться в ServerStorage разом з локацією - див. секцію 12.1.1
 
 ServerStorage/ (ШАБЛОНИ - НЕ ВИКОНУЮТЬСЯ):
 ├── Space/
@@ -578,34 +583,194 @@ ServerStorage/Space/SpaceStation/Scripts/Server/SpaceStationManager.luau (шаб
 12.1.1) КАРТА КОПІЮВАННЯ СКРИПТІВ
 ================================================================================
 
-ЗВІДКИ                                          КУДИ                           КОЛИ
-==================================================================================================
-ServerStorage/.../Scripts/Server/*.luau    →    require() з ServerScriptService  При завантаженні локації
-ServerStorage/.../Scripts/Server/*.server.luau → Workspace/CurrentLocation/      При завантаженні локації
-ServerStorage/.../Scripts/Client/*.client.luau → StarterPlayerScripts/Location/  При завантаженні локації
-                                                 + player.PlayerScripts для      Для кожного активного
-                                                   кожного активного гравця      гравця
+==============================================================================
+A) КОСМІЧНА СТАНЦІЯ (SpaceStation)
+==============================================================================
 
-ПРИКЛАД ПОТОКУ:
+ДЖЕРЕЛО: ServerStorage/Space/SpaceStation/
 
-1. Гравець телепортується на Location_1:
-   
-   ЗВІДКИ: ServerStorage/Planets/Planet_1/Locations/Location_1/Scripts/
-   
-   Server/LocationController.luau
-       → ServerScriptService require() АБО clone в Workspace/Location_1/
-   
-   Server/ResourceController.server.luau
-       → Clone в Workspace/Location_1/Scripts/ (виконається автоматично)
-   
-   Client/LocationUI.client.luau
-       → Clone в StarterPlayerScripts/Location_1/
-       → Clone в player.PlayerScripts/Location_1/ (для активного гравця)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ СЕРВЕРНІ СКРИПТИ (Scripts/Server/)                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ЗВІДКИ:                          КУДИ:                      ТИП:            │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ Scripts/Server/*.luau            require() з SSS            ModuleScript    │
+│ (ModuleScript)                   (НЕ копіюється!)                           │
+│                                                                             │
+│ Scripts/Server/*.server.luau     Workspace/SpaceStation/    Script          │
+│ (Script)                         Scripts/                   (виконується)   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-2. При виході з локації:
-   - Видалити Workspace/Location_1/
-   - Видалити StarterPlayerScripts/Location_1/
-   - Видалити player.PlayerScripts/Location_1/
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КЛІЄНТСЬКІ СКРИПТИ (Scripts/Client/)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ЗВІДКИ:                          КУДИ:                      ТИП:            │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ Scripts/Client/*.client.luau     1. StarterPlayerScripts/   LocalScript     │
+│ (LocalScript)                       SpaceStation/           (для нових)     │
+│                                                                             │
+│                                  2. player.PlayerScripts/   LocalScript     │
+│                                     SpaceStation/           (для активних)  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ПОТІК ЗАВАНТАЖЕННЯ КОСМІЧНОЇ СТАНЦІЇ:
+
+1. EnvironmentLoader.LoadSpaceStation():
+   
+   -- Крок 1: Очистити Workspace від попередньої локації
+   ClearWorkspace()
+   ClearClientScripts("PreviousLocation")
+   
+   -- Крок 2: Копіювати моделі
+   ServerStorage.Space.SpaceStation.Models:Clone().Parent = Workspace
+   
+   -- Крок 3: Серверні скрипти
+   -- ModuleScript (.luau) → require() напряму, не копіювати
+   -- Script (.server.luau) → Clone в Workspace/SpaceStation/Scripts/
+   for _, script in Scripts.Server:GetChildren() do
+       if script:IsA("Script") then
+           script:Clone().Parent = Workspace.SpaceStation.Scripts
+       end
+   end
+   
+   -- Крок 4: Клієнтські скрипти
+   local stationFolder = Instance.new("Folder")
+   stationFolder.Name = "SpaceStation"
+   stationFolder.Parent = StarterPlayer.StarterPlayerScripts
+   
+   for _, script in Scripts.Client:GetChildren() do
+       script:Clone().Parent = stationFolder
+   end
+   
+   -- Для активних гравців
+   for _, player in Players:GetPlayers() do
+       local playerFolder = Instance.new("Folder")
+       playerFolder.Name = "SpaceStation"
+       playerFolder.Parent = player.PlayerScripts
+       
+       for _, script in Scripts.Client:GetChildren() do
+           script:Clone().Parent = playerFolder
+       end
+   end
+
+ВИВАНТАЖЕННЯ КОСМІЧНОЇ СТАНЦІЇ:
+
+1. Видалити Workspace/SpaceStation/
+2. Видалити StarterPlayerScripts/SpaceStation/
+3. Для кожного гравця: видалити player.PlayerScripts/SpaceStation/
+
+==============================================================================
+B) ПЛАНЕТНІ ЛОКАЦІЇ (Planet Locations)
+==============================================================================
+
+ДЖЕРЕЛО: ServerStorage/Planets/{PlanetName}/Locations/{LocationName}/
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ СЕРВЕРНІ СКРИПТИ (Scripts/Server/)                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ЗВІДКИ:                          КУДИ:                      ТИП:            │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ Scripts/Server/*.luau            require() з SSS            ModuleScript    │
+│ (ModuleScript)                   (НЕ копіюється!)                           │
+│                                                                             │
+│ Scripts/Server/*.server.luau     Workspace/{LocationName}/  Script          │
+│ (Script)                         Scripts/                   (виконується)   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КЛІЄНТСЬКІ СКРИПТИ (Scripts/Client/)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ЗВІДКИ:                          КУДИ:                      ТИП:            │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ Scripts/Client/*.client.luau     1. StarterPlayerScripts/   LocalScript     │
+│ (LocalScript)                       {LocationName}/         (для нових)     │
+│                                                                             │
+│                                  2. player.PlayerScripts/   LocalScript     │
+│                                     {LocationName}/         (для активних)  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ПОТІК ЗАВАНТАЖЕННЯ ПЛАНЕТНОЇ ЛОКАЦІЇ:
+
+1. EnvironmentLoader.LoadPlanetLocation(planetName, locationName):
+   
+   -- Крок 1: Очистити попередню локацію
+   ClearWorkspace()
+   ClearClientScripts("PreviousLocation")
+   
+   -- Крок 2: Копіювати моделі локації
+   local locationTemplate = ServerStorage.Planets[planetName].Locations[locationName]
+   locationTemplate.Models:Clone().Parent = Workspace
+   
+   -- Крок 3: Застосувати освітлення
+   ApplyLighting(locationTemplate.Lighting)
+   
+   -- Крок 4: Серверні скрипти
+   local scriptsFolder = Instance.new("Folder")
+   scriptsFolder.Name = "Scripts"
+   scriptsFolder.Parent = Workspace[locationName]
+   
+   for _, script in locationTemplate.Scripts.Server:GetChildren() do
+       if script:IsA("Script") then
+           script:Clone().Parent = scriptsFolder
+       end
+       -- ModuleScript → require() напряму з оригінального місця
+   end
+   
+   -- Крок 5: Клієнтські скрипти
+   local locationFolder = Instance.new("Folder")
+   locationFolder.Name = locationName
+   locationFolder.Parent = StarterPlayer.StarterPlayerScripts
+   
+   for _, script in locationTemplate.Scripts.Client:GetChildren() do
+       script:Clone().Parent = locationFolder
+   end
+   
+   -- Для активних гравців
+   for _, player in Players:GetPlayers() do
+       local playerFolder = Instance.new("Folder")
+       playerFolder.Name = locationName
+       playerFolder.Parent = player.PlayerScripts
+       
+       for _, script in locationTemplate.Scripts.Client:GetChildren() do
+           script:Clone().Parent = playerFolder
+       end
+   end
+
+ВИВАНТАЖЕННЯ ПЛАНЕТНОЇ ЛОКАЦІЇ:
+
+1. Видалити Workspace/{LocationName}/
+2. Видалити StarterPlayerScripts/{LocationName}/
+3. Для кожного гравця: видалити player.PlayerScripts/{LocationName}/
+
+==============================================================================
+C) ГЛОБАЛЬНІ СКРИПТИ (НЕ КОПІЮЮТЬСЯ)
+==============================================================================
+
+Деякі скрипти працюють глобально для ВСІХ локацій:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ГЛОБАЛЬНІ СЕРВЕРНІ СКРИПТИ (ServerScriptService/)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ СКРИПТ:                          ОПИС:                                      │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ GameInit.server.luau             Ініціалізація гри                          │
+│ TeleportationManager.luau        Телепортація (працює всюди)                │
+│ DataStoreManager.luau            Збереження даних                           │
+│ PlayerDataManager.luau           Управління даними гравців                  │
+│ LocationManager.luau             Перемикання локацій                        │
+│ EnvironmentLoader.luau           Завантаження середовищ                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ГЛОБАЛЬНІ КЛІЄНТСЬКІ СКРИПТИ (StarterPlayerScripts/)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ СКРИПТ:                          ОПИС:                                      │
+│ ─────────────────────────────────────────────────────────────────────────── │
+│ TeleportationClient.client.luau  UI телепортації (працює всюди)             │
+│ GlobalUI.client.luau             Глобальний UI (меню, налаштування)         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ПРАВИЛО: Глобальні скрипти НЕ видаляються при зміні локації!
 
 ================================================================================
 12.2) АЛГОРИТМ ЗАВАНТАЖЕННЯ ЛОКАЦІЇ
@@ -687,6 +852,355 @@ Environment Switching:
     - Клієнтські скрипти попередньої локації видаляються
 
 ================================================================================
+12.4) ПРОТОКОЛ ОЧИСТКИ ЛОКАЦІЙ
+================================================================================
+
+==============================================================================
+A) ОЧИСТКА КОСМІЧНОЇ СТАНЦІЇ (UnloadSpaceStation)
+==============================================================================
+
+КРОК 1: Зупинити всі активні процеси
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ОПЕРАЦІЯ                           │ ДЕТАЛІ                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1.1 Відключити події Touched        │ Disconnect всіх connections для       │
+│                                     │ TeleportPads, Scanners, etc.          │
+│ 1.2 Зупинити таймери                │ Cancel всіх task.delay/task.spawn     │
+│ 1.3 Закрити відкриті UI             │ Сховати ScannerUI, діалоги            │
+│ 1.4 Зупинити анімації               │ Stop TweenService анімацій            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+КРОК 2: Видалити клієнтські скрипти
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ЗВІДКИ ВИДАЛЯТИ                    │ ЩО ВИДАЛЯТИ                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ StarterPlayerScripts/              │ Folder "SpaceStation" повністю         │
+│ player.PlayerScripts/              │ Folder "SpaceStation" для кожного      │
+│                                    │ активного гравця                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Код:
+    local function removeClientScripts_SpaceStation()
+        -- Видалити зі StarterPlayerScripts
+        local starterFolder = StarterPlayer.StarterPlayerScripts:FindFirstChild("SpaceStation")
+        if starterFolder then
+            starterFolder:Destroy()
+        end
+        
+        -- Видалити з PlayerScripts кожного активного гравця
+        for _, player in Players:GetPlayers() do
+            local playerFolder = player:FindFirstChild("PlayerScripts")
+            if playerFolder then
+                local locationFolder = playerFolder:FindFirstChild("SpaceStation")
+                if locationFolder then
+                    locationFolder:Destroy()
+                end
+            end
+        end
+    end
+
+КРОК 3: Видалити серверні об'єкти
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ЗВІДКИ ВИДАЛЯТИ                    │ ЩО ВИДАЛЯТИ                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Workspace/                         │ SpaceStation (модель з усім вмістом)   │
+│ Workspace/                         │ Planet (модель планети на орбіті)      │
+│ Workspace/                         │ Skybox (якщо окремий об'єкт)           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Код:
+    local function removeServerObjects_SpaceStation()
+        local objectsToRemove = {
+            "SpaceStation",
+            "Planet",
+            "Skybox",
+            "SpaceEnvironment"
+        }
+        
+        for _, objName in ipairs(objectsToRemove) do
+            local obj = Workspace:FindFirstChild(objName)
+            if obj then
+                obj:Destroy()
+            end
+        end
+    end
+
+КРОК 4: Скинути освітлення
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ПАРАМЕТР                           │ ЗНАЧЕННЯ ЗА ЗАМОВЧУВАННЯМ              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Lighting.Ambient                   │ Color3.fromRGB(127, 127, 127)          │
+│ Lighting.Brightness                │ 1                                      │
+│ Lighting.ColorShift_Bottom         │ Color3.fromRGB(0, 0, 0)                │
+│ Lighting.ColorShift_Top            │ Color3.fromRGB(0, 0, 0)                │
+│ Lighting.OutdoorAmbient            │ Color3.fromRGB(127, 127, 127)          │
+│ Lighting.ClockTime                 │ 14                                     │
+│ Lighting.GeographicLatitude        │ 0                                      │
+│ Lighting.FogEnd                    │ 100000                                 │
+│ Lighting.FogStart                  │ 0                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+КРОК 5: Очистити тимчасові дані
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ДАНІ                               │ ДІЯ                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ SpaceStationManager.state          │ Скинути до nil                         │
+│ ActiveScanResults                  │ Очистити таблицю                       │
+│ PlayerPositions                    │ Зберегти для аналітики (опціонально)   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ПОВНА ПОСЛІДОВНІСТЬ ОЧИСТКИ SPACESTATION:
+
+    function EnvironmentLoader.UnloadSpaceStation()
+        print("[EnvironmentLoader] Unloading SpaceStation...")
+        
+        -- 1. Зупинити процеси
+        SpaceStationManager:StopAllProcesses()
+        
+        -- 2. Відключити події
+        for _, conn in ipairs(spaceStationConnections) do
+            conn:Disconnect()
+        end
+        spaceStationConnections = {}
+        
+        -- 3. Закрити UI для всіх гравців
+        TeleportationManager:FireAllClients("CloseUI")
+        
+        -- 4. Видалити клієнтські скрипти
+        removeClientScripts_SpaceStation()
+        
+        -- 5. Видалити серверні об'єкти
+        removeServerObjects_SpaceStation()
+        
+        -- 6. Скинути освітлення
+        resetLighting()
+        
+        -- 7. Очистити стан
+        currentLocationName = nil
+        currentLocationType = nil
+        
+        print("[EnvironmentLoader] SpaceStation unloaded successfully")
+    end
+
+==============================================================================
+B) ОЧИСТКА ПЛАНЕТНОЇ ЛОКАЦІЇ (UnloadPlanetLocation)
+==============================================================================
+
+КРОК 1: Зупинити всі активні процеси
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ОПЕРАЦІЯ                           │ ДЕТАЛІ                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1.1 Зупинити NPC діалоги           │ Закрити активні діалоги                │
+│ 1.2 Зупинити ресурсні таймери      │ Cancel регенерації ресурсів            │
+│ 1.3 Зупинити ambient sounds        │ Stop всіх SoundService звуків локації  │
+│ 1.4 Закрити міні-ігри              │ Завершити активні міні-ігри            │
+│ 1.5 Відключити колізії             │ Disconnect Touched events              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+КРОК 2: Видалити клієнтські скрипти
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ЗВІДКИ ВИДАЛЯТИ                    │ ЩО ВИДАЛЯТИ                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ StarterPlayerScripts/              │ Folder "{LocationName}" повністю       │
+│ player.PlayerScripts/              │ Folder "{LocationName}" для кожного    │
+│                                    │ активного гравця                       │
+│ StarterGui/                        │ ScreenGui "{LocationName}UI"           │
+│ player.PlayerGui/                  │ ScreenGui "{LocationName}UI"           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Код:
+    local function removeClientScripts_PlanetLocation(locationName)
+        -- Видалити скрипти зі StarterPlayerScripts
+        local starterFolder = StarterPlayer.StarterPlayerScripts:FindFirstChild(locationName)
+        if starterFolder then
+            starterFolder:Destroy()
+        end
+        
+        -- Видалити скрипти з PlayerScripts кожного гравця
+        for _, player in Players:GetPlayers() do
+            local playerScripts = player:FindFirstChild("PlayerScripts")
+            if playerScripts then
+                local locationFolder = playerScripts:FindFirstChild(locationName)
+                if locationFolder then
+                    locationFolder:Destroy()
+                end
+            end
+            
+            -- Видалити GUI локації
+            local playerGui = player:FindFirstChild("PlayerGui")
+            if playerGui then
+                local locationGui = playerGui:FindFirstChild(locationName .. "UI")
+                if locationGui then
+                    locationGui:Destroy()
+                end
+            end
+        end
+        
+        -- Видалити зі StarterGui
+        local starterGui = StarterGui:FindFirstChild(locationName .. "UI")
+        if starterGui then
+            starterGui:Destroy()
+        end
+    end
+
+КРОК 3: Видалити серверні об'єкти
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ЗВІДКИ ВИДАЛЯТИ                    │ ЩО ВИДАЛЯТИ                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Workspace/                         │ {LocationName} (модель локації)        │
+│ Workspace/                         │ Terrain (якщо локація має свій terrain)│
+│ Workspace/                         │ NPCs (NPC моделі локації)              │
+│ Workspace/                         │ Resources (ресурсні об'єкти)           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Код:
+    local function removeServerObjects_PlanetLocation(locationName)
+        -- Основна модель локації
+        local locationModel = Workspace:FindFirstChild(locationName)
+        if locationModel then
+            locationModel:Destroy()
+        end
+        
+        -- Додаткові об'єкти з тегом локації
+        local CollectionService = game:GetService("CollectionService")
+        local taggedObjects = CollectionService:GetTagged("Location_" .. locationName)
+        for _, obj in ipairs(taggedObjects) do
+            obj:Destroy()
+        end
+        
+        -- Очистити Scripts папку якщо є окрема
+        local scriptsFolder = Workspace:FindFirstChild("Scripts")
+        if scriptsFolder then
+            local locationScripts = scriptsFolder:FindFirstChild(locationName)
+            if locationScripts then
+                locationScripts:Destroy()
+            end
+        end
+    end
+
+КРОК 4: Скинути освітлення планети
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ДІЯ                                │ ДЕТАЛІ                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Видалити атмосферні ефекти         │ Atmosphere, Clouds, Sky                │
+│ Скинути колір                      │ Ambient, OutdoorAmbient                │
+│ Скинути туман                      │ FogEnd, FogStart, FogColor             │
+│ Скинути час доби                   │ ClockTime до дефолту                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Код:
+    local function resetPlanetLighting()
+        local Lighting = game:GetService("Lighting")
+        
+        -- Видалити атмосферні ефекти локації
+        for _, child in Lighting:GetChildren() do
+            if child:HasTag("LocationEffect") then
+                child:Destroy()
+            end
+        end
+        
+        -- Скинути до дефолтних значень
+        Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+        Lighting.Brightness = 1
+        Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        Lighting.FogColor = Color3.fromRGB(191, 191, 191)
+    end
+
+КРОК 5: Очистити тимчасові дані локації
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ДАНІ                               │ ДІЯ                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LocationManager.currentLocation    │ Скинути до nil                         │
+│ ResourceController.resources       │ Очистити таблицю                       │
+│ NPCController.activeNPCs           │ Очистити таблицю                       │
+│ CollectedResources                 │ Зберегти в PlayerData перед очисткою   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ПОВНА ПОСЛІДОВНІСТЬ ОЧИСТКИ PLANET LOCATION:
+
+    function EnvironmentLoader.UnloadPlanetLocation(locationName)
+        print("[EnvironmentLoader] Unloading PlanetLocation: " .. locationName)
+        
+        -- 1. Зберегти прогрес гравців
+        for _, player in Players:GetPlayers() do
+            PlayerDataManager:SaveLocationProgress(player, locationName)
+        end
+        
+        -- 2. Зупинити процеси локації
+        if LocationManagers[locationName] then
+            LocationManagers[locationName]:StopAllProcesses()
+        end
+        
+        -- 3. Відключити події
+        if locationConnections[locationName] then
+            for _, conn in ipairs(locationConnections[locationName]) do
+                conn:Disconnect()
+            end
+            locationConnections[locationName] = nil
+        end
+        
+        -- 4. Закрити UI для всіх гравців
+        TeleportationManager:FireAllClients("CloseLocationUI", locationName)
+        
+        -- 5. Видалити клієнтські скрипти
+        removeClientScripts_PlanetLocation(locationName)
+        
+        -- 6. Видалити серверні об'єкти
+        removeServerObjects_PlanetLocation(locationName)
+        
+        -- 7. Скинути освітлення
+        resetPlanetLighting()
+        
+        -- 8. Очистити стан
+        currentLocationName = nil
+        currentPlanetName = nil
+        currentLocationType = nil
+        
+        print("[EnvironmentLoader] PlanetLocation unloaded: " .. locationName)
+    end
+
+==============================================================================
+C) ПОРІВНЯННЯ ПРОТОКОЛІВ ОЧИСТКИ
+==============================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ АСПЕКТ               │ SPACESTATION          │ PLANET LOCATION              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Клієнтські скрипти   │ SpaceStation/         │ {LocationName}/              │
+│ Серверні об'єкти     │ SpaceStation, Planet  │ {LocationName}, NPCs         │
+│ GUI                  │ ScannerUI             │ {LocationName}UI             │
+│ Освітлення           │ Космічне (темне)      │ Планетарне (різне)           │
+│ Збереження прогресу  │ Ні                    │ Так (ресурси, квести)        │
+│ Атмосфера            │ Skybox                │ Atmosphere, Clouds           │
+│ NPC                  │ Немає                 │ Є (діалоги, квести)          │
+│ Ресурси              │ Немає                 │ Є (регенерація)              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+==============================================================================
+D) ПЕРЕХІД МІЖ ЛОКАЦІЯМИ
+==============================================================================
+
+SpaceStation → PlanetLocation:
+    1. UnloadSpaceStation()
+    2. LoadPlanetLocation(planetName, locationName)
+
+PlanetLocation → SpaceStation:
+    1. UnloadPlanetLocation(locationName)
+    2. LoadSpaceStation(planetName)
+
+PlanetLocation → PlanetLocation (та сама планета):
+    1. UnloadPlanetLocation(oldLocationName)
+    2. LoadPlanetLocation(planetName, newLocationName)
+
+PlanetLocation → PlanetLocation (інша планета):
+    1. UnloadPlanetLocation(oldLocationName)
+    2. LoadSpaceStation(newPlanetName) -- проміжний етап
+    3. LoadPlanetLocation(newPlanetName, newLocationName)
+
+================================================================================
 ЧАСТИНА III: ПЛАН МІГРАЦІЇ
 ================================================================================
 
@@ -707,11 +1221,11 @@ PHASE 1: Підготовка структури (1-2 дні) ✅ ЗАВЕРШЕ
     [X] Оновити документацію з типізацією об'єктів
 
 PHASE 2: Створення менеджерів (2-3 дні)
-    [ ] Створити BaseLocationManager з базовим функціоналом
-    [ ] Створити GameWorldManager як головний координатор
-    [ ] Створити SpaceStationManager та PlanetManager
-    [ ] Створити менеджери конкретних локацій
-    [ ] Створити RemoteEventsRegistry
+    [ ] Створити BaseLocationManager з базовим функціоналом (в ServerStorage/Common/)
+    [ ] Створити GameWorldManager як головний координатор (в SSS)
+    [ ] Створити SpaceStationManager та PlanetManager (в SSS)
+    [ ] Створити шаблони менеджерів локацій (в ServerStorage/.../Scripts/Server/)
+    [ ] Створити RemoteEventsRegistry (в SSS)
 
 PHASE 3: Розширення конфігурації (1 день)
     [ ] Розширити GameConfig новою структурою

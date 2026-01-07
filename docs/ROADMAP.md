@@ -3,7 +3,7 @@
 This is a practical, short-term roadmap based on the current code snapshot.
 
 ## v0.1 - Stabilize Core Loop
-- Ensure one teleport system (remove/disable `SimpleTeleportation.server.luau`).
+- [x] Ensure one teleport system (removed `SimpleTeleportation.server.luau`).
 - Centralize RemoteEvent creation on the server; clients only WaitForChild.
 - Fix player data schema for teleport counters (`Stats.TotalTeleports`).
 - Make GameInit always create defaults if load fails (no early return).

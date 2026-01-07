@@ -4,7 +4,7 @@ KOSMICMAZER — Object Type Validator
 ================================================================================
 
 Purpose: Validates object types and structure in ServerStorage
-Version: 1.0
+Version: 1.1
 
 Features:
 - Validates planet structure integrity
@@ -79,30 +79,30 @@ local EXPECTED_SPACE_STATION_SERVER_SCRIPTS = {
 }
 
 local EXPECTED_SPACE_STATION_CLIENT_SCRIPTS = {
-    "StationUI.client",
-    "ScannerUI.client"
+    "StationUI",
+    "ScannerUI"
 }
 
 -- Helper function to validate object type
 local function validateObjectType(object, expectedType, objectPath)
     if not object then
-        return false, "Object not found at: " .. objectPath
+        return false, string.format("[MISSING] '%s' not found (expected: %s)", objectPath, expectedType)
     end
     
     if expectedType == "Folder" and not object:IsA("Folder") then
-        return false, string.format("Expected Folder at %s, got %s", objectPath, object.ClassName)
+        return false, string.format("[WRONG TYPE] '%s' expected Folder, got %s", objectPath, object.ClassName)
     end
     
     if expectedType == "Model" and not object:IsA("Model") then
-        return false, string.format("Expected Model at %s, got %s", objectPath, object.ClassName)
+        return false, string.format("[WRONG TYPE] '%s' expected Model, got %s", objectPath, object.ClassName)
     end
     
     if expectedType == "Part" and not object:IsA("BasePart") then
-        return false, string.format("Expected Part/BasePart at %s, got %s", objectPath, object.ClassName)
+        return false, string.format("[WRONG TYPE] '%s' expected Part/BasePart, got %s", objectPath, object.ClassName)
     end
     
     if expectedType == "SpawnLocation" and not object:IsA("SpawnLocation") then
-        return false, string.format("Expected SpawnLocation at %s, got %s", objectPath, object.ClassName)
+        return false, string.format("[WRONG TYPE] '%s' expected SpawnLocation, got %s", objectPath, object.ClassName)
     end
     
     return true, "OK"
@@ -112,9 +112,14 @@ end
 function ObjectTypeValidator.ValidatePlanetStructure(planetId)
     print("[ObjectTypeValidator] 🔍 Validating planet structure:", planetId)
     
-    local planetFolder = ServerStorage:FindFirstChild("Planets"):FindFirstChild(planetId)
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if not planetsFolder then
+        return false, {"[MISSING] 'ServerStorage/Planets' folder not found"}
+    end
+    
+    local planetFolder = planetsFolder:FindFirstChild(planetId)
     if not planetFolder then
-        return false, {"Planet folder not found: " .. planetId}
+        return false, {string.format("[MISSING] 'ServerStorage/Planets/%s' folder not found", planetId)}
     end
     
     local errors = {}
@@ -165,13 +170,24 @@ end
 
 -- Validate location structure
 function ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
-    local locationFolder = ServerStorage:FindFirstChild("Planets")
-        :FindFirstChild(planetId)
-        :FindFirstChild("Locations")
-        :FindFirstChild(locationId)
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if not planetsFolder then
+        return {"[MISSING] 'ServerStorage/Planets' folder not found"}
+    end
     
+    local planetFolder = planetsFolder:FindFirstChild(planetId)
+    if not planetFolder then
+        return {string.format("[MISSING] 'ServerStorage/Planets/%s' folder not found", planetId)}
+    end
+    
+    local locationsFolder = planetFolder:FindFirstChild("Locations")
+    if not locationsFolder then
+        return {string.format("[MISSING] 'ServerStorage/Planets/%s/Locations' folder not found", planetId)}
+    end
+    
+    local locationFolder = locationsFolder:FindFirstChild(locationId)
     if not locationFolder then
-        return {"Location folder not found: " .. planetId .. "/" .. locationId}
+        return {string.format("[MISSING] 'ServerStorage/Planets/%s/Locations/%s' folder not found", planetId, locationId)}
     end
     
     local errors = {}
@@ -214,9 +230,14 @@ end
 function ObjectTypeValidator.ValidateSpaceStationStructure()
     print("[ObjectTypeValidator] 🔍 Validating Space Station structure")
     
-    local spaceStationFolder = ServerStorage:FindFirstChild("Space"):FindFirstChild("SpaceStation")
+    local spaceFolder = ServerStorage:FindFirstChild("Space")
+    if not spaceFolder then
+        return false, {"[MISSING] 'ServerStorage/Space' folder not found"}
+    end
+    
+    local spaceStationFolder = spaceFolder:FindFirstChild("SpaceStation")
     if not spaceStationFolder then
-        return false, {"Space Station folder not found"}
+        return false, {"[MISSING] 'ServerStorage/Space/SpaceStation' folder not found"}
     end
     
     local errors = {}
@@ -250,7 +271,8 @@ function ObjectTypeValidator.ValidateSpaceStationStructure()
                 if script then
                     print("      ✅ Server/" .. scriptName .. " - " .. script.ClassName)
                 else
-                    table.insert(errors, "SpaceStation.Scripts.Server." .. scriptName .. " missing")
+                    local fullPath = "ServerStorage/Space/SpaceStation/Scripts/Server/" .. scriptName
+                    table.insert(errors, string.format("[MISSING] '%s' (expected: ModuleScript or Script)", fullPath))
                 end
             end
         end
@@ -263,17 +285,23 @@ function ObjectTypeValidator.ValidateSpaceStationStructure()
                 if script then
                     print("      ✅ Client/" .. scriptName .. " - " .. script.ClassName)
                 else
-                    table.insert(errors, "SpaceStation.Scripts.Client." .. scriptName .. " missing")
+                    local fullPath = "ServerStorage/Space/SpaceStation/Scripts/Client/" .. scriptName
+                    table.insert(errors, string.format("[MISSING] '%s' (expected: LocalScript)", fullPath))
                 end
             end
+        else
+            table.insert(errors, "[MISSING] 'ServerStorage/Space/SpaceStation/Scripts/Client' folder")
         end
     end
     
     if #errors > 0 then
-        print("[ObjectTypeValidator] ❌ Space Station structure validation failed:")
-        for _, error in ipairs(errors) do
-            print("  -", error)
+        print("[ObjectTypeValidator] ❌ Space Station structure validation failed (" .. #errors .. " issues):")
+        print("  ┌─────────────────────────────────────────────────────────────")
+        for i, err in ipairs(errors) do
+            print("  │ " .. i .. ". " .. err)
         end
+        print("  └─────────────────────────────────────────────────────────────")
+        print("[ObjectTypeValidator] 💡 Fix: Create missing objects in ServerStorage/Space/SpaceStation/")
         return false, errors
     else
         print("[ObjectTypeValidator] ✅ Space Station structure validation passed")
