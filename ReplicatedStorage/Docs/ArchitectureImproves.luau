@@ -210,7 +210,7 @@ Data Flow:
 ================================================================================
 
 ================================================================================
-9) НОВА СТРУКТУРА SERVERSTORAGE
+9) НОВА СТРУКТУРА SERVERSTORAGE (З ТИПІЗАЦІЄЮ ОБ'ЄКТІВ)
 ================================================================================
 
 Поточна структура (спрощена):
@@ -222,63 +222,170 @@ Data Flow:
     │   └── Locations/Location_1/
     └── Effects/
 
-Нова структура:
+Нова структура з чіткою типізацією:
     ServerStorage/
-    ├── Space/
-    │   ├── SpaceStation/
-    │   │   ├── Models/
-    │   │   │   ├── SpawnLocation
-    │   │   │   ├── PlanetScanner
-    │   │   │   └── TeleportationDevice
-    │   │   ├── Scripts/
-    │   │   ├── Lighting/
-    │   │   └── Configuration/
-    │   └── Common/
-    │       ├── TeleportationDevice/
-    │       └── Effects/
-    ├── Planets/
-    │   ├── Planet_1/
-    │   │   ├── PlanetModel/
-    │   │   ├── Lighting/
-    │   │   ├── Locations/
-    │   │   │   ├── Location_1/
-    │   │   │   │   ├── Models/
-    │   │   │   │   │   ├── SpawnLocation
-    │   │   │   │   │   └── InteractionObjects/
-    │   │   │   │   ├── Scripts/
-    │   │   │   │   ├── Lighting/
-    │   │   │   │   └── Configuration/
-    │   │   │   └── Location_2/
-    │   │   ├── Scripts/
-    │   │   └── Configuration/
-    │   └── Planet_2/
-    └── Effects/
+    ├── Space/                        -- Folder: Space environment
+    │   ├── SpaceStation/             -- Folder: Space Station location
+    │   │   ├── Models/               -- Folder: All station models
+    │   │   │   ├── SpawnLocation    -- SpawnLocation: Player spawn point
+    │   │   │   ├── PlanetSurfaceScanner    -- Model: Planet scanning device
+    │   │   │   ├── TeleportationDevice -- Model: Teleportation interface
+    │   │   │   └── ... (other station objects)
+    │   │   ├── Scripts/              -- Folder: Station-specific scripts
+    │   │   │   ├── Server/       -- Folder: Server-side scripts (copy to Workspace or require)
+    │   │   │   │   ├── SpaceStationManager.luau -- ModuleScript: Station controller
+    │   │   │   │   ├── PlanetSurfaceScanner.luau -- ModuleScript: Scanner logic (активує телепортацію)
+    │   │   │   │   ├── PlanetScannerController.luau -- ModuleScript: Scanner hardware controller
+    │   │   │   │   └── ...
+    │   │   │   └── Client/       -- Folder: Client-side scripts (copy to StarterPlayerScripts/StarterGui)
+    │   │   │       ├── StationUI.client.luau -- LocalScript: Station UI
+    │   │   │       ├── ScannerUI.client.luau -- LocalScript: Scanner interface
+    │   │   │       └── ...
+    │   │   ├── Lighting/             -- Folder: Station lighting
+    │   │   │   ├── Sky               -- Sky: Station skybox
+    │   │   │   ├── Atmosphere        -- Atmosphere: Station atmosphere
+    │   │   │   └── ...
+    │   │   └── Configuration/        -- Folder: Station config
+    │   │       ├── Settings.luau     -- ModuleScript: Station settings
+    │   │       └── ...
+    │   └── Common/                   -- Folder: Shared space objects
+    │       ├── TeleportationDevice/  -- Folder: Global teleportation system
+    │       │   ├── Device           -- Model: Teleport device model
+    │       │   └── ...
+    │       ├── Effects/              -- Folder: Space effects
+    │       │   ├── Particles         -- Folder: Particle effects
+    │       │   └── ...
+    │       └── ...
+    ├── Planets/                     -- Folder: All planet templates
+    │   ├── Planet_1/                -- Folder: First planet
+    │   │   ├── PlanetModel          -- Folder: Planet visual model
+    │   │   │   └── Planet           -- Model: Planet sphere with atmosphere
+    │   │   ├── Lighting/            -- Folder: Planet-specific lighting
+    │   │   │   ├── Sky               -- Sky: Planet skybox
+    │   │   │   ├── Atmosphere        -- Atmosphere: Planet atmosphere
+    │   │   │   └── ...
+    │   │   ├── Locations/           -- Folder: Planet locations
+    │   │   │   ├── Location_1/      -- Folder: First location
+    │   │   │   │   ├── Models/     -- Folder: Location models
+    │   │   │   │   │   ├── SpawnLocation -- SpawnLocation: Player spawn point
+    │   │   │   │   │   ├── Baseplate -- Part: Ground/floor
+    │   │   │   │   │   ├── InteractionObjects/ -- Folder: Interactive objects
+    │   │   │   │   │   │   ├── ResourceNode_1 -- Part: Resource node with effects
+    │   │   │   │   │   │   ├── ResourceNode_2 -- Part: Resource node with effects
+    │   │   │   │   │   │   └── ...
+    │   │   │   │   │   └── ...
+    │   │   │   │   ├── Scripts/    -- Folder: Location-specific scripts
+    │   │   │   │   │   ├── Server/ -- Folder: Server scripts (copy to Workspace)
+    │   │   │   │   │   │   ├── LocationController.luau -- ModuleScript: Location logic
+    │   │   │   │   │   │   ├── ResourceController.luau -- ModuleScript: Resource manager
+    │   │   │   │   │   │   └── ...
+    │   │   │   │   │   └── Client/ -- Folder: Client scripts (copy to StarterPlayerScripts)
+    │   │   │   │   │       ├── LocationUI.client.luau -- LocalScript: Location UI
+    │   │   │   │   │       ├── DialogSystem.client.luau -- LocalScript: NPC dialogs
+    │   │   │   │   │       └── ...
+    │   │   │   │   ├── Lighting/   -- Folder: Location lighting
+    │   │   │   │   │   ├── Sky       -- Sky: Location skybox
+    │   │   │   │   │   ├── LightSources -- Folder: Light sources
+    │   │   │   │   │   └── ...
+    │   │   │   │   └── Configuration/ -- Folder: Location config
+    │   │   │   │       ├── Settings.luau -- ModuleScript: Location settings
+    │   │   │   │       └── ...
+    │   │   │   ├── Location_2/      -- Folder: Second location
+    │   │   │   │   └── ... (same structure as Location_1)
+    │   │   │   └── ...
+    │   │   ├── Scripts/             -- Folder: Planet-wide scripts
+    │   │   │   ├── PlanetManager.luau -- ModuleScript: Planet controller
+    │   │   │   └── ...
+    │   │   └── Configuration/       -- Folder: Planet config
+    │   │       ├── Settings.luau     -- ModuleScript: Planet settings
+    │   │       └── ...
+    │   └── Planet_2/               -- Folder: Second planet
+    │       └── ... (same structure as Planet_1)
+    ├── Effects/                    -- Folder: Global effects (existing)
+    │   ├── TeleportAnimation/      -- Folder: Teleport effects
+    │   │   └── TeleportParticle     -- ParticleEmitter: Teleport effect
+    │   └── ...
+    └── ...
 
 ================================================================================
-10) НОВІ МЕНЕДЖЕРИ
+10) МЕНЕДЖЕРИ В SERVERSCRIPTSERVICE
 ================================================================================
+
+Всі менеджери знаходяться в ServerScriptService і виконуються на сервері.
+Менеджери в ServerStorage/Scripts/ - це ШАБЛОНИ, не активні скрипти!
 
 ServerScriptService/
+├── GameInit.server.luau       -- EXISTING: Ініціалізація гри
+│   -- Створює RemoteEvents
+│   -- Завантажує дані гравця
+│   -- Спавнить гравця
+│
+├── GameConfig.luau            -- EXISTING: Конфігурація гри
+│   -- Налаштування планет/локацій
+│   -- Константи гри
+│
+├── DataStoreManager.luau      -- EXISTING: Персистенція даних
+│   -- Зберігання/завантаження даних гравців
+│   -- Міграції схеми даних
+│
+├── PlayerDataManager.luau     -- EXISTING: Стан гравців
+│   -- Кеш даних гравців
+│   -- Статистика
+│
+├── LocationManager.luau       -- EXISTING: Перемикання локацій
+│   -- Завантаження/вивантаження з ServerStorage
+│   -- Керування Workspace
+│   -- Керування Lighting
+│
+├── TeleportationManager.luau  -- EXISTING: Система телепортації
+│   -- Працює з УСІМА локаціями
+│   -- Обробляє SpawnLocation
+│   -- UI телепортації
+│   -- RemoteEvents комунікація
+│
 ├── GameWorldManager.luau      -- NEW: Головний координатор світів
 │   -- Керує завантаженням/вивантаженням світів
 │   -- Координує Space і Planet менеджери
 │   -- Обробляє переходи між середовищами
 │
 ├── SpaceStationManager.luau   -- NEW: Контролер космічної станції
-│   -- Керує обєктами станції
+│   -- Керує об'єктами станції
 │   -- Обробляє правила станції
-│   -- Реєструє/знімає реєстрацію обєктів
+│   -- Реєструє/знімає реєстрацію об'єктів
 │
 ├── PlanetManager.luau         -- NEW: Контролер планети
 │   -- Керує системами планети
 │   -- Координує локації планети
 │   -- Обробляє правила планети
 │
+├── EnvironmentLoader.luau     -- NEW: Завантажувач середовищ
+│   -- Копіювання моделей з ServerStorage
+│   -- Копіювання скриптів у правильні місця
+│   -- Валідація завантаження
+│
+├── ObjectTypeValidator.luau   -- NEW: Валідатор типів об'єктів
+│   -- Перевірка структури ServerStorage
+│   -- Валідація конфігурації
+│
 └── LocationManagers/          -- NEW: Менеджери конкретних локацій
-    ├── BaseLocationManager.luau
-    ├── Location_1_Manager.luau
-    └── Location_2_Manager.luau
+    ├── BaseLocationManager.luau  -- Базовий клас для локацій
+    ├── Location_1_Manager.luau   -- Location 1 специфічна логіка
+    ├── Location_2_Manager.luau   -- Location 2 специфічна логіка
+    └── ...
 
+ВАЖЛИВО: Різниця між ServerScriptService та ServerStorage/Scripts:
+=========================================================================
+
+ServerScriptService/LocationManager.luau:
+    - ВИКОНУЄТЬСЯ автоматично при старті сервера
+    - Глобальний для всіх локацій
+    - Завжди активний
+
+ServerStorage/Planets/Planet_1/Locations/Location_1/Scripts/Server/LocationController.luau:
+    - НЕ виконується автоматично
+    - Це ШАБЛОН для конкретної локації
+    - Копіюється в Workspace при завантаженні локації
+    - Або require з ServerScriptService менеджера
 ================================================================================
 11) РОЗШИРЕНА КОНФІГУРАЦІЯ GAMECONFIG
 ================================================================================
@@ -346,24 +453,238 @@ GameConfig розширення:
 1) Space Environment - гравець на орбіті планети
 2) Planet Environment - гравець на поверхні планети
 
+================================================================================
+12.1) ВАЖЛИВО: РОЗМІЩЕННЯ СКРИПТІВ В ROBLOX
+================================================================================
+
+ПРАВИЛО: Скрипти, які виконуються на сервері, повинні знаходитись в ServerScriptService.
+Скрипти, які знаходяться в ServerStorage, є шаблонами і не виконуються автоматично.
+
+Roblox має обмеження на виконання скриптів:
+- Script (.server.luau) → виконується ТІЛЬКИ на сервері
+- LocalScript (.client.luau) → виконується ТІЛЬКИ на клієнті
+- ModuleScript (.luau) → може require з обох сторін
+
+LocalScript працює ТІЛЬКИ в:
+- StarterPlayerScripts
+- StarterGui / PlayerGui
+- StarterCharacterScripts
+- ReplicatedFirst
+
+LocalScript НЕ працює в:
+- Workspace (ігнорується!)
+- ServerStorage
+- ServerScriptService
+
+Правильне розміщення скриптів:
+
+ServerScriptService/ (ВИКОНАННЯ НА СЕРВЕРІ):
+├── GameInit.server.luau       -- Script: Ініціалізація гри (виконується)
+├── GameConfig.luau            -- ModuleScript: Конфігурація гри
+├── DataStoreManager.luau      -- ModuleScript: Персистенція даних
+├── PlayerDataManager.luau     -- ModuleScript: Стан гравців
+├── LocationManager.luau       -- ModuleScript: Перемикання локацій
+├── TeleportationManager.luau  -- ModuleScript: Телепортація (глобальний для ВСІХ локацій)
+├── GameWorldManager.luau      -- ModuleScript: Головний координатор світів
+├── SpaceStationManager.luau   -- ModuleScript: Контролер космічної станції
+├── PlanetManager.luau         -- ModuleScript: Контролер планети
+├── EnvironmentLoader.luau     -- ModuleScript: Завантажувач середовищ
+├── ObjectTypeValidator.luau   -- ModuleScript: Валідатор типів об'єктів
+└── LocationManagers/          -- Folder: Менеджери конкретних локацій
+    ├── BaseLocationManager.luau -- ModuleScript: Базовий клас для локацій
+    ├── Location_1_Manager.luau -- ModuleScript: Location 1 логіка
+    └── Location_2_Manager.luau -- ModuleScript: Location 2 логіка
+
+ServerStorage/ (ШАБЛОНИ - НЕ ВИКОНУЮТЬСЯ):
+├── Space/
+│   └── SpaceStation/
+│       ├── Scripts/            -- Folder: Шаблони скриптів станції
+│       │   ├── Server/       -- Folder: Server-side scripts (copy to Workspace or require)
+│       │   │   ├── SpaceStationManager.luau -- ModuleScript: Шаблон контролера станції
+│       │   │   ├── PlanetSurfaceScanner.luau -- ModuleScript: Сканер планет (активує телепортацію)
+│       │   │   ├── PlanetScannerController.luau -- ModuleScript: Контролер обладнання сканера
+│       │   │   └── ...
+│       │   └── Client/       -- Folder: Client-side scripts (copy to StarterPlayerScripts/StarterGui)
+│       │       ├── StationUI.client.luau -- LocalScript: Station UI
+│       │       ├── ScannerUI.client.luau -- LocalScript: Scanner interface
+│       │       ├── PlanetSurfaceScannerClient.client.luau -- LocalScript: Scanner UI
+│       │       └── ...
+│       └── ...
+├── Planets/
+│   ├── Planet_1/
+│   │   ├── Scripts/            -- Folder: Шаблони скриптів планети
+│   │   │   ├── Server/       -- Folder: Server scripts (copy to Workspace)
+│   │   │   │   ├── PlanetManager.luau -- ModuleScript: Шаблон контролера
+│   │   │   │   └── ...
+│   │   │   └── Client/       -- Folder: Client scripts (copy to StarterPlayerScripts)
+│   │   │       ├── PlanetUI.client.luau -- LocalScript: Planet UI
+│   │   │       └── ...
+│   │   └── Locations/
+│   │       ├── Location_1/
+│   │       │   ├── Scripts/    -- Folder: Шаблони скриптів локації
+│   │       │   │   ├── Server/ -- Folder: Server scripts (copy to Workspace)
+│   │       │   │   │   ├── LocationController.luau -- ModuleScript: Шаблон контролера
+│   │       │   │   │   ├── ResourceController.luau -- ModuleScript: Шаблон контролера
+│   │       │   │   │   └── ...
+│   │       │   │   └── Client/ -- Folder: Client scripts (copy to StarterPlayerScripts)
+│   │       │   │       ├── LocationUI.client.luau -- LocalScript: Location UI
+│   │       │   │       ├── DialogSystem.client.luau -- LocalScript: NPC dialogs
+│   │       │   │       └── ...
+│   │       │   └── ...
+│   │       └── ...
+│   └── ...
+└── ...
+
+ВАЖЛИВІ ПРИНЦИПИ:
+
+1. ServerScriptService:
+   - Скрипти тут виконуються на сервері
+   - ModuleScript'и для логіки менеджерів
+   - Script'и для ініціалізації та подій
+   - Глобальні системи та контролери
+
+2. ServerStorage:
+   - Шаблони моделей та об'єктів
+   - Скрипти тут НЕ виконуються автоматично
+   - Використовуються як шаблони для копіювання
+   - Конфігураційні файли
+
+3. Workspace:
+   - Скрипти тут виконуються на клієнті (якщо LocalScript)
+   - Скрипти тут виконуються на сервері (якщо Script)
+   - Скрипти, пов'язані з конкретними об'єктами
+
+4. ReplicatedStorage:
+   - Спільні модулі між клієнтом та сервером
+   - RemoteEvents та RemoteFunctions
+   - Клієнтські скрипти (LocalScript)
+
+ПРИКЛАД ПРАВИЛЬНОЇ АРХІТЕКТУРИ:
+
+ServerScriptService/GameWorldManager.luau (виконується):
+    local EnvironmentLoader = require(script.Parent.EnvironmentLoader)
+    local LocationManager = require(script.Parent.LocationManager)
+    
+    -- Логіка координації світів
+
+ServerStorage/Space/SpaceStation/Scripts/Server/SpaceStationManager.luau (шаблон):
+    -- Логіка контролера станції
+    -- Копіюється в Workspace при завантаженні
+    -- Виконується там як частина завантаженого середовища
+
+Це гарантує правильне виконання скриптів та уникнення дублювання логіки.
+
+================================================================================
+12.1.1) КАРТА КОПІЮВАННЯ СКРИПТІВ
+================================================================================
+
+ЗВІДКИ                                          КУДИ                           КОЛИ
+==================================================================================================
+ServerStorage/.../Scripts/Server/*.luau    →    require() з ServerScriptService  При завантаженні локації
+ServerStorage/.../Scripts/Server/*.server.luau → Workspace/CurrentLocation/      При завантаженні локації
+ServerStorage/.../Scripts/Client/*.client.luau → StarterPlayerScripts/Location/  При завантаженні локації
+                                                 + player.PlayerScripts для      Для кожного активного
+                                                   кожного активного гравця      гравця
+
+ПРИКЛАД ПОТОКУ:
+
+1. Гравець телепортується на Location_1:
+   
+   ЗВІДКИ: ServerStorage/Planets/Planet_1/Locations/Location_1/Scripts/
+   
+   Server/LocationController.luau
+       → ServerScriptService require() АБО clone в Workspace/Location_1/
+   
+   Server/ResourceController.server.luau
+       → Clone в Workspace/Location_1/Scripts/ (виконається автоматично)
+   
+   Client/LocationUI.client.luau
+       → Clone в StarterPlayerScripts/Location_1/
+       → Clone в player.PlayerScripts/Location_1/ (для активного гравця)
+
+2. При виході з локації:
+   - Видалити Workspace/Location_1/
+   - Видалити StarterPlayerScripts/Location_1/
+   - Видалити player.PlayerScripts/Location_1/
+
+================================================================================
+12.2) АЛГОРИТМ ЗАВАНТАЖЕННЯ ЛОКАЦІЇ
+================================================================================
+
+function LoadLocation(locationTemplate)
+    -- 1. Очистити Workspace від попередньої локації
+    ClearWorkspace()
+    
+    -- 2. Копіювати Models/ в Workspace
+    CloneToWorkspace(locationTemplate.Models)
+    
+    -- 3. Застосувати Lighting/
+    ApplyLighting(locationTemplate.Lighting)
+    
+    -- 4. Обробити Scripts/Server/
+    for script in locationTemplate.Scripts.Server do
+        if script:IsA("ModuleScript") then
+            -- ModuleScript: require з оригінального місця
+            -- або клонувати в Workspace для локальних даних
+            RegisterModule(script)
+        elseif script:IsA("Script") then
+            -- Script: клонувати в Workspace (виконається автоматично)
+            script:Clone().Parent = workspace.CurrentLocation
+        end
+    end
+    
+    -- 5. Обробити Scripts/Client/
+    for script in locationTemplate.Scripts.Client do
+        -- LocalScript: клонувати в StarterPlayerScripts
+        -- Для ВСІХ активних гравців!
+        for _, player in Players:GetPlayers() do
+            local clone = script:Clone()
+            clone.Parent = player.PlayerScripts
+        end
+    end
+    
+    -- 6. Завантажити Configuration/
+    LoadConfiguration(locationTemplate.Configuration)
+end
+
+function UnloadLocation()
+    -- 1. Видалити клієнтські скрипти локації
+    for _, player in Players:GetPlayers() do
+        RemoveLocationScripts(player.PlayerScripts)
+    end
+    
+    -- 2. Очистити Workspace
+    ClearWorkspace()
+end
+
+================================================================================
+12.3) ENVIRONMENT LOADING SEQUENCES
+================================================================================
+
 Space Environment Loading:
     1. Clear Workspace
     2. Copy Planet Model + Lighting
-    3. Copy SpaceStation Models/Scripts/Lighting
-    4. Verify all objects loaded
-    5. Spawn player at SpawnLocation
+    3. Copy SpaceStation Models/ to Workspace
+    4. Process SpaceStation Scripts/Server/
+    5. Process SpaceStation Scripts/Client/ → StarterPlayerScripts
+    6. Verify all objects loaded
+    7. Spawn player at SpawnLocation
 
 Planet Environment Loading:
     1. Clear Workspace
-    2. Copy Location Models/Scripts/Lighting
-    3. Verify all objects loaded
-    4. Spawn player at SpawnLocation
+    2. Copy Location Models/ to Workspace
+    3. Apply Location Lighting/
+    4. Process Location Scripts/Server/
+    5. Process Location Scripts/Client/ → StarterPlayerScripts
+    6. Verify all objects loaded
+    7. Spawn player at SpawnLocation
 
 Environment Switching:
     - GameWorldManager координує переходи
     - Кожне середовище має свою послідовність
     - Стан гравця зберігається під час переходів
     - Loading screen при потребі
+    - Клієнтські скрипти попередньої локації видаляються
 
 ================================================================================
 ЧАСТИНА III: ПЛАН МІГРАЦІЇ
@@ -373,11 +694,17 @@ Environment Switching:
 13) ФАЗИ ВПРОВАДЖЕННЯ
 ================================================================================
 
-PHASE 1: Підготовка структури (1-2 дні)
-    [ ] Створити нову структуру ServerStorage/Space та ServerStorage/Planets
-    [ ] Перемістити існуючі моделі
-    [ ] Створити шаблони для майбутнього контенту
-    [ ] Спроектувати систему завантаження середовищ
+PHASE 1: Підготовка структури (1-2 дні) ✅ ЗАВЕРШЕНО
+    [X] Створити нову структуру ServerStorage/Space та ServerStorage/Planets
+    [X] Перемістити існуючі моделі
+    [X] Створити шаблони для майбутнього контенту
+    [X] Створити ObjectTypeValidator.luau для перевірки типів
+    [X] Створити EnvironmentLoader.luau з валідацією
+    [X] Інтегрувати ObjectTypeValidator в EnvironmentLoader
+    [X] Оновити LocationManager для використання нової структури
+    [X] Спроектувати систему завантаження середовищ з валідацією
+    [X] Створити SpawnLocation для Space Station
+    [X] Оновити документацію з типізацією об'єктів
 
 PHASE 2: Створення менеджерів (2-3 дні)
     [ ] Створити BaseLocationManager з базовим функціоналом
@@ -428,12 +755,14 @@ PHASE 6: Cleanup (1 день)
     5. Location FSM - чіткий lifecycle
     6. Teleportation FSM - надійність телепортації
     7. ServerStorage Restructure - краща організація
+    8. Object Type Validation - перевірка типів об'єктів
+    9. Script Placement Architecture - правильне розміщення скриптів
 
 НИЗЬКИЙ пріоритет (технічний борг):
-    8. Schema Migrations - підготовка до змін
-    9. New Managers - краща модульність
-    10. Documentation sync - відповідність коду
-    11. Test scripts config - продакшен безпека
+    10. Schema Migrations - підготовка до змін
+    11. New Managers - краща модульність
+    12. Documentation sync - відповідність коду
+    13. Test scripts config - продакшен безпека
 
 ================================================================================
 15) КРИТЕРІЇ УСПІХУ
@@ -444,17 +773,24 @@ PHASE 6: Cleanup (1 день)
     - Гравець завжди спавниться (навіть при помилках)
     - Переходи локацій без crash
     - Дані гравця не втрачаються
+    - Всі об'єкти мають правильні типи
+    - Валідація структури перед завантаженням
 
 Якість коду:
     - Чіткий розподіл відповідальності
     - Легко додавати нові планети/локації
     - Конфігурація замість хардкоду
     - Зрозумілі стани систем (FSM)
+    - ObjectTypeValidator перевіряє всі структури
+    - EnvironmentLoader з інтегрованою валідацією
+    - Правильне розміщення скриптів (Server/Client)
 
 Документація:
     - TDD/GDD відповідає коду
     - Всі модулі задокументовані
     - Changelog актуальний
+    - Структура ServerStorage з типізацією об'єктів
+    - Правила розміщення скриптів в Roblox
 
 ================================================================================
 ]]

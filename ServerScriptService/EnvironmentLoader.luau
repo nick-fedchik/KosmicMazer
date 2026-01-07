@@ -38,6 +38,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 -- Load dependencies
 local GameConfig = require(game.ServerScriptService.GameConfig)
+local ObjectTypeValidator = require(script.Parent:FindFirstChild("ObjectTypeValidator"))
 
 -- Helper function to clear workspace completely
 local function clearWorkspace()
@@ -111,6 +112,27 @@ end
 function EnvironmentLoader.LoadSpaceEnvironment(planetId)
     print("[EnvironmentLoader] 🚀 Loading Space Environment for planet:", planetId)
     
+    -- Validate planet structure first
+    local planetValid, planetErrors = ObjectTypeValidator.ValidatePlanetStructure(planetId)
+    if not planetValid then
+        warn("[EnvironmentLoader] ❌ Planet structure validation failed, attempting to fix...")
+        ObjectTypeValidator.FixPlanetStructure(planetId)
+        
+        -- Re-validate after fixing
+        planetValid, planetErrors = ObjectTypeValidator.ValidatePlanetStructure(planetId)
+        if not planetValid then
+            error("[EnvironmentLoader] ❌ Cannot load environment - planet structure is invalid: " .. table.concat(planetErrors, ", "))
+        end
+    end
+    
+    -- Validate space station structure
+    local stationValid, stationErrors = ObjectTypeValidator.ValidateSpaceStationStructure()
+    if not stationValid then
+        warn("[EnvironmentLoader] ❌ Space Station structure validation failed, attempting to fix...")
+        -- Note: Space station fixing would require additional implementation
+        warn("[EnvironmentLoader] ⚠️ Space Station structure issues detected, proceeding with caution")
+    end
+    
     -- Clear workspace first
     clearWorkspace()
     
@@ -145,11 +167,43 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
             print("[EnvironmentLoader] ✅ Space Station models loaded")
         end
         
-        -- Copy scripts
+        -- Process SpaceStation Scripts
         local scriptsFolder = spaceStationFolder:FindFirstChild("Scripts")
         if scriptsFolder then
-            copyFolderContents(scriptsFolder, Workspace)
-            print("[EnvironmentLoader] ✅ Space Station scripts loaded")
+            -- Process Server scripts (copy to Workspace)
+            local serverFolder = scriptsFolder:FindFirstChild("Server")
+            if serverFolder then
+                for _, script in ipairs(serverFolder:GetChildren()) do
+                    if script:IsA("ModuleScript") then
+                        -- ModuleScript: clone to workspace for local data
+                        local clone = script:Clone()
+                        clone.Parent = Workspace
+                        print("  ✅ Server ModuleScript copied:", script.Name)
+                    elseif script:IsA("Script") then
+                        -- Script: clone to workspace (will execute automatically)
+                        local clone = script:Clone()
+                        clone.Parent = Workspace
+                        print("  ✅ Server Script copied:", script.Name)
+                    end
+                end
+            end
+            
+            -- Process Client scripts (copy to StarterPlayerScripts)
+            local clientFolder = scriptsFolder:FindFirstChild("Client")
+            if clientFolder then
+                local Players = game:GetService("Players")
+                for _, player in ipairs(Players:GetPlayers()) do
+                    for _, script in ipairs(clientFolder:GetChildren()) do
+                        if script:IsA("LocalScript") then
+                            local clone = script:Clone()
+                            clone.Parent = player:WaitForChild("PlayerScripts")
+                            print("  ✅ Client Script copied for", player.Name, ":", script.Name)
+                        end
+                    end
+                end
+            end
+            
+            print("[EnvironmentLoader] ✅ Space Station scripts processed")
         end
         
         -- Copy lighting
@@ -182,6 +236,19 @@ end
 -- Load Planet Environment (Location only)
 function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
     print("[EnvironmentLoader] 🪐 Loading Planet Environment:", planetId, "location:", locationId)
+    
+    -- Validate location structure first
+    local locationErrors = ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
+    if #locationErrors > 0 then
+        warn("[EnvironmentLoader] ❌ Location structure validation failed, attempting to fix...")
+        ObjectTypeValidator.FixLocationStructure(planetId, locationId)
+        
+        -- Re-validate after fixing
+        locationErrors = ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
+        if #locationErrors > 0 then
+            error("[EnvironmentLoader] ❌ Cannot load environment - location structure is invalid: " .. table.concat(locationErrors, ", "))
+        end
+    end
     
     -- Clear workspace first
     clearWorkspace()
@@ -230,6 +297,66 @@ end
 
 function EnvironmentLoader.VerifyEnvironmentLoaded(expectedObjects)
     return verifyObjectsLoaded(expectedObjects)
+end
+
+-- Validate all structures
+function EnvironmentLoader.ValidateAllStructures()
+    print("[EnvironmentLoader] 🔍 Validating all environment structures...")
+    
+    local allValid = true
+    local allErrors = {}
+    
+    -- Validate all planets
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if planetsFolder then
+        for _, planet in ipairs(planetsFolder:GetChildren()) do
+            if planet:IsA("Folder") then
+                local isValid, errors = ObjectTypeValidator.ValidatePlanetStructure(planet.Name)
+                if not isValid then
+                    allValid = false
+                    for _, error in ipairs(errors) do
+                        table.insert(allErrors, "Planet " .. planet.Name .. ": " .. error)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Validate space station
+    local stationValid, stationErrors = ObjectTypeValidator.ValidateSpaceStationStructure()
+    if not stationValid then
+        allValid = false
+        for _, error in ipairs(stationErrors) do
+            table.insert(allErrors, "SpaceStation: " .. error)
+        end
+    end
+    
+    if allValid then
+        print("[EnvironmentLoader] ✅ All environment structures are valid")
+    else
+        print("[EnvironmentLoader] ❌ Structure validation failed:")
+        for _, error in ipairs(allErrors) do
+            print("  -", error)
+        end
+    end
+    
+    return allValid, allErrors
+end
+
+-- Fix all structures
+function EnvironmentLoader.FixAllStructures()
+    print("[EnvironmentLoader] 🔧 Fixing all environment structures...")
+    
+    local planetsFolder = ServerStorage:FindFirstChild("Planets")
+    if planetsFolder then
+        for _, planet in ipairs(planetsFolder:GetChildren()) do
+            if planet:IsA("Folder") then
+                ObjectTypeValidator.FixPlanetStructure(planet.Name)
+            end
+        end
+    end
+    
+    print("[EnvironmentLoader] ✅ Structure fixing completed")
 end
 
 return EnvironmentLoader

@@ -4,7 +4,8 @@ KOSMICMAZER — Game Levels Refactoring Plan
 ================================================================================
 
 Purpose: Unified structure for game locations, planets, and interaction objects
-Version: 1.1
+Version: 1.2
+Last Updated: 2026-01-07
 
 Current Problems:
 - Mixed location management across multiple scripts
@@ -18,50 +19,76 @@ Proposed New Structure:
 
 1. ServerStorage Reorganization:
    ServerStorage/
-   ├── Space/                        -- Space environment
-   │   ├── SpaceStation/             -- Space Station location
-   │   │   ├── Models/               -- All station models
-   │   │   │   ├── SpawnLocation
-   │   │   │   ├── PlanetScanner
-   │   │   │   ├── TeleportationDevice
+   ├── Space/                        -- Folder: Space environment
+   │   ├── SpaceStation/             -- Folder: Space Station location
+   │   │   ├── Models/               -- Folder: All station models
+   │   │   │   ├── SpawnLocation    -- SpawnLocation: Player spawn point
+   │   │   │   ├── PlanetScanner    -- Model: Planet scanning device
+   │   │   │   ├── TeleportationDevice -- Model: Teleportation interface
    │   │   │   └── ... (other station objects)
-   │   │   ├── Scripts/              -- Station-specific scripts
-   │   │   │   ├── SpaceStationManager.lua
-   │   │   │   ├── PlanetScannerController.lua
+   │   │   ├── Scripts/              -- Folder: Station-specific scripts
+   │   │   │   ├── SpaceStationManager.lua -- ModuleScript: Station controller
+   │   │   │   ├── PlanetScannerController.lua -- ModuleScript: Scanner controller
    │   │   │   └── ...
-   │   │   ├── Lighting/             -- Station lighting
-   │   │   └── Configuration/        -- Station config
-   │   └── Common/                   -- Shared space objects
-   │       ├── TeleportationDevice/  -- Global teleportation system
-   │       ├── Effects/              -- Space effects
+   │   │   ├── Lighting/             -- Folder: Station lighting
+   │   │   │   ├── Sky               -- Sky: Station skybox
+   │   │   │   ├── Atmosphere        -- Atmosphere: Station atmosphere
+   │   │   │   └── ...
+   │   │   └── Configuration/        -- Folder: Station config
+   │   │       ├── Settings.lua     -- ModuleScript: Station settings
+   │   │       └── ...
+   │   └── Common/                   -- Folder: Shared space objects
+   │       ├── TeleportationDevice/  -- Folder: Global teleportation system
+   │       │   ├── Device           -- Model: Teleport device model
+   │       │   └── ...
+   │       ├── Effects/              -- Folder: Space effects
+   │       │   ├── Particles         -- Folder: Particle effects
+   │       │   └── ...
    │       └── ...
-   ├── Planets/                     -- All planet templates
-   │   ├── Planet_1/                -- First planet
-   │   │   ├── PlanetModel          -- Planet visual model
-   │   │   ├── Lighting/            -- Planet-specific lighting
-   │   │   ├── Locations/           -- Planet locations
-   │   │   │   ├── Location_1/      -- First location
-   │   │   │   │   ├── Models/     -- Location models
-   │   │   │   │   │   ├── SpawnLocation
-   │   │   │   │   │   ├── InteractionObjects/
-   │   │   │   │   │   │   ├── ResourceNode_1
-   │   │   │   │   │   │   ├── ResourceNode_2
+   ├── Planets/                     -- Folder: All planet templates
+   │   ├── Planet_1/                -- Folder: First planet
+   │   │   ├── PlanetModel          -- Folder: Planet visual model
+   │   │   │   └── Planet           -- Model: Planet sphere with atmosphere
+   │   │   ├── Lighting/            -- Folder: Planet-specific lighting
+   │   │   │   ├── Sky               -- Sky: Planet skybox
+   │   │   │   ├── Atmosphere        -- Atmosphere: Planet atmosphere
+   │   │   │   └── ...
+   │   │   ├── Locations/           -- Folder: Planet locations
+   │   │   │   ├── Location_1/      -- Folder: First location
+   │   │   │   │   ├── Models/     -- Folder: Location models
+   │   │   │   │   │   ├── SpawnLocation -- SpawnLocation: Player spawn point
+   │   │   │   │   │   ├── Baseplate -- Part: Ground/floor
+   │   │   │   │   │   ├── InteractionObjects/ -- Folder: Interactive objects
+   │   │   │   │   │   │   ├── ResourceNode_1 -- Part: Resource node with effects
+   │   │   │   │   │   │   ├── ResourceNode_2 -- Part: Resource node with effects
    │   │   │   │   │   │   └── ...
-   │   │   │   │   ├── Scripts/    -- Location-specific scripts
-   │   │   │   │   │   ├── LocationManager.lua
-   │   │   │   │   │   ├── ResourceController.lua
    │   │   │   │   │   └── ...
-   │   │   │   │   ├── Lighting/   -- Location lighting
-   │   │   │   │   └── Configuration/
-   │   │   │   ├── Location_2/      -- Second location
+   │   │   │   │   ├── Scripts/    -- Folder: Location-specific scripts
+   │   │   │   │   │   ├── LocationManager.lua -- ModuleScript: Location controller
+   │   │   │   │   │   ├── ResourceController.lua -- ModuleScript: Resource manager
+   │   │   │   │   │   └── ...
+   │   │   │   │   ├── Lighting/   -- Folder: Location lighting
+   │   │   │   │   │   ├── Sky       -- Sky: Location skybox
+   │   │   │   │   │   ├── LightSources -- Folder: Light sources
+   │   │   │   │   │   └── ...
+   │   │   │   │   └── Configuration/ -- Folder: Location config
+   │   │   │   │       ├── Settings.lua -- ModuleScript: Location settings
+   │   │   │   │       └── ...
+   │   │   │   ├── Location_2/      -- Folder: Second location
+   │   │   │   │   └── ... (same structure as Location_1)
    │   │   │   └── ...
-   │   │   ├── Scripts/             -- Planet-wide scripts
-   │   │   │   ├── PlanetManager.lua
+   │   │   ├── Scripts/             -- Folder: Planet-wide scripts
+   │   │   │   ├── PlanetManager.lua -- ModuleScript: Planet controller
    │   │   │   └── ...
-   │   │   └── Configuration/       -- Planet config
-   │   └── Planet_2/               -- Second planet
-   │       └── ...
-   ├── Effects/                    -- Global effects (existing)
+   │   │   └── Configuration/       -- Folder: Planet config
+   │   │       ├── Settings.lua     -- ModuleScript: Planet settings
+   │   │       └── ...
+   │   └── Planet_2/               -- Folder: Second planet
+   │       └── ... (same structure as Planet_1)
+   ├── Effects/                    -- Folder: Global effects (existing)
+   │   ├── TeleportAnimation/      -- Folder: Teleport effects
+   │   │   └── TeleportParticle     -- ParticleEmitter: Teleport effect
+   │   └── ...
    └── ...
 
 2. New Manager Scripts Architecture:
@@ -165,36 +192,68 @@ Proposed New Structure:
    1) Space Environment (Космічне середовище)
    2) Planet Environment (Планетарне середовище)
 
+   ВАЖЛИВО: Обмеження розміщення скриптів в Roblox:
+   =========================================
+   - Script (.server.luau) → виконується ТІЛЬКИ на сервері
+   - LocalScript (.client.luau) → виконується ТІЛЬКИ на клієнті
+   - ModuleScript (.luau) → може require з обох сторін
+
+   LocalScript працює ТІЛЬКИ в:
+   - StarterPlayerScripts, StarterGui, PlayerGui
+   - StarterCharacterScripts, ReplicatedFirst
+
+   LocalScript НЕ працює в:
+   - Workspace (ігнорується!)
+   - ServerStorage, ServerScriptService
+
+   Тому Scripts/ розділено на Server/ та Client/:
+   Scripts/
+   ├── Server/           -- Копіювати в Workspace або require
+   │   ├── *.luau        -- ModuleScripts (require з ServerScriptService)
+   │   └── *.server.luau -- Scripts (копіювати в Workspace)
+   └── Client/           -- Копіювати в StarterPlayerScripts/StarterGui
+       └── *.client.luau -- LocalScripts (виконуються на клієнті)
+
    4.1 Space Environment Loading Process:
    1.1 Clear Workspace completely
-   1.2 Copy from ServerStorage/Planets/Planet_N/ to Workspace:
-       ├── PlanetModel/         -- Planet visual model
-       └── Lighting/*           -- Planet-specific lighting
-   1.3 Copy from ServerStorage/Space/SpaceStation/ to Workspace:
-       ├── Models/             -- All station models
-       │   ├── SpawnLocation
-       │   ├── PlanetScanner
-       │   ├── TeleportationDevice
-       │   └── ... (other station objects)
-       ├── Scripts/            -- Station-specific scripts
-       ├── Lighting/           -- Station lighting
-       └── Configuration/      -- Station config
+   1.2 Remove previous location's Client scripts from StarterPlayerScripts
+   1.3 Copy from ServerStorage/Planets/Planet_N/ to Workspace:
+       ├── PlanetModel/         -- Folder: Planet visual model
+       │   └── Planet           -- Model: Planet sphere with atmosphere
+       └── Lighting/*           -- Folder: Planet-specific lighting
+   1.4 Copy from ServerStorage/Space/SpaceStation/ to Workspace:
+       ├── Models/             -- Folder: All station models → Workspace
+       │   ├── SpawnLocation, PlanetScanner, TeleportationDevice, ...
+       └── Lighting/           -- Folder: Station lighting
+   1.5 Process Scripts/Server/:
+       - ModuleScripts: require from original location OR clone to Workspace
+       - Scripts (.server.luau): clone to Workspace (will execute automatically)
+   1.6 Process Scripts/Client/:
+       - LocalScripts (.client.luau): clone to StarterPlayerScripts
+       - For each active player: clone to player.PlayerScripts
+   1.7 Load Configuration/
+   1.8 Verify all objects loaded
+   1.9 Spawn player at SpawnLocation
 
    4.2 Planet Environment Loading Process:
    1.1 Clear Workspace completely
-   1.2 Copy from ServerStorage/Planets/Planet_N/Locations/Location_M/ to Workspace:
-       ├── Models/             -- Location models
-       │   ├── SpawnLocation
-       │   ├── InteractionObjects/
-       │   │   ├── ResourceNode_1
-       │   │   ├── ResourceNode_2
-       │   │   └── ...
-       ├── Scripts/            -- Location-specific scripts
-       │   ├── LocationManager.lua
-       │   ├── ResourceController.lua
+   1.2 Remove previous location's Client scripts from StarterPlayerScripts
+   1.3 Copy from ServerStorage/Planets/Planet_N/Locations/Location_M/ to Workspace:
+       ├── Models/             -- Folder: Location models → Workspace
+       │   ├── SpawnLocation    -- SpawnLocation: Player spawn point
+       │   ├── Baseplate        -- Part: Ground/floor
+       │   ├── InteractionObjects/ -- Folder: Interactive objects
        │   └── ...
-       ├── Lighting/           -- Location lighting
-       └── Configuration/      -- Location config
+       └── Lighting/           -- Folder: Location lighting
+   1.4 Process Scripts/Server/:
+       - ModuleScripts: require from original location OR clone to Workspace
+       - Scripts (.server.luau): clone to Workspace (will execute automatically)
+   1.5 Process Scripts/Client/:
+       - LocalScripts (.client.luau): clone to StarterPlayerScripts
+       - For each active player: clone to player.PlayerScripts
+   1.6 Load Configuration/
+   1.7 Verify all objects loaded
+   1.8 Spawn player at SpawnLocation
 
    4.3 Environment Switching Logic:
    - GameWorldManager handles environment transitions

@@ -80,9 +80,9 @@ ReplicatedStorage/
 └── Docs/
     ├── GameDesignDocument.luau
     ├── TechnicalDesignDocument.luau
-    ├── ArchitectureImproves.luaua
+    ├── ArchitectureImproves.luau
     ├── LoggingConventions.luau
-    └── Roadmap.luaua
+    └── Backlog.luau
 
 ServerStorage/
 ├── Space/
@@ -98,13 +98,15 @@ ServerStorage/
 │       └── Location_2/
 └── Effects/
 
-3.2 Планована структура (див. ArchitectureImproves.luaua)
+3.2 Планована структура (див. ArchitectureImproves.luau)
 
 ServerStorage/
 ├── Space/
 │   ├── SpaceStation/
 │   │   ├── Models/
 │   │   ├── Scripts/
+│   │   │   ├── Server/     -- Server scripts (→ Workspace/require)
+│   │   │   └── Client/     -- Client scripts (→ StarterPlayerScripts)
 │   │   ├── Lighting/
 │   │   └── Configuration/
 │   └── Common/
@@ -113,8 +115,34 @@ ServerStorage/
 │       ├── PlanetModel/
 │       ├── Lighting/
 │       ├── Locations/
+│       │   └── Location_N/
+│       │       ├── Models/
+│       │       ├── Scripts/
+│       │       │   ├── Server/ -- Server scripts
+│       │       │   └── Client/ -- Client scripts
+│       │       ├── Lighting/
+│       │       └── Configuration/
 │       └── Configuration/
 └── Effects/
+
+3.3 Обмеження розміщення скриптів в Roblox
+
+Типи скриптів:
+- Script (.server.luau) → виконується ТІЛЬКИ на сервері
+- LocalScript (.client.luau) → виконується ТІЛЬКИ на клієнті
+- ModuleScript (.luau) → може require з обох сторін
+
+LocalScript працює ТІЛЬКИ в:
+- StarterPlayerScripts, StarterGui, PlayerGui
+- StarterCharacterScripts, ReplicatedFirst
+
+LocalScript НЕ працює в:
+- Workspace (ігнорується!)
+- ServerStorage, ServerScriptService
+
+Тому Scripts/ розділено:
+- Scripts/Server/ → Workspace або require як ModuleScript
+- Scripts/Client/ → StarterPlayerScripts для кожного гравця
 
 ================================================================================
 4. CORE SYSTEMS
