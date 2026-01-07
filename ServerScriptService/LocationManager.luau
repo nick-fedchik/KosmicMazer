@@ -211,9 +211,8 @@ local function loadSpaceStation()
 				if success and result then
 					print("[Location] ✅ PlanetSurfaceScanner ініціалізовано при завантаженні Space Station")
 				else
-					-- Scanner is optional, show warning instead of error
-					local reason = if success then "компоненти не знайдено" else tostring(result)
-					warn("[Location] ⚠️ PlanetSurfaceScanner не ініціалізовано: " .. reason)
+					-- Scanner is optional, show brief info message instead of warning
+					print("[Location] ℹ️ PlanetSurfaceScanner недоступний (опціонально)")
 				end
 			else
 				-- Scanner module is optional, don't warn if missing
