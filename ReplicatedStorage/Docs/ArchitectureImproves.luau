@@ -4,13 +4,29 @@ KOSMICMAZER — Architecture Improvements & Refactoring Plan
 ================================================================================
 
 Purpose: Узгоджена архітектура, рефакторинг структури та план міграції
-Version: 3.5
-Status: PLANNING
+Version: 4.0
+Status: IN PROGRESS (Workspace refactoring completed)
 Last Updated: 2026-01-07
 
 ================================================================================
 ЧАСТИНА I: АРХІТЕКТУРНІ ПОКРАЩЕННЯ
 ================================================================================
+
+⏫ РЕАЛІЗОВАНО В v3.9:
+- ✅ Workspace Structure Refactoring: Models→Workspace, PlanetModel→Workspace
+- ✅ 3-level Scripts hierarchy: SpaceStation/Scripts, Planet/Scripts, Location/Scripts
+- ✅ Optional PlanetSurfaceScanner: graceful degradation implemented
+- ✅ LoadOrder Configuration: created but deferred (SpawnLocation priority)
+- ✅ ObjectTypeValidator: updated for new Workspace structure
+- ✅ EnvironmentLoader v1.7: supports Workspace loading and Planet Scripts
+- ✅ TeleportationManager: fixed fallback paths for Workspace structure
+
+⏬ PENDING IMPLEMENTATION:
+- 🔄 RemoteEventsRegistry (HIGH)
+- 🔄 Data Schema & Migrations (MEDIUM)
+- 🔄 Location FSM (HIGH)
+- 🔄 BaseLocationManager (PHASE 2)
+- 🔄 Config Validation (MEDIUM)
 
 ================================================================================
 1) ЄДИНЕ ДЖЕРЕЛО ІСТИНИ ДЛЯ REMOTEEVENTS
@@ -226,28 +242,27 @@ Data Flow:
     ServerStorage/
     ├── Space/                        -- Folder: Space environment
     │   ├── SpaceStation/             -- Folder: Space Station location
-    │   │   ├── Models/               -- Folder: All station models
+    │   │   ├── Workspace/            -- Folder: Objects to copy to game.Workspace ✅ IMPLEMENTED
     │   │   │   ├── SpawnLocation    -- SpawnLocation: Player spawn point
-    │   │   │   ├── PlanetSurfaceScanner    -- Model: Planet scanning device
+    │   │   │   ├── PlanetSurfaceScanner    -- Model: Planet scanning device (optional)
     │   │   │   ├── TeleportationDevice -- Model: Teleportation interface
     │   │   │   └── ... (other station objects)
-    │   │   ├── Scripts/              -- Folder: Station-specific scripts
-    │   │   │   ├── Server/       -- Folder: Server-side scripts (copy to Workspace or require)
+    │   │   ├── Scripts/              -- Folder: Station-specific scripts ✅ IMPLEMENTED
+    │   │   │   ├── Server/       -- Folder: Server-side scripts (loaded as modules)
     │   │   │   │   ├── SpaceStationManager.luau -- ModuleScript: Station controller
-    │   │   │   │   ├── PlanetSurfaceScanner.luau -- ModuleScript: Scanner logic (активує телепортацію)
+    │   │   │   │   ├── PlanetSurfaceScanner.luau -- ModuleScript: Scanner logic (optional)
     │   │   │   │   ├── PlanetScannerController.luau -- ModuleScript: Scanner hardware controller
     │   │   │   │   └── ...
     │   │   │   └── Client/       -- Folder: Client-side scripts (copy to StarterPlayerScripts/StarterGui)
     │   │   │       ├── StationUI.client.luau -- LocalScript: Station UI
     │   │   │       ├── ScannerUI.client.luau -- LocalScript: Scanner interface
     │   │   │       └── ...
-    │   │   ├── Lighting/             -- Folder: Station lighting
-    │   │   │   ├── Sky               -- Sky: Station skybox
-    │   │   │   ├── Atmosphere        -- Atmosphere: Station atmosphere
-    │   │   │   └── ...
-    │   │   └── Configuration/        -- Folder: Station config
+    │   │   └── Configuration/        -- Folder: Station config ✅ IMPLEMENTED
+    │   │       ├── LoadOrder.luau    -- ModuleScript: Object loading priorities (deferred)
     │   │       ├── Settings.luau     -- ModuleScript: Station settings
     │   │       └── ...
+    │   │
+    │   │   NOTE: Lighting removed from SpaceStation - uses Planet/Lighting instead ✅ IMPLEMENTED
     │   └── Common/                   -- Folder: Shared space objects
     │       ├── TeleportationDevice/  -- Folder: Global teleportation system
     │       │   ├── Device           -- Model: Teleport device model
@@ -257,16 +272,21 @@ Data Flow:
     │       │   └── ...
     │       └── ...
     ├── Planets/                     -- Folder: All planet templates
-    │   ├── Planet_1/                -- Folder: First planet
-    │   │   ├── PlanetModel          -- Folder: Planet visual model
+    │   ├── Planet_1/                -- Folder: First planet (Залізяка) ✅ IMPLEMENTED
+    │   │   ├── Workspace/           -- Folder: Objects to copy to game.Workspace ✅ IMPLEMENTED
     │   │   │   └── Planet           -- Model: Planet sphere with atmosphere
-    │   │   ├── Lighting/            -- Folder: Planet-specific lighting
+    │   │   ├── Lighting/            -- Folder: Objects to copy to game.Lighting ✅ IMPLEMENTED
     │   │   │   ├── Sky               -- Sky: Planet skybox
     │   │   │   ├── Atmosphere        -- Atmosphere: Planet atmosphere
     │   │   │   └── ...
+    │   │   ├── Scripts/             -- Folder: Planet-wide scripts ✅ IMPLEMENTED
+    │   │   │   ├── Server/          -- Folder: Server-side planet scripts
+    │   │   │   │   ├── PlanetConfig.luau -- ModuleScript: Planet game rules & resources
+    │   │   │   │   └── ...
+    │   │   │   └── Client/          -- Folder: Client-side planet scripts
     │   │   ├── Locations/           -- Folder: Planet locations
-    │   │   │   ├── Location_1/      -- Folder: First location
-    │   │   │   │   ├── Models/     -- Folder: Location models
+    │   │   │   ├── Location_1/      -- Folder: First location (Садочок) ✅ IMPLEMENTED
+    │   │   │   │   ├── Workspace/  -- Folder: Objects to copy to game.Workspace ✅ IMPLEMENTED
     │   │   │   │   │   ├── SpawnLocation -- SpawnLocation: Player spawn point
     │   │   │   │   │   ├── Baseplate -- Part: Ground/floor
     │   │   │   │   │   ├── InteractionObjects/ -- Folder: Interactive objects
@@ -274,30 +294,66 @@ Data Flow:
     │   │   │   │   │   │   ├── ResourceNode_2 -- Part: Resource node with effects
     │   │   │   │   │   │   └── ...
     │   │   │   │   │   └── ...
-    │   │   │   │   ├── Scripts/    -- Folder: Location-specific scripts
-    │   │   │   │   │   ├── Server/ -- Folder: Server scripts (copy to Workspace)
-    │   │   │   │   │   │   ├── LocationController.luau -- ModuleScript: Location logic
+    │   │   │   │   ├── Scripts/    -- Folder: Location-specific scripts ✅ IMPLEMENTED
+    │   │   │   │   │   ├── Server/ -- Folder: Server scripts (loaded as modules)
+    │   │   │   │   │   │   ├── LocationGameServer.luau -- ModuleScript: Location game logic ✅ IMPLEMENTED
     │   │   │   │   │   │   ├── ResourceController.luau -- ModuleScript: Resource manager
     │   │   │   │   │   │   └── ...
     │   │   │   │   │   └── Client/ -- Folder: Client scripts (copy to StarterPlayerScripts)
     │   │   │   │   │       ├── LocationUI.client.luau -- LocalScript: Location UI
     │   │   │   │   │       ├── DialogSystem.client.luau -- LocalScript: NPC dialogs
     │   │   │   │   │       └── ...
-    │   │   │   │   ├── Lighting/   -- Folder: Location lighting
+    │   │   │   │   ├── Lighting/   -- Folder: Objects to copy to game.Lighting ✅ IMPLEMENTED
     │   │   │   │   │   ├── Sky       -- Sky: Location skybox
     │   │   │   │   │   ├── LightSources -- Folder: Light sources
     │   │   │   │   │   └── ...
-    │   │   │   │   └── Configuration/ -- Folder: Location config
+    │   │   │   │   └── Configuration/ -- Folder: Location config ✅ IMPLEMENTED
+    │   │   │   │       ├── LoadOrder.luau -- ModuleScript: Object loading priorities (deferred)
     │   │   │   │       ├── Settings.luau -- ModuleScript: Location settings
     │   │   │   │       └── ...
-    │   │   │   ├── Location_2/      -- Folder: Second location
+    │   │   │   ├── Location_2/      -- Folder: Second location (Гута) ✅ CONFIG ADDED
+    │   │   │   │   └── ... (same structure as Location_1)
+    │   │   │   ├── Location_3/      -- Folder: Third location (Канапка) ✅ CONFIG ADDED
     │   │   │   │   └── ... (same structure as Location_1)
     │   │   │   └── ...
-    │   │   ├── Scripts/             -- Folder: Planet-wide scripts
-    │   │   │   ├── PlanetManager.luau -- ModuleScript: Planet controller
+    │   │   ├── Scripts/             -- Folder: Planet-wide scripts ✅ IMPLEMENTED
+    │   │   │   ├── Server/          -- Folder: Server-side planet scripts
+    │   │   │   │   ├── PlanetConfig.luau -- ModuleScript: Planet game rules & resources ✅ IMPLEMENTED
+    │   │   │   │   └── ...
+    │   │   │   └── Client/          -- Folder: Client-side planet scripts
+    │   │   └── Configuration/       -- Folder: Planet config
+    │   │       ├── Settings.luau     -- ModuleScript: Planet settings
+    │   │       └── ...
+    │   ├── Planet_2/                -- Folder: Second planet (Вирій) ✅ CONFIG ADDED
+    │   │   ├── Workspace/           -- Folder: Objects to copy to game.Workspace (TODO: create)
+    │   │   ├── Lighting/            -- Folder: Objects to copy to game.Lighting (TODO: create)
+    │   │   ├── Scripts/             -- Folder: Planet-wide scripts (TODO: create)
+    │   │   ├── Locations/           -- Folder: Planet locations
+    │   │   │   ├── Location_1/      -- Folder: First location (Манівці) ✅ CONFIG ADDED
+    │   │   │   ├── Location_2/      -- Folder: Second location (Обабіч) ✅ CONFIG ADDED
+    │   │   │   ├── Location_3/      -- Folder: Third location (Видноколо) ✅ CONFIG ADDED
+    │   │   │   └── ...
+    │   │   └── Configuration/       -- Folder: Planet config (TODO: create)
+    │   │   │   │       ├── Settings.luau -- ModuleScript: Location settings
+    │   │   │   │       └── ...
+    │   │   │   ├── Location_2/      -- Folder: Second location (Гута) ✅ CONFIG ADDED
+    │   │   │   │   └── ... (same structure as Location_1)
+    │   │   │   ├── Location_3/      -- Folder: Third location (Канапка) ✅ CONFIG ADDED
+    │   │   │   │   └── ... (same structure as Location_1)
     │   │   │   └── ...
     │   │   └── Configuration/       -- Folder: Planet config
     │   │       ├── Settings.luau     -- ModuleScript: Planet settings
+    │   │       └── ...
+    │   ├── Planet_2/                -- Folder: Second planet (Вирій) ✅ CONFIG ADDED
+    │   │   ├── Workspace/           -- Folder: Objects to copy to game.Workspace (TODO: create)
+    │   │   ├── Lighting/            -- Folder: Objects to copy to game.Lighting (TODO: create)
+    │   │   ├── Scripts/             -- Folder: Planet-wide scripts (TODO: create)
+    │   │   ├── Locations/           -- Folder: Planet locations
+    │   │   │   ├── Location_1/      -- Folder: First location (Манівці) ✅ CONFIG ADDED
+    │   │   │   ├── Location_2/      -- Folder: Second location (Обабіч) ✅ CONFIG ADDED
+    │   │   │   ├── Location_3/      -- Folder: Third location (Видноколо) ✅ CONFIG ADDED
+    │   │   │   └── ...
+    │   │   └── Configuration/       -- Folder: Planet config (TODO: create)
     │   │       └── ...
     │   └── Planet_2/               -- Folder: Second planet
     │       └── ... (same structure as Planet_1)
@@ -757,15 +813,15 @@ A) КОСМІЧНА СТАНЦІЯ (SpaceStation)
    ClearWorkspace()
    ClearClientScripts("PreviousLocation")
    
-   -- Крок 2: Копіювати моделі
-   ServerStorage.Space.SpaceStation.Models:Clone().Parent = Workspace
+   -- Крок 2: Копіювати об'єкти ✅ IMPLEMENTED
+   ServerStorage.Space.SpaceStation.Workspace:Clone().Parent = game.Workspace
    
-   -- Крок 3: Серверні скрипти
+   -- Крок 3: Серверні скрипти ✅ IMPLEMENTED
    -- ModuleScript (.luau) → require() напряму, не копіювати
    -- Script (.server.luau) → Clone в Workspace/SpaceStation/Scripts/
    for _, script in Scripts.Server:GetChildren() do
        if script:IsA("Script") then
-           script:Clone().Parent = Workspace.SpaceStation.Scripts
+           script:Clone().Parent = game.Workspace.SpaceStation.Scripts
        end
    end
    
@@ -829,21 +885,21 @@ B) ПЛАНЕТНІ ЛОКАЦІЇ (Planet Locations)
 
 1. EnvironmentLoader.LoadPlanetLocation(planetName, locationName):
    
-   -- Крок 1: Очистити попередню локацію
+   -- Крок 1: Очистити попередню локацію ✅ IMPLEMENTED
    ClearWorkspace()
    ClearClientScripts("PreviousLocation")
    
-   -- Крок 2: Копіювати моделі локації
+   -- Крок 2: Копіювати об'єкти локації ✅ IMPLEMENTED
    local locationTemplate = ServerStorage.Planets[planetName].Locations[locationName]
-   locationTemplate.Models:Clone().Parent = Workspace
+   locationTemplate.Workspace:Clone().Parent = game.Workspace
    
-   -- Крок 3: Застосувати освітлення
+   -- Крок 3: Застосувати освітлення ✅ IMPLEMENTED
    ApplyLighting(locationTemplate.Lighting)
    
-   -- Крок 4: Серверні скрипти
+   -- Крок 4: Серверні скрипти ✅ IMPLEMENTED
    local scriptsFolder = Instance.new("Folder")
    scriptsFolder.Name = "Scripts"
-   scriptsFolder.Parent = Workspace[locationName]
+   scriptsFolder.Parent = game.Workspace[locationName]
    
    for _, script in locationTemplate.Scripts.Server:GetChildren() do
        if script:IsA("Script") then
@@ -965,19 +1021,19 @@ end
 Space Environment Loading:
     1. Clear Workspace
     2. Copy Planet Model + Lighting
-    3. Copy SpaceStation Models/ to Workspace
-    4. Process SpaceStation Scripts/Server/
+    3. Copy SpaceStation Workspace/ to game.Workspace ✅ IMPLEMENTED
+    4. Process SpaceStation Scripts/Server/ ✅ IMPLEMENTED
     5. Process SpaceStation Scripts/Client/ → StarterPlayerScripts
-    6. Verify all objects loaded
+    6. Verify all objects loaded ✅ IMPLEMENTED
     7. Spawn player at SpawnLocation
 
 Planet Environment Loading:
     1. Clear Workspace
-    2. Copy Location Models/ to Workspace
-    3. Apply Location Lighting/
-    4. Process Location Scripts/Server/
+    2. Copy Location Workspace/ to game.Workspace ✅ IMPLEMENTED
+    3. Apply Location Lighting/ ✅ IMPLEMENTED
+    4. Process Location Scripts/Server/ ✅ IMPLEMENTED
     5. Process Location Scripts/Client/ → StarterPlayerScripts
-    6. Verify all objects loaded
+    6. Verify all objects loaded ✅ IMPLEMENTED
     7. Spawn player at SpawnLocation
 
 Environment Switching:
