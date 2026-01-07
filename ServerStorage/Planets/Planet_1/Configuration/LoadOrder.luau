@@ -1,34 +1,39 @@
 --[[
 ================================================================================
-KOSMICMAZER — Space Station Load Order Configuration
+KOSMICMAZER — Planet Load Order Configuration
 ================================================================================
 
-Purpose: Defines the loading order for Space Station content
+Purpose: Defines the loading order for Planet-level content
 Version: 2.0
+Planet: Planet_1 (Залізяка)
 
 Description:
 This module defines the loading order for:
 - Workspace objects (copied to game.Workspace)
-- Server scripts (loaded as modules or cloned)
-- Client scripts (copied to StarterPlayerScripts)
+- Planet-wide server scripts (loaded as modules)
+- Planet-wide client scripts (copied to StarterPlayerScripts)
 
 Loading is done in the specified priority order (lower numbers load first).
 
 Structure:
-- WorkspaceObjects: Objects from SpaceStation/Workspace/
-- ServerScripts: Scripts from SpaceStation/Scripts/Server/
-- ClientScripts: Scripts from SpaceStation/Scripts/Client/
+- WorkspaceObjects: Objects from Planet/Workspace/
+- ServerScripts: Scripts from Planet/Scripts/Server/
+- ClientScripts: Scripts from Planet/Scripts/Client/
 
 Priority Rules:
-- 1-100: Core infrastructure (Planet, core modules)
+- 1-100: Core infrastructure (Planet model, atmosphere)
 - 101-500: Standard objects and scripts
 - 501-998: Optional/secondary content
-- 999: SpawnLocation and critical finalizers (load last)
+- 999: Reserved for critical finalizers
 - Default (unlisted): 500
 
 Usage:
-LoadOrder is read by EnvironmentLoader during LoadSpaceEnvironment().
+LoadOrder is read by EnvironmentLoader during LoadPlanetEnvironment().
 Objects/scripts not listed will be loaded with default priority (500).
+
+Note:
+Planet-level LoadOrder is processed BEFORE Location-level LoadOrder.
+This ensures planet-wide scripts are available to all locations.
 
 ================================================================================
 ]]
@@ -37,26 +42,25 @@ local LoadOrder = {}
 
 LoadOrder.Version = "2.0"
 
--- Порядок копіювання об'єктів з SpaceStation/Workspace/ → game.Workspace
+-- Порядок копіювання об'єктів з Planet/Workspace/ → game.Workspace
 LoadOrder.WorkspaceObjects = {
 	{name = "Planet", priority = 1, description = "Planet visual model"},
-	{name = "PlanetSurfaceScanner", priority = 2, description = "Scanner tool (optional)"},
-	{name = "SpawnLocation", priority = 999, description = "Player spawn point (must load last)"},
-	-- Add more objects here with their priorities
+	-- Add more planet-level objects here
 }
 
--- Порядок обробки серверних скриптів з SpaceStation/Scripts/Server/
+-- Порядок обробки серверних скриптів з Planet/Scripts/Server/
 LoadOrder.ServerScripts = {
-	{name = "PlanetSurfaceScanner", priority = 1, action = "require", description = "Scanner module"},
+	{name = "PlanetConfig", priority = 1, action = "require", description = "Planet game rules & resources"},
+	{name = "PlanetManager", priority = 2, action = "require", description = "Planet controller"},
 	-- ModuleScripts: action = "require" (loaded as modules)
 	-- Scripts: action = "clone" (copied to Workspace)
 	-- Add more scripts here
 }
 
--- Порядок копіювання клієнтських скриптів з SpaceStation/Scripts/Client/ → StarterPlayerScripts
+-- Порядок копіювання клієнтських скриптів з Planet/Scripts/Client/ → StarterPlayerScripts
 LoadOrder.ClientScripts = {
-	{name = "StationUI", priority = 1, description = "Station UI controller"},
-	{name = "ScannerUI", priority = 2, description = "Scanner interface"},
+	{name = "PlanetUI", priority = 1, description = "Planet-wide UI controller"},
+	{name = "PlanetEffects", priority = 2, description = "Planet-specific visual effects"},
 	-- Add more client scripts here
 }
 
@@ -107,13 +111,6 @@ function LoadOrder.GetServerScriptAction(scriptName: string): string
 	return "require"
 end
 
--- Legacy compatibility: alias for WorkspaceObjects
-LoadOrder.ORDER = LoadOrder.WorkspaceObjects
-LoadOrder.GetPriority = LoadOrder.GetWorkspacePriority
-
-return LoadOrder
-end
-
 -- Helper function to sort objects by load order
 function LoadOrder.SortObjects(objects: {Instance}): {Instance}
 	local sorted = {}
@@ -122,10 +119,14 @@ function LoadOrder.SortObjects(objects: {Instance}): {Instance}
 	end
 	
 	table.sort(sorted, function(a, b)
-		return LoadOrder.GetPriority(a.Name) < LoadOrder.GetPriority(b.Name)
+		return LoadOrder.GetWorkspacePriority(a.Name) < LoadOrder.GetWorkspacePriority(b.Name)
 	end)
 	
 	return sorted
 end
+
+-- Legacy compatibility: alias for WorkspaceObjects
+LoadOrder.ORDER = LoadOrder.WorkspaceObjects
+LoadOrder.GetPriority = LoadOrder.GetWorkspacePriority
 
 return LoadOrder
