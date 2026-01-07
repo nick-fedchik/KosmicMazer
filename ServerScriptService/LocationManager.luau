@@ -186,42 +186,7 @@ local function loadSpaceStation()
 			end
 		end
 		
-		-- Initialize PlanetSurfaceScanner when Space Station is loaded
-		local planetSurfaceScanner = Workspace:FindFirstChild("PlanetSurfaceScanner")
-		if planetSurfaceScanner then
-			-- Load PlanetSurfaceScanner module from SpaceStation scripts folder
-			local spaceStationScripts = ServerStorage:FindFirstChild("Space")
-			if spaceStationScripts then
-				spaceStationScripts = spaceStationScripts:FindFirstChild("SpaceStation")
-			end
-			if spaceStationScripts then
-				spaceStationScripts = spaceStationScripts:FindFirstChild("Scripts")
-			end
-			if spaceStationScripts then
-				spaceStationScripts = spaceStationScripts:FindFirstChild("Server")
-			end
-			
-			local PlanetSurfaceScannerModule = spaceStationScripts and spaceStationScripts:FindFirstChild("PlanetSurfaceScanner")
-			if PlanetSurfaceScannerModule then
-				local success, result = pcall(function()
-					local PlanetSurfaceScanner = require(PlanetSurfaceScannerModule)
-					return PlanetSurfaceScanner.Initialize(planetSurfaceScanner)
-				end)
-				
-				if success and result then
-					print("[Location] ✅ PlanetSurfaceScanner ініціалізовано при завантаженні Space Station")
-				else
-					-- Scanner is optional, show brief info message instead of warning
-					print("[Location] ℹ️ PlanetSurfaceScanner недоступний (опціонально)")
-				end
-			else
-				-- Scanner module is optional, don't warn if missing
-				print("[Location] ℹ️ PlanetSurfaceScanner модуль не знайдено (опціонально)")
-			end
-		else
-			-- Scanner model is optional, don't warn if missing
-			print("[Location] ℹ️ PlanetSurfaceScanner модель не знайдено в Workspace (опціонально)")
-		end
+		-- ServerScripts (including PlanetSurfaceScanner) are now loaded via EnvironmentLoader with LoadOrder
 		
 		print("[Location] ✅ Космічну станцію завантажено")
 	else

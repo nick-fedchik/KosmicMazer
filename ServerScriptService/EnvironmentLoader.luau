@@ -50,6 +50,7 @@ local ServerStorage = game:GetService("ServerStorage")
 -- Load dependencies
 local GameConfig = require(game.ServerScriptService.GameConfig)
 local ObjectTypeValidator = require(script.Parent:FindFirstChild("ObjectTypeValidator"))
+local LoadOrderProcessor = require(script.Parent:FindFirstChild("LoadOrderProcessor"))
 
 -- Helper function to clear workspace completely
 local function clearWorkspace()
@@ -200,27 +201,60 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
         warn("[EnvironmentLoader] ⚠️ Planet Lighting folder not found")
     end
     
-    -- Process Planet Scripts (optional - for planet-wide scripts)
-    local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
-    if planetScriptsFolder then
-        -- Process Server scripts
-        local serverFolder = planetScriptsFolder:FindFirstChild("Server")
-        if serverFolder then
-            print("[EnvironmentLoader] ✅ Planet Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
-            for _, script in ipairs(serverFolder:GetChildren()) do
-                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
-            end
-        end
-        
-        -- Process Client scripts
-        local clientFolder = planetScriptsFolder:FindFirstChild("Client")
-        if clientFolder then
-            local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
-            for _, script in ipairs(clientFolder:GetChildren()) do
-                if script:IsA("LocalScript") then
-                    local clone = script:Clone()
-                    clone.Parent = StarterPlayerScripts
-                    print("[EnvironmentLoader] ✅ Planet Client Script copied to StarterPlayerScripts:", script.Name)
+-- Process Planet Scripts with LoadOrder (optional - for planet-wide scripts)
+	local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
+	if planetScriptsFolder then
+		-- Load Planet LoadOrder configuration
+		local planetConfigFolder = planetFolder:FindFirstChild("Configuration")
+		local planetLoadOrderConfig = if planetConfigFolder then LoadOrderProcessor.LoadConfig(planetConfigFolder) else nil
+		
+		-- Process Server scripts with LoadOrder
+		local serverFolder = planetScriptsFolder:FindFirstChild("Server")
+		if serverFolder then
+			local serverScripts = serverFolder:GetChildren()
+			
+			if planetLoadOrderConfig then
+				serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, planetLoadOrderConfig)
+			end
+			
+			for index, script in ipairs(serverScripts) do
+				local action = "none"
+				if planetLoadOrderConfig then
+					action = LoadOrderProcessor.GetScriptAction(script.Name, planetLoadOrderConfig)
+				end
+				
+				if action == "require" and script:IsA("ModuleScript") then
+					local success = pcall(require, script)
+					if success then
+						print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Server: Required %s", 
+							index, #serverScripts, script.Name))
+					else
+						print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] Planet Server: %s unavailable", 
+							index, #serverScripts, script.Name))
+					end
+				else
+					print(string.format("[EnvironmentLoader] 📄 [%d/%d] Planet Server: %s available (%s)", 
+						index, #serverScripts, script.Name, script.ClassName))
+				end
+			end
+		end
+		
+		-- Process Client scripts
+		local clientFolder = planetScriptsFolder:FindFirstChild("Client")
+		if clientFolder then
+			local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+			local clientScripts = clientFolder:GetChildren()
+			
+			if planetLoadOrderConfig then
+				clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, planetLoadOrderConfig)
+			end
+			
+			for index, script in ipairs(clientScripts) do
+				if script:IsA("LocalScript") then
+					local clone = script:Clone()
+					clone.Parent = StarterPlayerScripts
+					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Client Script copied: %s", 
+						index, #clientScripts, script.Name))
                 end
             end
         end
@@ -259,28 +293,96 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
             warn("  └─ Очікуваний шлях: ServerStorage/Space/SpaceStation/Workspace")
         end
         
-        -- Process SpaceStation Scripts
-        local scriptsFolder = spaceStationFolder:FindFirstChild("Scripts")
-        if scriptsFolder then
-            -- Process Server scripts (keep in ServerStorage for LocationManager access)
-            local serverFolder = scriptsFolder:FindFirstChild("Server")
-            if serverFolder then
-                -- Server scripts remain in ServerStorage - LocationManager will access them directly
-                print("  ✅ Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
-                for _, script in ipairs(serverFolder:GetChildren()) do
-                    print("    -", script.Name, "(" .. script.ClassName .. ")")
+-- Process SpaceStation Scripts with LoadOrder
+		local scriptsFolder = spaceStationFolder:FindFirstChild("Scripts")
+		if scriptsFolder then
+			-- Load SpaceStation LoadOrder configuration
+			local configFolder = spaceStationFolder:FindFirstChild("Configuration")
+			local loadOrderConfig = if configFolder then LoadOrderProcessor.LoadConfig(configFolder) else nil
+			
+			-- Process Server scripts with LoadOrder
+			local serverFolder = scriptsFolder:FindFirstChild("Server")
+			if serverFolder then
+				local serverScripts = serverFolder:GetChildren()
+				
+				-- Sort scripts by LoadOrder priority
+				if loadOrderConfig then
+					serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, loadOrderConfig)
+					print("[EnvironmentLoader] 📋 Processing", #serverScripts, "SpaceStation Server scripts with LoadOrder")
+				else
+					print("[EnvironmentLoader] 📋 Processing", #serverScripts, "SpaceStation Server scripts (no LoadOrder)")
+				end
+				
+				-- Process each script according to its action
+				for index, script in ipairs(serverScripts) do
+					local action = "none"
+					if loadOrderConfig then
+						action = LoadOrderProcessor.GetScriptAction(script.Name, loadOrderConfig)
+					end
+					
+					if action == "require" and script:IsA("ModuleScript") then
+						-- Require ModuleScript and call Initialize if available
+						local success, result = pcall(function()
+							local module = require(script)
+							
+							-- Try to initialize if the module has Initialize function
+							if type(module) == "table" and module.Initialize then
+								-- Find corresponding Workspace model
+								local workspaceModel = Workspace:FindFirstChild(script.Name)
+								if workspaceModel then
+									local initSuccess = module.Initialize(workspaceModel)
+									if initSuccess then
+										return true
+									else
+										return false, "Initialize returned false"
+									end
+								else
+									return true  -- Module loaded but no Workspace model (optional)
+								end
+							else
+								return true  -- Module loaded, no Initialize method
+							end
+						end)
+						
+						if success and result then
+							print(string.format("[EnvironmentLoader] ✅ [%d/%d] Required & Initialized: %s", 
+								index, #serverScripts, script.Name))
+							elseif success then
+								print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] %s unavailable (optional)", 
+									index, #serverScripts, script.Name))
+							else
+								print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] %s unavailable (optional)", 
+									index, #serverScripts, script.Name))
+							end
+					elseif action == "clone" then
+						-- Clone script to appropriate location (not implemented yet)
+						print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] Script clone: %s (not implemented)", 
+							index, #serverScripts, script.Name))
+					else
+						-- No action - just log availability
+						print(string.format("[EnvironmentLoader] 📄 [%d/%d] %s available (%s)", 
+							index, #serverScripts, script.Name, script.ClassName))
+					end
                 end
             end
             
-            -- Process Client scripts (copy to StarterPlayerScripts)
-            local clientFolder = scriptsFolder:FindFirstChild("Client")
-            if clientFolder then
-                local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
-                for _, script in ipairs(clientFolder:GetChildren()) do
-                    if script:IsA("LocalScript") then
-                        local clone = script:Clone()
-                        clone.Parent = StarterPlayerScripts
-                        print("  ✅ Client Script copied to StarterPlayerScripts:", script.Name)
+-- Process Client scripts with LoadOrder (copy to StarterPlayerScripts)
+			local clientFolder = scriptsFolder:FindFirstChild("Client")
+			if clientFolder then
+				local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+				local clientScripts = clientFolder:GetChildren()
+				
+				-- Sort scripts by LoadOrder priority
+				if loadOrderConfig then
+					clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, loadOrderConfig)
+				end
+				
+				for index, script in ipairs(clientScripts) do
+					if script:IsA("LocalScript") then
+						local clone = script:Clone()
+						clone.Parent = StarterPlayerScripts
+						print(string.format("[EnvironmentLoader] ✅ [%d/%d] Client Script copied to StarterPlayerScripts: %s", 
+							index, #clientScripts, script.Name))
                     end
                 end
             end
@@ -349,27 +451,60 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         return false
     end
     
-    -- Process Planet Scripts first (common for all locations)
-    local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
-    if planetScriptsFolder then
-        -- Process Server scripts
-        local serverFolder = planetScriptsFolder:FindFirstChild("Server")
-        if serverFolder then
-            print("[EnvironmentLoader] ✅ Planet Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
-            for _, script in ipairs(serverFolder:GetChildren()) do
-                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
-            end
-        end
-        
-        -- Process Client scripts
-        local clientFolder = planetScriptsFolder:FindFirstChild("Client")
-        if clientFolder then
-            local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
-            for _, script in ipairs(clientFolder:GetChildren()) do
-                if script:IsA("LocalScript") then
-                    local clone = script:Clone()
-                    clone.Parent = StarterPlayerScripts
-                    print("[EnvironmentLoader] ✅ Planet Client Script copied to StarterPlayerScripts:", script.Name)
+-- Process Planet Scripts first with LoadOrder (common for all locations)
+	local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
+	if planetScriptsFolder then
+		-- Load Planet LoadOrder configuration
+		local planetConfigFolder = planetFolder:FindFirstChild("Configuration")
+		local planetLoadOrderConfig = if planetConfigFolder then LoadOrderProcessor.LoadConfig(planetConfigFolder) else nil
+		
+		-- Process Server scripts with LoadOrder
+		local serverFolder = planetScriptsFolder:FindFirstChild("Server")
+		if serverFolder then
+			local serverScripts = serverFolder:GetChildren()
+			
+			if planetLoadOrderConfig then
+				serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, planetLoadOrderConfig)
+			end
+			
+			for index, script in ipairs(serverScripts) do
+				local action = "none"
+				if planetLoadOrderConfig then
+					action = LoadOrderProcessor.GetScriptAction(script.Name, planetLoadOrderConfig)
+				end
+				
+				if action == "require" and script:IsA("ModuleScript") then
+					local success = pcall(require, script)
+					if success then
+						print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Server: Required %s", 
+							index, #serverScripts, script.Name))
+					else
+						print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] Planet Server: %s unavailable", 
+							index, #serverScripts, script.Name))
+					end
+				else
+					print(string.format("[EnvironmentLoader] 📄 [%d/%d] Planet Server: %s available (%s)", 
+						index, #serverScripts, script.Name, script.ClassName))
+				end
+			end
+		end
+		
+		-- Process Client scripts
+		local clientFolder = planetScriptsFolder:FindFirstChild("Client")
+		if clientFolder then
+			local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+			local clientScripts = clientFolder:GetChildren()
+			
+			if planetLoadOrderConfig then
+				clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, planetLoadOrderConfig)
+			end
+			
+			for index, script in ipairs(clientScripts) do
+				if script:IsA("LocalScript") then
+					local clone = script:Clone()
+					clone.Parent = StarterPlayerScripts
+					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Client Script copied: %s", 
+						index, #clientScripts, script.Name))
                 end
             end
         end
@@ -415,33 +550,65 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         warn("[EnvironmentLoader] ⚠️ Lighting folder not found in location")
     end
     
-    -- Process Location Scripts
+    -- Process Location Scripts with LoadOrder
     local scriptsFolder = locationFolder:FindFirstChild("Scripts")
     if scriptsFolder then
-        -- Process Server scripts (keep in ServerStorage for LocationManager access)
+        -- Load Location LoadOrder configuration
+        local locationConfigFolder = locationFolder:FindFirstChild("Configuration")
+        local locationLoadOrderConfig = if locationConfigFolder then LoadOrderProcessor.LoadConfig(locationConfigFolder) else nil
+        
+        -- Process Server scripts with LoadOrder
         local serverFolder = scriptsFolder:FindFirstChild("Server")
         if serverFolder then
-            -- Server scripts remain in ServerStorage - LocationManager will access them directly
-            print("[EnvironmentLoader] ✅ Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
-            for _, script in ipairs(serverFolder:GetChildren()) do
-                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
+            local serverScripts = serverFolder:GetChildren()
+            
+            if locationLoadOrderConfig then
+                serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, locationLoadOrderConfig)
+            end
+            
+            for index, script in ipairs(serverScripts) do
+                local action = "none"
+                if locationLoadOrderConfig then
+                    action = LoadOrderProcessor.GetScriptAction(script.Name, locationLoadOrderConfig)
+                end
+                
+                if action == "require" and script:IsA("ModuleScript") then
+                    local success = pcall(require, script)
+                    if success then
+                        print(string.format("[EnvironmentLoader] ✅ [%d/%d] Location Server: Required %s", 
+                            index, #serverScripts, script.Name))
+                    else
+                        print(string.format("[EnvironmentLoader] ℹ️ [%d/%d] Location Server: %s unavailable", 
+                            index, #serverScripts, script.Name))
+                    end
+                else
+                    print(string.format("[EnvironmentLoader] 📄 [%d/%d] Location Server: %s available (%s)", 
+                        index, #serverScripts, script.Name, script.ClassName))
+                end
             end
         end
         
-        -- Process Client scripts (copy to StarterPlayerScripts)
+        -- Process Client scripts with LoadOrder (copy to StarterPlayerScripts)
         local clientFolder = scriptsFolder:FindFirstChild("Client")
         if clientFolder then
             local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
-            for _, script in ipairs(clientFolder:GetChildren()) do
+            local clientScripts = clientFolder:GetChildren()
+            
+            if locationLoadOrderConfig then
+                clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, locationLoadOrderConfig)
+            end
+            
+            for index, script in ipairs(clientScripts) do
                 if script:IsA("LocalScript") then
                     local clone = script:Clone()
                     clone.Parent = StarterPlayerScripts
-                    print("[EnvironmentLoader] ✅ Client Script copied to StarterPlayerScripts:", script.Name)
+                    print(string.format("[EnvironmentLoader] ✅ [%d/%d] Location Client Script copied: %s", 
+                        index, #clientScripts, script.Name))
                 end
             end
         end
     else
-        print("[EnvironmentLoader] ⚠️ Scripts folder not found in location (optional)")
+        print("[EnvironmentLoader] ℹ️ Scripts folder not found in location (optional)")
     end
     
     print("[EnvironmentLoader] ✅ Location contents loaded")
