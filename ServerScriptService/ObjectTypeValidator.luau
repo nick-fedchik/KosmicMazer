@@ -112,7 +112,7 @@ end
 
 -- Validate planet structure
 function ObjectTypeValidator.ValidatePlanetStructure(planetId)
-    print("[ObjectTypeValidator] 🔍 Validating planet structure:", planetId)
+    print("[ObjectTypeValidator] 🔍 Validating planet structure:", planetId, "(v1.2 - Workspace structure)")
     
     local planetsFolder = ServerStorage:FindFirstChild("Planets")
     if not planetsFolder then
