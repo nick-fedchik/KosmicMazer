@@ -83,14 +83,13 @@ local gameState = {
 
 -- Create Player Login Screen programmatically (2.1)
 local function createBootScreen(player)
-	print("[GameInit] Creating game boot screen for: ", player.Name)
+	print("[GameInit] 🖼️ Створення екрану завантаження для:", player.Name)
 
 	-- Remove any existing LoginGui first
 	local playerGui = player:WaitForChild("PlayerGui")
 	local existingGui = playerGui:FindFirstChild("LoginGui")
 	if existingGui then
 		existingGui:Destroy()
-		print("[GameInit] Removed existing LoginGui")
 	end
 
 	-- Create ScreenGui
@@ -273,29 +272,19 @@ local function createBootScreen(player)
 	-- Start avatar animation
 	task.spawn(animateAvatar)
 
-	print("[GameInit] LoginGui created successfully")
+	print("[GameInit] ✅ Екран завантаження створено")
 	return loginGui
 end
 
 -- Update loading progress
 local function updateBootProgress(loginGui, progress, text)
-	if not loginGui then 
-		print("[GameInit] updateProgress: loginGui is nil")
-		return 
-	end
+	if not loginGui then return end
 
-	-- Direct update via server (simpler and more reliable)
 	local mainFrame = loginGui:FindFirstChild("MainFrame")
-	if not mainFrame then
-		print("[GameInit] MainFrame not found in loginGui")
-		return
-	end
+	if not mainFrame then return end
 
 	local progressBar = mainFrame:FindFirstChild("ProgressBar")
-	if not progressBar then
-		print("[GameInit] ProgressBar not found in MainFrame")
-		return
-	end
+	if not progressBar then return end
 
 	local progressFill = progressBar:FindFirstChild("ProgressFill")
 	local progressLabel = mainFrame:FindFirstChild("ProgressLabel")
@@ -307,36 +296,25 @@ local function updateBootProgress(loginGui, progress, text)
 			{Size = UDim2.new(progress, 0, 1, 0)}
 		)
 		tween:Play()
-	else
-		print("[GameInit] ProgressFill not found")
 	end
 
 	if progressLabel then
-		print("[GameInit] Updating ProgressLabel to:", text .. " " .. math.floor(progress * 100) .. "%")
 		progressLabel.Text = text .. " " .. math.floor(progress * 100) .. "%"
-	else
-		print("[GameInit] ProgressLabel not found")
 	end
 end
 
 -- Load player data (2.2)
 local function loadPlayerData(player)
-	print("[GameInit] Loading player data for:", player.Name)
+	print("[GameInit] 💾 Завантаження даних гравця:", player.Name)
 
-	-- Load player data using DataStoreManager
 	local playerProfile = DataStoreManager.LoadPlayerData(player)
 
 	if playerProfile then
-		print("[GameInit] Successfully loaded data for:", player.Name)
-		print("[GameInit] Current planet:", playerProfile.CurrentPlanet)
-		if playerProfile.UnlockedPlanets and type(playerProfile.UnlockedPlanets) == "table" then
-			print("[GameInit] Unlocked planets:", table.concat(playerProfile.UnlockedPlanets, ", "))
-		else
-			print("[GameInit] Unlocked planets: None or invalid data")
-		end
+		print("[GameInit] ✅ Дані гравця завантажено:", player.Name)
+		print("[GameInit] ℹ️ Поточна планета:", playerProfile.CurrentPlanet)
 		return playerProfile
 	else
-		warn("[GameInit] Failed to load data for:", player.Name)
+		warn("[GameInit] ⚠️ Не вдалося завантажити дані для:", player.Name)
 		return nil
 	end
 end
@@ -344,17 +322,15 @@ end
 
 -- Spawn player (2.5)
 local function spawnPlayer(player, playerProfile)
-	print("[GameInit] Spawning player:", player.Name)
+	print("[GameInit] 🔄 Підготовка появи гравця:", player.Name)
 
 	-- Wait for player to be in the world
 	if not player.Parent then
-		print("[GameInit] Waiting for player to be in the world...")
 		player:GetPropertyChangedSignal("Parent"):Wait()
 	end
 
 	-- Load character
 	if not player.Character then
-		print("[GameInit] Loading character for:", player.Name)
 		player:LoadCharacter()
 	end
 
@@ -380,19 +356,17 @@ local function spawnPlayer(player, playerProfile)
 
 	if spawnLocation then
 		humanoidRootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 2, 0)
-
-		-- Set current location attribute
 		player:SetAttribute("CurrentLocation", "SpaceStation")
 
-		-- Store spawn location in player profile
 		if playerProfile then
 			playerProfile.LastSpawnLocation = {
 				Type = "SpaceStation",
 				CFrame = spawnLocation.CFrame
 			}
 		end
+		print("[GameInit] ✅ Гравець з'явився на Космічній Станції")
 	else
-		warn("[GameInit] SpawnLocation not found, using default position")
+		warn("[GameInit] ⚠️ SpawnLocation не знайдено, використовується позиція за замовчуванням")
 		-- Fallback to default position
 		humanoidRootPart.CFrame = CFrame.new(0, 2, 0)
 		-- Set current location attribute even for fallback
@@ -405,7 +379,7 @@ end
 
 -- Handle player joining (Complete Player Pre-Spawn flow)
 local function onPlayerAdded(player)
-	print("[GameInit] Player joined:", player.Name)
+	print("[GameInit] 👤 Гравець приєднався:", player.Name)
 
 	-- Mark player as loading
 	gameState.loadingPlayers[player.UserId] = true
@@ -415,33 +389,26 @@ local function onPlayerAdded(player)
 
 
 	-- Stage 1. Initialize Game DataStore Manager
-	updateBootProgress(loginGui, 0.1, "Initializing game data storage...")
+	updateBootProgress(loginGui, 0.1, "Ініціалізація сховища даних...")
 	DataStoreManager.Initialize()
-	task.wait(1) -- Add delay for visual effect
+	task.wait(1)
 
 	-- Stage 2. Load player profile
-	updateBootProgress(loginGui, 0.2, "Loading Player profile...")
-	task.wait(1) -- Add delay for visual effect
+	updateBootProgress(loginGui, 0.2, "Завантаження профілю...")
+	task.wait(1)
 	local playerProfile = loadPlayerData(player)
 
 
 	-- Stage 3. Create new player profile
 	if not playerProfile then
-		updateBootProgress(loginGui, 0.3, "Creating new Player profile...")
-		task.wait(1) -- Add delay for visual effect
-		warn("[GameInit] Failed to load player data for:", player.Name)
-		-- NEW PLAYER DETECTED !!! 
-		-- IsNewPlayer(player)
-		-- TODO UPDATE Playersprofile with default data from GameConfig
-		-- TODO Save Players data
-		-- PlayerDataManager.UpdatePlayerSettings()
+		updateBootProgress(loginGui, 0.3, "Створення нового профілю...")
+		task.wait(1)
+		warn("[GameInit] ⚠️ Не вдалося завантажити дані для:", player.Name)
 		return
 	end
 
-	print("[GameInit] Player data loaded successfully for:", player.Name)
-
 	-- Stage 4. Get player info
-	updateBootProgress(loginGui, 0.3, "Get Player info...")
+	updateBootProgress(loginGui, 0.3, "Отримання інформації...")
 
 	-- Determine player type using PlayerDataManager
 	local success, playerInfo = pcall(function()
@@ -449,7 +416,7 @@ local function onPlayerAdded(player)
 	end)
 
 	if not success then
-		warn("[GameInit] Failed to get player info:", playerInfo)
+		warn("[GameInit] ⚠️ Не вдалося отримати інфо гравця")
 		playerInfo = {
 			Type = "Unknown",
 			JoinDate = playerProfile.Stats.JoinDate,
@@ -459,22 +426,19 @@ local function onPlayerAdded(player)
 	end
 
 	local playerType = playerInfo.Type
-	print(string.format("[GameInit] %s player detected: %s", playerType, player.Name))
-	task.wait(1) -- Add delay for visual effect
+	print("[GameInit] ℹ️ Тип гравця:", playerType, "-", player.Name)
+	task.wait(1)
 
 	-- Stage 5. Loading Player settings
-	updateBootProgress(loginGui, 0.5, "Loading player settings...")
+	updateBootProgress(loginGui, 0.5, "Завантаження налаштувань...")
 
 
 	-- Settings are already loaded with player data
-	if playerProfile and playerProfile.Settings then
-		print("[GameInit] Player settings loaded for:", player.Name)
-	end
-	task.wait(1) -- Add delay for visual effect
+	task.wait(1)
 
 
 	-- Stage 6. Start Location Manager
-	updateBootProgress(loginGui, 0.5, "Loading player settings...")
+	updateBootProgress(loginGui, 0.6, "Запуск менеджера локацій...")
 
 	-- Update player profile with loaded planet
 	if not playerProfile.CurrentPlanet then
@@ -486,38 +450,35 @@ local function onPlayerAdded(player)
 	local locationManagerModule = script.Parent:FindFirstChild("LocationManager")
 
 	if locationManagerModule then
-		print("[GameInit] Found LocationManager module:", locationManagerModule.ClassName)
-
 		if locationManagerModule.ClassName == "ModuleScript" then
 			local success, result = pcall(function()
 				LocationManager = require(locationManagerModule)
 			end)
 
 			if success then
-				print("[GameInit] LocationManager loaded successfully")
-				-- Initialize LocationManager to load default planet
+				print("[GameInit] ✅ LocationManager завантажено")
 				LocationManager.Initialize()
 			else
-				warn("[GameInit] Failed to require LocationManager: " .. tostring(result))
-				error("[GameInit] Cannot proceed without LocationManager")
+				warn("[GameInit] ❌ Не вдалося завантажити LocationManager:", tostring(result))
+				error("[GameInit] Неможливо продовжити без LocationManager")
 			end
 		else
-			warn("[GameInit] LocationManager is not a ModuleScript, it's a: " .. locationManagerModule.ClassName)
-			error("[GameInit] LocationManager must be a ModuleScript")
+			warn("[GameInit] ❌ LocationManager не є ModuleScript")
+			error("[GameInit] LocationManager має бути ModuleScript")
 		end
 	else
-		error("[GameInit] LocationManager module not found")
+		error("[GameInit] ❌ LocationManager модуль не знайдено")
 	end
-	task.wait(1) -- Add delay for visual effect
+	task.wait(1)
 
 	-- Stage 7. Load Planet and SpaceStation
-	updateBootProgress(loginGui, 0.8, "Loading Planet " .. playerProfile.CurrentPlanet .. " and Space Station")
+	updateBootProgress(loginGui, 0.8, "Завантаження планети " .. playerProfile.CurrentPlanet .. "...")
 	LocationManager.SwitchToSpaceStation(playerProfile.CurrentPlanet, "Deep Space")
-	task.wait(1) -- Add delay for visual effect
+	task.wait(1)
 
 	-- Stage 8. Complete loading
-	updateBootProgress(loginGui, 1.0, "Complete!")
-	task.wait(1) -- Wait longer before removing screen
+	updateBootProgress(loginGui, 1.0, "Завершено!")
+	task.wait(1)
 
 
 	local spawnSuccess = pcall(function()
@@ -532,31 +493,13 @@ local function onPlayerAdded(player)
 
 
 	if not spawnSuccess then
-		warn("[GameInit] Failed to spawn player:", player.Name)
+		warn("[GameInit] ❌ Не вдалося спавнити гравця:", player.Name)
 	end
 
 	-- Mark player as loaded
 	gameState.loadingPlayers[player.UserId] = nil
 
-
-	print("[GameInit] Player fully loaded:", player.Name)
-	if playerProfile then
-		print("[GameInit] Player type:", playerType)
-		print("[GameInit] Current planet:", playerProfile.CurrentPlanet)
-		if playerProfile.UnlockedPlanets and type(playerProfile.UnlockedPlanets) == "table" then
-			print("[GameInit] Unlocked planets:", table.concat(playerProfile.UnlockedPlanets, ", "))
-		else
-			print("[GameInit] Unlocked planets: None or invalid data")
-		end
-		print("[GameInit] Total play time:", playerProfile.Stats.TotalPlayTime or 0, "seconds")
-		print("[GameInit] Locations discovered:", playerProfile.Stats.LocationsDiscovered or 0)
-		if playerProfile.Stats.JoinDate and type(playerProfile.Stats.JoinDate) == "number" and playerProfile.Stats.JoinDate > 0 then
-			print("[GameInit] Join date:", os.date("%Y-%m-%d %H:%M:%S", playerProfile.Stats.JoinDate))
-		else
-			print("[GameInit] Join date: Unknown")
-		end
-	end
-
+	print("[GameInit] ✅ Гравця повністю завантажено:", player.Name)
 end
 
 -- Connect events
@@ -567,4 +510,4 @@ for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(onPlayerAdded, player)
 end
 
-print("[GameInit] GameInit loaded")
+print("[GameInit] 🚀 GameInit завантажено")

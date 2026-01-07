@@ -69,10 +69,10 @@ end)
 
 if success then
     DataStoreManager = result
-    print("[TeleportationManager] ✅ DataStoreManager loaded successfully")
+    print("[Teleport] ✅ DataStoreManager завантажено")
 else
-    warn("[TeleportationManager] ⚠️ DataStoreManager failed to load: " .. tostring(result))
-    warn("[TeleportationManager] ⚠️ Using fallback DataStoreManager")
+    warn("[Teleport] ⚠️ DataStoreManager не вдалося завантажити:", tostring(result))
+    warn("[Teleport] ⚠️ Використовується fallback")
     
     -- Create fallback DataStoreManager
     DataStoreManager = {
@@ -217,7 +217,7 @@ local function setInactiveState()
         pointLight.Enabled = false
     end
     
-    print("[TeleportationManager] 🔴 Teleportation INACTIVE")
+    print("[Teleport] 🔴 Телепортація НЕАКТИВНА")
 end
 
 -- Set active state with pulsing
@@ -268,7 +268,7 @@ local function setActiveState()
     })
     spawnPulse:Play()
     
-    print("[TeleportationManager] 🟢 Teleportation ACTIVE")
+    print("[Teleport] 🟢 Телепортація АКТИВНА")
 end
 
 -- Get discovered locations for player
@@ -379,9 +379,8 @@ local function switchLocation(player, targetLocation)
     local targetCFrame
     
     if targetLocation.LocationId == "SpaceStation" then
-        -- Switch to Space Station
-        print("[TeleportationManager] 🚀 Switching to Space Station")
-        print("[TeleportationManager] Calling LocationManager.SwitchToSpaceStation()...")
+        print("[Teleport] 🚀 Перехід на SpaceStation")
+        print("[Teleport] Виклик LocationManager.SwitchToSpaceStation()...")
 		success = LocationManager.SwitchToSpaceStation(targetLocation.PlanetId, targetLocation.LocationId)
         print("[TeleportationManager] 📊 SwitchToSpaceStation result: " .. tostring(success))
         if success then
@@ -402,9 +401,8 @@ local function switchLocation(player, targetLocation)
             return false, "Failed to switch to Space Station"
         end
     else
-        -- Switch to planet location
-        print("[TeleportationManager] 🪐 Switching to planet: " .. targetLocation.PlanetId .. ", location: " .. targetLocation.LocationId)
-        print("[TeleportationManager] Calling LocationManager.SwitchToPlanetLocation()...")
+        print("[Teleport] 🪐 Перехід на планету:", targetLocation.PlanetId, "локація:", targetLocation.LocationId)
+        print("[Teleport] Виклик LocationManager.SwitchToPlanetLocation()...")
         success = LocationManager.SwitchToPlanetLocation(targetLocation.PlanetId, targetLocation.LocationId)
         print("[TeleportationManager] 📊 SwitchToPlanetLocation result: " .. tostring(success))
         if success then
@@ -486,11 +484,11 @@ local function switchLocation(player, targetLocation)
     end)
     
     if not successUpdate then
-        warn("[TeleportationManager] Failed to update player stats: " .. tostring(error))
+        warn("[Teleport] ⚠️ Не вдалося оновити статистику:", tostring(error))
     end
     
-    print("[TeleportationManager] ✅ " .. player.Name .. " teleported to " .. targetLocation.DisplayName)
-    print("[TeleportationManager] === SWITCH LOCATION END ===")
+    print("[Teleport] ✅", player.Name, "телепортовано на", targetLocation.DisplayName)
+    print("[Teleport] === SWITCH LOCATION END ===")
     return true, "Teleported successfully"
 end
 
@@ -590,8 +588,9 @@ local function onTouched(otherPart)
 		-- Always include Space Station as return option if not current location
 		local availableLocations = {}
 
-		-- Add Space Station if player is not there
+		-- Always include Space Station if player is not there (CRITICAL FIX)
 		if currentLocation ~= "SpaceStation" then
+			print("[TeleportationManager] 🚀 Adding Space Station to available locations")
 			table.insert(availableLocations, {
 				PlanetId = "SpaceStation",
 				LocationId = "SpaceStation",
@@ -600,14 +599,40 @@ local function onTouched(otherPart)
 				SpawnPoint = spawnLocation.CFrame,
 				TeleportPoint = spawnLocation.CFrame
 			})
+		else
+			print("[TeleportationManager] ℹ️ Player is on Space Station - not adding to available locations")
 		end
 
 		-- Add discovered planet locations
 		local discoveredLocations = getDiscoveredLocations(player)
+		print("[TeleportationManager] 📋 Discovered locations count: " .. #discoveredLocations)
 		for _, location in ipairs(discoveredLocations) do
-			-- Filter out current location to prevent teleporting to same place
-			if location.LocationId ~= currentLocation then
-				table.insert(availableLocations, location)
+			print("[TeleportationManager] 📋 Checking location: " .. location.DisplayName .. " (" .. location.LocationId .. ")")
+			
+			-- CRITICAL FIX: Check if location template exists in ServerStorage
+			local locationTemplate = game.ServerStorage:FindFirstChild("Planet_1")
+			if locationTemplate then
+				local locationFolder = locationTemplate:FindFirstChild("Locations")
+				if locationFolder then
+					local locationModel = locationFolder:FindFirstChild(location.LocationId)
+					if locationModel then
+						print("[TeleportationManager] ✅ Location template found: " .. location.LocationId)
+						
+						-- Filter out current location to prevent teleporting to same place
+						if location.LocationId ~= currentLocation then
+							table.insert(availableLocations, location)
+							print("[TeleportationManager] ✅ Added to available locations: " .. location.DisplayName)
+						else
+							print("[TeleportationManager] ℹ️ Skipping current location: " .. location.DisplayName)
+						end
+					else
+						print("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId .. " - blocking teleportation")
+					end
+				else
+					print("[TeleportationManager] ❌ Locations folder not found in Planet_1")
+				end
+			else
+				print("[TeleportationManager] ❌ Planet_1 template not found")
 			end
 		end
 
@@ -780,9 +805,31 @@ local function onTeleportRequest(player, action, data)
     
     -- Add discovered planet locations (filter out current location)
     for _, location in ipairs(discoveredLocations) do
-        if location.LocationId ~= currentLocation then
-            print("[TeleportationManager] Adding planet location: " .. location.DisplayName)
-            table.insert(availableLocations, location)
+        print("[TeleportationManager] 📋 Checking location for teleport: " .. location.DisplayName .. " (" .. location.LocationId .. ")")
+        
+        -- CRITICAL FIX: Check if location template exists in ServerStorage
+        local locationTemplate = game.ServerStorage:FindFirstChild("Planet_1")
+        if locationTemplate then
+            local locationFolder = locationTemplate:FindFirstChild("Locations")
+            if locationFolder then
+                local locationModel = locationFolder:FindFirstChild(location.LocationId)
+                if locationModel then
+                    print("[TeleportationManager] ✅ Location template found: " .. location.LocationId)
+                    
+                    if location.LocationId ~= currentLocation then
+                        print("[TeleportationManager] Adding planet location: " .. location.DisplayName)
+                        table.insert(availableLocations, location)
+                    else
+                        print("[TeleportationManager] ℹ️ Skipping current location: " .. location.DisplayName)
+                    end
+                else
+                    print("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId .. " - blocking teleportation")
+                end
+            else
+                print("[TeleportationManager] ❌ Locations folder not found in Planet_1")
+            end
+        else
+            print("[TeleportationManager] ❌ Planet_1 template not found")
         end
     end
     
@@ -825,7 +872,7 @@ end
 
 -- Handle teleportation activation from scanner
 local function onTeleportationActivation(player, isActive)
-    print("[TeleportationManager] 🔄 Teleportation " .. (isActive and "ACTIVATED" or "DEACTIVATED") .. " by " .. player.Name)
+    print("[Teleport] 🔄 Телепортацію", (isActive and "АКТИВОВАНО" or "ДЕАКТИВОВАНО"), ":", player.Name)
     
     if isActive then
         setActiveState()
@@ -926,7 +973,7 @@ function TeleportationSystem.Initialize()
     -- Initialize in inactive state
     setInactiveState()
     
-    print("[TeleportationManager] ✅ Teleportation System initialized successfully")
+    print("[Teleport] ✅ Систему телепортації ініціалізовано")
 end
 
 function TeleportationSystem.Activate(player, isActive)

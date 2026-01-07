@@ -45,21 +45,19 @@ local function monitorPlayer(player)
         currentStep = "Started"
     }
     
-    print("[LoadingMonitor] Started monitoring:", player.Name)
+    print("[Loading] 👤 Моніторинг гравця:", player.Name)
     
-    -- Monitor character added
     player.CharacterAdded:Connect(function(character)
         loadingStates[player.UserId].currentStep = "CharacterAdded"
         loadingStates[player.UserId].characterTime = tick()
-        print("[LoadingMonitor] Character added for:", player.Name, "Time:", loadingStates[player.UserId].characterTime - startTime, "s")
+        print("[Loading] ✅ Персонаж створено:", player.Name, "Час:", loadingStates[player.UserId].characterTime - startTime, "с")
     end)
     
-    -- Monitor player removing
     player:GetPropertyChangedSignal("Parent"):Connect(function()
         if not player.Parent then
             loadingStates[player.UserId].currentStep = "PlayerRemoved"
             loadingStates[player.UserId].removeTime = tick()
-            print("[LoadingMonitor] Player removed:", player.Name, "Time:", loadingStates[player.UserId].removeTime - startTime, "s")
+            print("[Loading] 👋 Гравець вийшов:", player.Name, "Час:", loadingStates[player.UserId].removeTime - startTime, "с")
         end
     end)
 end
@@ -76,14 +74,14 @@ end
 task.spawn(function()
     while true do
         task.wait(5)
-        print("[LoadingMonitor] Status report:")
+        print("[Loading] === Статус завантаження ===")
         for userId, state in pairs(loadingStates) do
             local player = Players:GetPlayerByUserId(userId)
             if player then
-                print("  -", player.Name, "Step:", state.currentStep, "Time:", tick() - state.startTime, "s")
+                print("  -", player.Name, "Крок:", state.currentStep, "Час:", tick() - state.startTime, "с")
             end
         end
     end
 end)
 
-print("[LoadingMonitor] Loading monitor started")
+print("[Loading] 🚀 Монітор завантаження запущено")

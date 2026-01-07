@@ -127,7 +127,7 @@ local function safeDataStoreCall(dataStore, method, key, value)
             end)
             
             if not success then
-                warn(string.format("[DataStoreManager] Failed to serialize data for %s: %s", method, tostring(serializedValue)))
+                warn("[DataStore] ❌ Не вдалося серіалізувати дані:", tostring(serializedValue))
                 return false, nil
             end
             
@@ -144,7 +144,6 @@ local function safeDataStoreCall(dataStore, method, key, value)
                 -- Check if result is already a table (Studio mock data) or a string (JSON)
                 if type(result) == "table" then
                     -- Already a table, no need to deserialize
-                    print("[DataStoreManager] Data is already a table, skipping JSON decode")
                 elseif type(result) == "string" then
                     -- Need to deserialize from JSON
                     local deserialized
@@ -155,11 +154,11 @@ local function safeDataStoreCall(dataStore, method, key, value)
                     if decodeSuccess then
                         result = deserialized
                     else
-                        warn(string.format("[DataStoreManager] Failed to deserialize data for %s: %s", method, tostring(deserialized)))
+                        warn("[DataStore] ❌ Не вдалося десеріалізувати дані:", tostring(deserialized))
                         return false, nil
                     end
                 else
-                    warn(string.format("[DataStoreManager] Unexpected data type for %s: %s", method, type(result)))
+                    warn("[DataStore] ❌ Неочікуваний тип даних:", type(result))
                     return false, nil
                 end
             end
@@ -172,8 +171,7 @@ local function safeDataStoreCall(dataStore, method, key, value)
             
             -- Check if it's a Studio access error
             if string.find(tostring(result), "StudioAccessToApisNotAllowed") or string.find(tostring(result), "Studio access to APIs is not allowed") then
-                warn(string.format("[DataStoreManager] Studio access denied for %s - using mock data", method))
-                -- Return mock success for Studio
+                warn("[DataStore] ⚠️ Studio доступ заборонено - використовуються мок-дані")
                 if method == "GetAsync" then
                     return true, nil -- No existing data in Studio
                 else
@@ -181,8 +179,7 @@ local function safeDataStoreCall(dataStore, method, key, value)
                 end
             end
             
-            warn(string.format("[DataStoreManager] %s failed (attempt %d/%d): %s", 
-                method, retries, MAX_RETRIES, tostring(result)))
+            warn(string.format("[DataStore] ⚠️ %s не вдалося (спроба %d/%d)", method, retries, MAX_RETRIES))
             
             if retries < MAX_RETRIES then
                 task.wait(RETRY_DELAY * retries)
@@ -197,18 +194,15 @@ end
 function DataStoreManager.LoadPlayerData(player)
     local userId = tostring(player.UserId)
     
-    print(string.format("[DataStoreManager] Loading data for player: %s (ID: %s)", player.Name, userId))
+    print("[DataStore] 💾 Завантаження даних гравця:", player.Name, "(ID:", userId, ")")
     
-    -- Load main player data
     local success, data = safeDataStoreCall(playerDataStore, "GetAsync", userId)
     
     if success and data then
-        print("[DataStoreManager] Found existing data for player:", player.Name)
+        print("[DataStore] ✅ Знайдено існуючі дані для:", player.Name)
         local joinDate = data.Stats and data.Stats.JoinDate
         if joinDate and type(joinDate) == "number" and joinDate > 0 then
-            print("[DataStoreManager] Player joined on:", os.date("%Y-%m-%d %H:%M:%S", joinDate))
-        else
-            print("[DataStoreManager] Player joined on: Unknown")
+            print("[DataStore] ℹ️ Дата приєднання:", os.date("%Y-%m-%d %H:%M:%S", joinDate))
         end
         
         -- Validate and migrate data if needed
@@ -276,28 +270,18 @@ function DataStoreManager.LoadPlayerData(player)
         playerDataCache[userId] = playerData
         return playerData
     else
-        print("[DataStoreManager] No existing data found, creating NEW profile for:", player.Name)
+        print("[DataStore] 📝 Створення нового профілю для:", player.Name)
         
-        -- Create new player data
         local playerData = getDefaultPlayerData(player)
         addDefaultDiscoveries(playerData)
         
-        -- Mark as new player
         playerData.Stats.JoinDate = os.time()
         playerData.Stats.LastLogin = os.time()
         playerData.Session.LoginTime = os.time()
         
-        if playerData.Stats.JoinDate and type(playerData.Stats.JoinDate) == "number" and playerData.Stats.JoinDate > 0 then
-            print(string.format("[DataStoreManager] Created new profile for %s on %s", 
-                player.Name, os.date("%Y-%m-%d %H:%M:%S", playerData.Stats.JoinDate)))
-        else
-            print(string.format("[DataStoreManager] Created new profile for %s on Unknown", player.Name))
-        end
+        print("[DataStore] ✅ Профіль створено для:", player.Name)
         
-        -- Cache the data
         playerDataCache[userId] = playerData
-        
-        -- Save the new data immediately
         DataStoreManager.SavePlayerData(player, playerData)
         
         return playerData
@@ -334,7 +318,7 @@ function DataStoreManager.SavePlayerData(player, data)
     end
     
     if not data then
-        warn(string.format("[DataStoreManager] No data to save for player: %s", player.Name))
+        warn("[DataStore] ⚠️ Немає даних для збереження:", player.Name)
         return false
     end
     
@@ -348,15 +332,13 @@ function DataStoreManager.SavePlayerData(player, data)
     -- Clean data for serialization
     local cleanData = cleanDataForSerialization(data)
     
-    print(string.format("[DataStoreManager] Saving data for player: %s", player.Name))
-    
     local success = safeDataStoreCall(playerDataStore, "SetAsync", userId, cleanData)
     
     if success then
-        print(string.format("[DataStoreManager] Successfully saved data for: %s", player.Name))
+        print("[DataStore] ✅ Дані збережено для:", player.Name)
         return true
     else
-        warn(string.format("[DataStoreManager] Failed to save data for: %s", player.Name))
+        warn("[DataStore] ❌ Не вдалося зберегти дані для:", player.Name)
         return false
     end
 end
@@ -373,7 +355,7 @@ function DataStoreManager.UpdatePlayerData(player, updates)
     local playerData = playerDataCache[userId]
     
     if not playerData then
-        warn(string.format("[DataStoreManager] No data found for player: %s", player.Name))
+        warn("[DataStore] ⚠️ Дані не знайдено для:", player.Name)
         return false
     end
     
@@ -413,7 +395,7 @@ local function startAutoSave()
             end
         end
         
-        print(string.format("[DataStoreManager] Auto-saved data for %d players", #Players:GetPlayers()))
+        print("[DataStore] 💾 Автозбереження для", #Players:GetPlayers(), "гравців")
     end
 end
 
@@ -423,41 +405,35 @@ local function onPlayerRemoving(player)
     
     -- Check if we already processed this player
     if not playerDataCache[userId] then
-        return -- Already processed
+        return
     end
     
-    print(string.format("[DataStoreManager] Player leaving: %s", player.Name))
+    print("[DataStore] 👤 Гравець виходить:", player.Name)
     
     local success = DataStoreManager.SavePlayerData(player)
-    
-    -- Clean up cache IMMEDIATELY to prevent double processing
     playerDataCache[userId] = nil
     
     if success then
-        print(string.format("[DataStoreManager] Successfully saved data for leaving player: %s", player.Name))
+        print("[DataStore] ✅ Дані збережено при виході:", player.Name)
     else
-        warn(string.format("[DataStoreManager] Failed to save data for leaving player: %s", player.Name))
+        warn("[DataStore] ❌ Не вдалося зберегти при виході:", player.Name)
     end
 end
 
 -- Initialize the DataStore Manager
 function DataStoreManager.Initialize()
-    print("[DataStoreManager] Initializing DataStore Manager...")
+    print("[DataStore] 🚀 Ініціалізація менеджера даних...")
     
-    -- Connect player events
     Players.PlayerRemoving:Connect(onPlayerRemoving)
-    
-    -- Start auto-save loop
     task.spawn(startAutoSave)
     
-    print("[DataStoreManager] DataStore Manager initialized successfully")
+    print("[DataStore] ✅ Менеджер даних ініціалізовано")
 end
 
 -- Game shutdown handling
 local function onShutdown()
-    print("[DataStoreManager] Game shutting down, saving all player data...")
+    print("[DataStore] 🔄 Завершення роботи, збереження всіх даних...")
     
-    -- Create a list of players to process
     local playersToSave = {}
     for _, player in ipairs(Players:GetPlayers()) do
         local userId = tostring(player.UserId)
@@ -466,22 +442,15 @@ local function onShutdown()
         end
     end
     
-    -- Save each player only once
     for _, player in ipairs(playersToSave) do
         local userId = tostring(player.UserId)
         if playerDataCache[userId] then
-            local success = DataStoreManager.SavePlayerData(player)
-            playerDataCache[userId] = nil -- Clean up immediately
-            
-            if success then
-                print(string.format("[DataStoreManager] Saved shutdown data for: %s", player.Name))
-            else
-                warn(string.format("[DataStoreManager] Failed to save shutdown data for: %s", player.Name))
-            end
+            DataStoreManager.SavePlayerData(player)
+            playerDataCache[userId] = nil
         end
     end
     
-    print("[DataStoreManager] All player data saved")
+    print("[DataStore] ✅ Всі дані збережено")
 end
 
 -- Connect shutdown event

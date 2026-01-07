@@ -112,9 +112,9 @@ function PlayerDataManager.UpdatePlayerPlanet(player, planetId)
     })
     
     if success then
-        print(string.format("[PlayerDataManager] Updated %s's current planet to: %s", player.Name, planetId))
+        print("[PlayerData] 🪐 Оновлено планету", player.Name, "->", planetId)
     else
-        warn(string.format("[PlayerDataManager] Failed to update %s's current planet", player.Name))
+        warn("[PlayerData] ❌ Не вдалося оновити планету:", player.Name)
     end
     
     return success
@@ -130,7 +130,7 @@ function PlayerDataManager.UnlockPlanet(player, planetId)
     -- Check if planet is already unlocked
     for _, unlockedPlanet in ipairs(playerData.UnlockedPlanets) do
         if unlockedPlanet == planetId then
-            print(string.format("[PlayerDataManager] Planet %s is already unlocked for %s", planetId, player.Name))
+            print("[PlayerData] ℹ️ Планета", planetId, "вже розблокована:", player.Name)
             return true
         end
     end
@@ -143,9 +143,9 @@ function PlayerDataManager.UnlockPlanet(player, planetId)
     })
     
     if success then
-        print(string.format("[PlayerDataManager] Unlocked planet %s for %s", planetId, player.Name))
+        print("[PlayerData] 🔓 Розблоковано планету", planetId, "для", player.Name)
     else
-        warn(string.format("[PlayerDataManager] Failed to unlock planet %s for %s", planetId, player.Name))
+        warn("[PlayerData] ❌ Не вдалося розблокувати планету", planetId, "для", player.Name)
     end
     
     return success
@@ -167,14 +167,14 @@ function PlayerDataManager.VisitLocation(player, locationId)
         })
         
         if success then
-            print(string.format("[PlayerDataManager] %s visited location: %s", player.Name, locationId))
+            print("[PlayerData] 📍 Відвідано локацію:", player.Name, "->", locationId)
         else
-            warn(string.format("[PlayerDataManager] Failed to record visit for %s to %s", player.Name, locationId))
+            warn("[PlayerData] ❌ Не вдалося записати відвідини:", player.Name, "->", locationId)
         end
         
         return success
     else
-        print(string.format("[PlayerDataManager] %s already visited location: %s", player.Name, locationId))
+        print("[PlayerData] ℹ️ Вже відвідано:", player.Name, "->", locationId)
         return true
     end
 end
@@ -205,12 +205,12 @@ function PlayerDataManager.DiscoverLocation(player, locationId)
     
     if success then
         if isNewDiscovery then
-            print(string.format("[PlayerDataManager] %s discovered new location: %s", player.Name, locationId))
+            print("[PlayerData] 🌟 Відкрито нову локацію:", player.Name, "->", locationId)
         else
-            print(string.format("[PlayerDataManager] %s already discovered location: %s", player.Name, locationId))
+            print("[PlayerData] ℹ️ Вже відкрито:", player.Name, "->", locationId)
         end
     else
-        warn(string.format("[PlayerDataManager] Failed to record discovery for %s to %s", player.Name, locationId))
+        warn("[PlayerData] ❌ Не вдалося записати відкриття:", player.Name, "->", locationId)
     end
     
     return success
@@ -233,9 +233,9 @@ function PlayerDataManager.UpdatePlayerStats(player, stats)
     })
     
     if success then
-        print(string.format("[PlayerDataManager] Updated stats for %s", player.Name))
+        print("[PlayerData] 📊 Оновлено статистику:", player.Name)
     else
-        warn(string.format("[PlayerDataManager] Failed to update stats for %s", player.Name))
+        warn("[PlayerData] ❌ Не вдалося оновити статистику:", player.Name)
     end
     
     return success
@@ -264,9 +264,9 @@ function PlayerDataManager.UpdatePlayerSettings(player, settings)
     })
     
     if success then
-        print(string.format("[PlayerDataManager] Updated settings for %s", player.Name))
+        print("[PlayerData] ⚙️ Оновлено налаштування:", player.Name)
     else
-        warn(string.format("[PlayerDataManager] Failed to update settings for %s", player.Name))
+        warn("[PlayerData] ❌ Не вдалося оновити налаштування:", player.Name)
     end
     
     return success
@@ -289,10 +289,9 @@ function PlayerDataManager.IncrementStat(player, statName, amount)
     })
     
     if success then
-        print(string.format("[PlayerDataManager] Incremented %s for %s by %d (now %d)", 
-            statName, player.Name, amount, playerData.Stats[statName]))
+        print("[PlayerData] ➕", statName, player.Name, "+" .. amount, "=", playerData.Stats[statName])
     else
-        warn(string.format("[PlayerDataManager] Failed to increment %s for %s", statName, player.Name))
+        warn("[PlayerData] ❌ Не вдалося збільшити", statName, ":", player.Name)
     end
     
     return success

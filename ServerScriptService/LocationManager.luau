@@ -76,11 +76,10 @@ end
 
 -- Helper function to clean workspace
 local function cleanupWorkspace()
-	print("[LocationManager] 🧹 Cleanup current workspace, children count: " .. #Workspace:GetChildren())
+	print("[Location] 🧹 Очищення, об'єктів:", #Workspace:GetChildren())
 
-	-- Clean up all lighting objects (comprehensive cleanup)
 	local lighting = game:GetService("Lighting")
-	print("[LocationManager] Current lighting children count: " .. #lighting:GetChildren())
+	print("[Location] 💡 Об'єктів освітлення:", #lighting:GetChildren())
 
 	-- Remove all children except essential ones
 	local essentialObjects = {
@@ -109,7 +108,7 @@ local function cleanupWorkspace()
 
 		if not isEssential then
 			child:Destroy()
-			print("[LocationManager] 🗑️ Removed lighting object: " .. child.Name)
+			print("[Location] 🗑️ Видалено освітлення:", child.Name)
 		end
 	end
 
@@ -117,19 +116,19 @@ local function cleanupWorkspace()
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child.Name:match("^Location_") then
 			child:Destroy()
-			print("[LocationManager] 🗑️ Removed location: " .. child.Name)
+			print("[Location] 🗑️ Видалено локацію:", child.Name)
 		end
 		if child.Name == "Planet" then
 			child:Destroy()
-			print("[LocationManager] 🗑️ Removed planet: " .. child.Name)
+			print("[Location] 🗑️ Видалено планету:", child.Name)
 		end
 		if child.Name == "SpaceStation" then
 			child:Destroy()
-			print("[LocationManager] 🗑️ Removed SpaceStation")
+			print("[Location] 🗑️ Видалено SpaceStation")
 		end
 	end
 
-	print("[LocationManager] ✅ Cleanup completed")
+	print("[Location] ✅ Очищення завершено")
 end
 
 -- Load Space Station
@@ -138,42 +137,65 @@ local function loadSpaceStation()
 	-- Clone Space Station from ServerStorage/Space/SpaceStation
 	local spaceStationFolder = ServerStorage:FindFirstChild("Space")
 	if spaceStationFolder then
-		print("[LocationManager] ✅ Space folder found")
+		print("[Location] ✅ Папка Space знайдена")
 		local spaceStationTemplate = spaceStationFolder:FindFirstChild("SpaceStation")
 		if spaceStationTemplate then
-			print("[LocationManager] ✅ SpaceStation template found")
+			print("[Location] ✅ Шаблон SpaceStation знайдено")
 			local spaceStation = spaceStationTemplate:Clone()
 			spaceStation.Name = "SpaceStation"
 			spaceStation.Parent = Workspace
 			
-			print("[LocationManager] ✅ SpaceStation cloned to workspace")
+			print("[Location] ✅ SpaceStation склоновано")
 
 			-- Position Space Station
 			local primaryPart = spaceStation:FindFirstChild("Landing pad") or spaceStation.PrimaryPart
 			if primaryPart then
 				spaceStation:PivotTo(CFrame.new(0, 10, 0))
-				print("[LocationManager] ✅ SpaceStation positioned")
+				print("[Location] ✅ SpaceStation позиціоновано")
 			else
-				print("[LocationManager] ⚠️ No primary part found for positioning")
+				warn("[Location] ⚠️ PrimaryPart не знайдено")
 			end
 
-			print("[LocationManager] ✅ Space Station loaded")
+			print("[Location] ✅ Космічну станцію завантажено")
+		
+		-- Initialize PlanetSurfaceScanner when Space Station is loaded
+		local planetSurfaceScanner = spaceStation:FindFirstChild("PlanetSurfaceScanner")
+		if planetSurfaceScanner then
+			local PlanetSurfaceScannerModule = script.Parent:FindFirstChild("PlanetSurfaceScanner")
+			if PlanetSurfaceScannerModule then
+				local success, result = pcall(function()
+					local PlanetSurfaceScanner = require(PlanetSurfaceScannerModule)
+					return PlanetSurfaceScanner.Initialize(planetSurfaceScanner)
+				end)
+				
+				if success then
+					print("[Location] ✅ PlanetSurfaceScanner ініціалізовано при завантаженні Space Station")
+				else
+					warn("[Location] ❌ Не вдалося ініціалізувати PlanetSurfaceScanner: " .. tostring(result))
+				end
+			else
+				warn("[Location] ⚠️ PlanetSurfaceScanner модуль не знайдено")
+			end
 		else
-			warn("[LocationManager] ⚠️ Space Station template not found")
+			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Space Station")
+		end
+		
+		else
+			warn("[Location] ⚠️ Шаблон SpaceStation не знайдено")
 		end
 	else
-		warn("[LocationManager] ⚠️ Space folder not found")
+		warn("[Location] ⚠️ Папка Space не знайдена")
 	end
 	
 end
 
 -- Load Planet
 local function loadPlanet(planetId)
-	print("[LocationManager] 🪐 Loading planet: " .. planetId)
+	print("[Location] 🪐 Завантаження планети:", planetId)
 
 	local planetData = GameConfig.Planets[planetId]
 	if not planetData then
-		warn("[LocationManager] ⚠️ Planet data not found: " .. planetId)
+		warn("[Location] ⚠️ Дані планети не знайдено:", planetId)
 		return false
 	end
 
@@ -189,9 +211,9 @@ local function loadPlanet(planetId)
 			-- check the Planet presence
 			local object = Workspace:FindFirstChild("Planet")
 			if not object then
-				warn("(!) No Planet in Workspace!")
+				warn("[Location] ❌ Планета не знайдена в Workspace!")
 			else
-				print("[LocationManager] ✅ Planet ".. planet.Name .." is cloned to workspace")
+				print("[Location] ✅ Планета", planet.Name, "склонована")
 			end
 
 			-- Load planet environment
@@ -199,45 +221,43 @@ local function loadPlanet(planetId)
 			local planetLighting = planetFolder:FindFirstChild("Lighting")
 
 			if planetLighting then
-				-- Copy all lighting objects from planet
 				for _, lightingObject in ipairs(planetLighting:GetChildren()) do
 					lightingObject:Clone().Parent = lighting
-					print("[LocationManager] ✅ Loaded " .. lightingObject.Name .. " for planet " .. planetId)
+					print("[Location] 💡 Завантажено", lightingObject.Name, "для", planetId)
 				end
 			end
 
-			print("[LocationManager] ✅ Planet " .. planetId .. " loaded")
+			print("[Location] ✅ Планету", planetId, "завантажено")
 			return true
 		else
-			warn("[LocationManager] ⚠️ Planet template not found: " .. planetId)
+			warn("[Location] ⚠️ Шаблон планети не знайдено:", planetId)
 			return false
 		end
 	else
-		warn("[LocationManager] ⚠️ Planet folder not found: " .. planetId)
+		warn("[Location] ⚠️ Папка планети не знайдена:", planetId)
 		return false
 	end
 end
 
 -- Load specific location on planet
 local function loadLocation(planetId, locationId)
-	print("[LocationManager] 📍 Loading location: " .. locationId .. " on " .. planetId)
+	print("[Location] 📍 Завантаження локації:", locationId, "на", planetId)
 
 	local locationData = GameConfig.PlanetHelpers.GetLocation(planetId, locationId)
 	if not locationData then
-		warn("[LocationManager] ⚠️ Location data not found: " .. locationId)
+		warn("[Location] ⚠️ Дані локації не знайдено:", locationId)
 		return false
 	end
 
-	-- Clone location from ServerStorage/Planet_N/Locations/Location_M
 	local planetFolder = ServerStorage:FindFirstChild(planetId)
 	if not planetFolder then
-		warn("[LocationManager] ⚠️ Planet folder not found: " .. planetId)
+		warn("[Location] ⚠️ Папка планети не знайдена:", planetId)
 		return false
 	end
 
 	local locationsFolder = planetFolder:FindFirstChild("Locations")
 	if not locationsFolder then
-		warn("[LocationManager] ⚠️ Locations folder not found in: " .. planetId)
+		warn("[Location] ⚠️ Папка Locations не знайдена в:", planetId)
 		return false
 	end
 
@@ -256,52 +276,49 @@ local function loadLocation(planetId, locationId)
 		-- Load location-specific lighting
 		local locationLighting = locationTemplate:FindFirstChild("Lighting")
 		if locationLighting then
-			-- Copy all lighting objects from location
 			for _, lightingObject in ipairs(locationLighting:GetChildren()) do
 				lightingObject:Clone().Parent = game.Lighting
-				print("[LocationManager] ✅ Loaded " .. lightingObject.Name .. " for location " .. locationId)
+				print("[Location] 💡 Завантажено", lightingObject.Name, "для", locationId)
 			end
 		end
 
-		print("[LocationManager] ✅ Location " .. locationId .. " loaded")
+		print("[Location] ✅ Локацію", locationId, "завантажено")
 		return true
 	else
-		warn("[LocationManager] ⚠️ Location template not found: " .. locationId)
+		warn("[Location] ⚠️ Шаблон локації не знайдено:", locationId)
 		return false
 	end
 end
 
 -- Switch to Space Station
 local function switchToSpaceStation(planetId, locationId)
-	print("[LocationManager] 🚀 Game switch from location " .. locationId .. "to Space Station on the planet orbit " .. planetId)
+	print("[Location] 🚀 Перехід з", locationId, "на SpaceStation, орбіта:", planetId)
 	
 	if isTransitioning then
-		warn("[LocationManager] ⚠️ Already transitioning")
+		warn("[Location] ⚠️ Перехід вже виконується")
 		return false
 	end
 
 	if locationId == "SpaceStation" then
-		print("[LocationManager] ℹ️ Already on Space Station")
+		print("[Location] ℹ️ Вже на SpaceStation")
 		return true
 	end
 
 	isTransitioning = true
-	print("[LocationManager] 🔄 Switching to Space Station...")
+	print("[Location] 🔄 Перехід на SpaceStation...")
 
-	print("[LocationManager] 🧹 Cleaning up Workspace...")
-	-- Cleanup current location
+	print("[Location] 🧹 Очищення Workspace...")
 	cleanupWorkspace()
 	wait(0.5)
 	
-	print("[LocationManager] 📦 Loading Planet " .. planetId)
+	print("[Location] 📦 Завантаження планети", planetId)
 	-- Load planet
 	if not loadPlanet(planetId) then
 		isTransitioning = false
 		return false
 	end
 
-	print("[LocationManager] 📦 Loading Space Station...")
-	-- Load Space Station
+	print("[Location] 📦 Завантаження SpaceStation...")
 	
 	if not loadSpaceStation() then
 		isTransitioning = false
@@ -317,26 +334,25 @@ local function switchToSpaceStation(planetId, locationId)
 		spawnLocation = spawnLocation:FindFirstChild("SpawnLocation")
 	end
 	
-	print("[LocationManager] ✅ Game switched to Space Station")
+	print("[Location] ✅ Перехід на SpaceStation завершено")
 	return true
 end
 
 -- Switch to planet location
 local function switchToPlanetLocation(planetId, locationId)
 	if isTransitioning then
-		warn("[LocationManager] ⚠️ Already transitioning")
+		warn("[Location] ⚠️ Перехід вже виконується")
 		return false
 	end
 
 	if currentLocation == locationId then
-		print("[LocationManager] ℹ️ Already at location: " .. locationId)
+		print("[Location] ℹ️ Вже на локації:", locationId)
 		return true
 	end
 
 	isTransitioning = true
-	print("[LocationManager] 🔄 Game switching to " .. locationId .. " on " .. planetId)
+	print("[Location] 🔄 Перехід на", locationId, "на", planetId)
 
-	-- Cleanup current location
 	cleanupWorkspace()
 
 
@@ -350,15 +366,14 @@ local function switchToPlanetLocation(planetId, locationId)
 	currentLocation = locationId
 	isTransitioning = false
 
-	print("[LocationManager] ✅ Game switched to " .. locationId)
+	print("[Location] ✅ Перехід на", locationId, "завершено")
 	return true
 end
 
 -- Public API
 local LocationManager = {
 	Initialize = function()
-		print("[LocationManager] ✅ Location Manager initialized")
-	
+		print("[Location] ✅ Менеджер локацій ініціалізовано")
 	end,
 	SwitchToSpaceStation = switchToSpaceStation,
 	SwitchToPlanetLocation = switchToPlanetLocation,

@@ -295,7 +295,7 @@ local function showTeleportLocations(data)
 
 		-- Teleport button functionality
 		teleportButton.MouseButton1Click:Connect(function()
-			print("[TeleportationClient] 📡 TELEPORT BUTTON CLICKED ===  Location: " .. location.DisplayName .. " (" .. location.LocationId .. " isTeleporting: " .. tostring(isTeleporting))
+			print("[TeleportClient] 📍 Кнопка телепорту:", location.DisplayName, "isTeleporting:", tostring(isTeleporting))
 
 
 			if not isTeleporting then
@@ -304,12 +304,11 @@ local function showTeleportLocations(data)
 				teleportButton.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
 				statusLabel.Text = "Телепортування на " .. location.DisplayName
 
-				print("[TeleportationClient] 📡 Sending teleport request to server: " .. location.LocationId)
-				-- Send teleport request to server
+				print("[TeleportClient] 📤 Відправка запиту:", location.LocationId)
 				teleportEvent:FireServer(location.LocationId)
-				print("[TeleportationClient] ✅ Request sent to " .. location.LocationId .. "-> waiting for response...")
+				print("[TeleportClient] ✅ Запит відправлено:", location.LocationId)
 			else
-				print("[TeleportationClient] ❌ Already teleporting, ignoring click")
+				print("[TeleportClient] ⚠️ Телепортація вже виконується")
 			end
 		end)
 
@@ -440,7 +439,7 @@ end
 local function onTeleportEvent(action, data)
 	local currentTime = tick()
 
-	print("[TeleportationClient] 📡 TELEPORT EVENT RECEIVED Action: " .. tostring(action))
+	print("[TeleportClient] 📥 Подія:", tostring(action))
 	--print("[TeleportationClient] Data: " .. tostring(data))
 	--print("[TeleportationClient] Current time: " .. currentTime)
 	-- print("[TeleportationClient] Last UI action: " .. lastUIAction)
@@ -448,14 +447,14 @@ local function onTeleportEvent(action, data)
 
 	-- Enhanced debounce to prevent rapid UI changes
 	if uiDebounce and (currentTime - lastUIAction) < 0.3 then
-		print("[TeleportationClient] ❌ UI Debounce active, ignoring event")
+		print("[TeleportClient] ⚠️ Debounce активний, ігнорую")
 		return
 	end
 
 	if action == "ShowTeleportUI" then
 		uiDebounce = true
 		lastUIAction = currentTime
-		print("[TeleportationClient] Showing teleportation UI for " .. data.player)
+		print("[TeleportClient] 📺 Показую UI телепортації для:", data.player)
 
 		-- Hide existing UI before showing new one
 		if teleportGui then
@@ -470,7 +469,7 @@ local function onTeleportEvent(action, data)
 	elseif action == "ShowNoLocationsMessage" then
 		uiDebounce = true
 		lastUIAction = currentTime
-		print("[TeleportationClient] Showing no locations message")
+		print("[TeleportClient] 📺 Немає локацій")
 
 		-- Hide existing UI before showing new one
 		if teleportGui then
@@ -485,13 +484,13 @@ local function onTeleportEvent(action, data)
 	elseif action == "HideTeleportUI" then
 		uiDebounce = true
 		lastUIAction = currentTime
-		print("[TeleportationClient] Hiding teleportation UI")
+		print("[TeleportClient] 📺 Сховую UI")
 		hideTeleportGui()
 		task.wait(0.3) -- Small delay to prevent rapid changes
 		uiDebounce = false
 
 	elseif action == "TeleportSuccess" then
-		print("[TeleportationClient] ✅ Teleportation successful: " .. tostring(data))
+		print("[TeleportClient] ✅ Телепортацію успішно:", tostring(data))
 		isTeleporting = false
 		hideTeleportGui()
 		showNotification(data, "success")
@@ -501,17 +500,17 @@ local function onTeleportEvent(action, data)
 		uiDebounce = false
 
 	elseif action == "TeleportError" then
-		print("[TeleportationClient] ❌ Teleportation error: " .. tostring(data))
+		warn("[TeleportClient] ❌ Помилка телепортації:", tostring(data))
 		isTeleporting = false
 		showNotification(data, "error")
 	end
 
-	print("[TeleportationClient] 📡 TELEPORT EVENT HANDLED === Action: " .. tostring(action))
+	print("[TeleportClient] ✅ Подію оброблено:", tostring(action))
 end
 
 -- Handle teleportation state changes
 local function onTeleportationStateChange(isActive)
-	print("[TeleportationClient] Teleportation state changed to: " .. (isActive and "ACTIVE" or "INACTIVE"))
+	print("[TeleportClient] 🔄 Стан системи:", (isActive and "АКТИВНА" or "НЕАКТИВНА"))
 
 	if isActive then
 		-- Show notification that teleportation is now active
@@ -523,4 +522,4 @@ end
 teleportEvent.OnClientEvent:Connect(onTeleportEvent)
 teleportStateEvent.OnClientEvent:Connect(onTeleportationStateChange)
 
-print("[TeleportationClient] Teleportation client script loaded")
+print("[TeleportClient] 🚀 Клієнт телепортації завантажено")

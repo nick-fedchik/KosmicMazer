@@ -58,9 +58,9 @@ if not scanResultsEvent then
 	scanResultsEvent = Instance.new("RemoteEvent")
 	scanResultsEvent.Name = "PlanetSurfaceScanner:Results"
 	scanResultsEvent.Parent = ReplicatedStorage
-	print("[PlanetSurfaceScannerClient] Created RemoteEvent PlanetSurfaceScanner:Results")
+	print("[Scanner] ✅ Створено RemoteEvent")
 else
-	print("[PlanetSurfaceScannerClient] RemoteEvent PlanetSurfaceScanner:Results already exists")
+	print("[Scanner] ℹ️ RemoteEvent вже існує")
 end
 
 -- UI state
@@ -349,14 +349,13 @@ end
 -- Handle scan results
 scanResultsEvent.OnClientEvent:Connect(function(action, data)
 	if action == "ScanResults" then
-		print("[PlanetSurfaceScannerClient] Received scan results for " .. data.player)
+		print("[Scanner] 📊 Результати сканування для:", data.player)
 		displayScanResults(data)
 	elseif action == "TeleportationActivated" then
-		print("[PlanetSurfaceScannerClient] Teleportation system " .. (data and "activated" or "deactivated"))
-		-- Note: TeleportationClient handles the notification now to avoid duplicates
+		print("[Scanner] 🚀 Телепортацію", (data and "активовано" or "деактивовано"))
 		teleportationActive = data
 	elseif action == "ForceCloseGUI" then
-		print("[PlanetSurfaceScannerClient] Force closing scanner GUI")
+		print("[Scanner] 📺 Закриваю GUI")
 		if scanResultsGui then
 			scanResultsGui:Destroy()
 			scanResultsGui = nil
@@ -364,4 +363,4 @@ scanResultsEvent.OnClientEvent:Connect(function(action, data)
 	end
 end)
 
-print("[PlanetScannerClient] PlanetScanner client script loaded")
+print("[Scanner] 🚀 Клієнт сканера завантажено")

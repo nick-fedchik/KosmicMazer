@@ -105,7 +105,7 @@ local function switchLocation(player, targetLocation)
     local humanoidRootPart = player.Character.HumanoidRootPart
     local currentLocation = player:GetAttribute("CurrentLocation") or "SpaceStation"
     
-    print("[SimpleTeleport] Switching from " .. currentLocation .. " to " .. targetLocation.LocationId)
+    print("[Teleport] 🔄 Перехід з", currentLocation, "на", targetLocation.LocationId)
     
     -- Create teleportation effect
     local teleportEffect = Instance.new("Part")
@@ -132,8 +132,7 @@ local function switchLocation(player, targetLocation)
     local targetCFrame
     
     if targetLocation.LocationId == "SpaceStation" then
-        -- Switch to Space Station
-        print("[SimpleTeleport] Switching to Space Station")
+        print("[Teleport] 🚀 Перехід на SpaceStation")
         success = LocationManager.SwitchToSpaceStation(targetLocation.PlanetId, targetLocation.LocationId)
         if success then
             task.wait(0.5)
@@ -143,8 +142,7 @@ local function switchLocation(player, targetLocation)
             end
         end
     else
-        -- Switch to planet location
-        print("[SimpleTeleport] Switching to planet: " .. targetLocation.PlanetId .. ", location: " .. targetLocation.LocationId)
+        print("[Teleport] 🪐 Перехід на планету:", targetLocation.PlanetId, "локація:", targetLocation.LocationId)
         success = LocationManager.SwitchToPlanetLocation(targetLocation.PlanetId, targetLocation.LocationId)
         if success then
             task.wait(0.5)
@@ -156,7 +154,7 @@ local function switchLocation(player, targetLocation)
     end
     
     if not success or not targetCFrame then
-        print("[SimpleTeleport] Failed to switch location")
+        warn("[Teleport] ❌ Не вдалося змінити локацію")
         return false, "Failed to switch location"
     end
     
@@ -191,7 +189,7 @@ local function switchLocation(player, targetLocation)
     -- Set cooldown
     teleportCooldowns[player.UserId] = tick() + 3.0
     
-    print("[SimpleTeleport] " .. player.Name .. " teleported to " .. targetLocation.DisplayName)
+    print("[Teleport] ✅", player.Name, "телепортовано на", targetLocation.DisplayName)
     return true, "Teleported successfully"
 end
 
@@ -208,7 +206,7 @@ local function onSpawnTouched(otherPart)
     
     if not isTeleportationActive then return end
     
-    print("[SimpleTeleport] Player " .. player.Name .. " touched spawn location")
+    print("[Teleport] 👤 Гравець торкнувся spawn:", player.Name)
     
     local currentLocation = player:GetAttribute("CurrentLocation") or "SpaceStation"
     
@@ -236,7 +234,7 @@ local function onSpawnTouched(otherPart)
     end
     
     if #availableLocations > 0 then
-        print("[SimpleTeleport] Sending " .. #availableLocations .. " locations to " .. player.Name)
+        print("[Teleport] 📤 Відправляю", #availableLocations, "локацій для", player.Name)
         teleportEvent:FireClient(player, "ShowTeleportUI", {
             locations = availableLocations,
             player = player.Name
@@ -246,7 +244,7 @@ end
 
 -- Handle teleportation requests
 local function onTeleportRequest(player, locationId)
-    print("[SimpleTeleport] " .. player.Name .. " requested teleport to " .. tostring(locationId))
+    print("[Teleport] 🎯 Запит телепортації:", player.Name, "->", tostring(locationId))
     
     local currentLocation = player:GetAttribute("CurrentLocation") or "SpaceStation"
     
@@ -313,7 +311,7 @@ local function activateTeleportation(isActive)
                 pointLight.Enabled = true
             end
             
-            print("[SimpleTeleport] Teleportation ACTIVATED")
+            print("[Teleport] ✅ Телепортацію АКТИВОВАНО")
         else
             spawnLocation.Color = Color3.new(0.3, 0.3, 0.3) -- Gray
             spawnLocation.Transparency = 0.3
@@ -324,7 +322,7 @@ local function activateTeleportation(isActive)
                 pointLight.Enabled = false
             end
             
-            print("[SimpleTeleport] Teleportation DEACTIVATED")
+            print("[Teleport] ⛔ Телепортацію ДЕАКТИВОВАНО")
         end
     end
     
@@ -338,16 +336,14 @@ end
 local spawnLocation = getCurrentSpawnLocation()
 if spawnLocation then
     spawnLocation.Touched:Connect(onSpawnTouched)
-    print("[SimpleTeleport] Connected to spawn location: " .. spawnLocation:GetFullName())
+    print("[Teleport] 🔗 Підключено до spawn:", spawnLocation:GetFullName())
 end
 
 teleportEvent.OnServerEvent:Connect(onTeleportRequest)
 
--- Initialize in inactive state
 activateTeleportation(false)
 
--- Auto-activate after 2 seconds for testing
 task.wait(2)
 activateTeleportation(true)
 
-print("[SimpleTeleport] Simple teleportation system initialized")
+print("[Teleport] 🚀 Систему телепортації ініціалізовано")

@@ -46,12 +46,10 @@ local Players = game:GetService("Players")
 -- WARNING: This will delete ALL player data!
 -- Only use in testing environment
 local function cleanAllPlayerData()
-    print("[DataStoreCleaner] WARNING: Cleaning all player data!")
+    print("[DataCleaner] ⚠️ УВАГА: Очищення всіх даних гравців!")
     
     local playerDataStore = DataStoreService:GetDataStore("PlayerData")
     
-    -- Get all keys (this is a simplified approach)
-    -- In production, you'd want to be more careful about this
     for _, player in ipairs(Players:GetPlayers()) do
         local userId = tostring(player.UserId)
         
@@ -60,16 +58,16 @@ local function cleanAllPlayerData()
         end)
         
         if success then
-            print(string.format("[DataStoreCleaner] Removed data for: %s (ID: %s)", player.Name, userId))
+            print("[DataCleaner] 🗑️ Видалено дані:", player.Name, "ID:", userId)
         else
-            warn(string.format("[DataStoreCleaner] Failed to remove data for: %s - %s", player.Name, tostring(result)))
+            warn("[DataCleaner] ❌ Не вдалося видалити:", player.Name, "-", tostring(result))
         end
     end
     
-    print("[DataStoreCleaner] Data cleaning completed")
+    print("[DataCleaner] ✅ Очищення завершено")
 end
 
 -- Uncomment the line below to clean data (use with caution!)
 -- cleanAllPlayerData()
 
-print("[DataStoreCleaner] DataStore cleaner loaded (commented out for safety)")
+print("[DataCleaner] 🛠️ Очищувач завантажено (закоментовано)")

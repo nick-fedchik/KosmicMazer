@@ -50,12 +50,12 @@ local function logSystemStatus()
     local currentTime = tick()
     local uptime = currentTime - systemStats.startTime
     
-    print("[SystemTest] === System Status ===")
-    print("[SystemTest] Uptime:", string.format("%.1f", uptime), "seconds")
-    print("[SystemTest] Total players:", #Players:GetPlayers())
-    print("[SystemTest] Running in Studio:", RunService:IsStudio())
-    print("[SystemTest] Errors detected:", systemStats.errors)
-    print("[SystemTest] ====================")
+    print("[System] === Статус системи ===")
+    print("[System] ⏱️ Час роботи:", string.format("%.1f", uptime), "секунд")
+    print("[System] 👥 Гравців:", #Players:GetPlayers())
+    print("[System] 🛠️ Studio:", RunService:IsStudio())
+    print("[System] ❌ Помилок:", systemStats.errors)
+    print("[System] =====================")
 end
 
 -- Log status every 30 seconds
@@ -69,7 +69,7 @@ end)
 -- Monitor for errors
 local function onError(message, stack)
     systemStats.errors = systemStats.errors + 1
-    print("[SystemTest] Error detected:", message)
+    warn("[System] ❌ Помилка:", message)
 end
 
 -- Connect to error events (if available)
@@ -82,14 +82,14 @@ if game:GetService("LogService") then
 end
 
 -- Initial status
-print("[SystemTest] System monitoring started")
+print("[System] 🚀 Моніторинг системи запущено")
 logSystemStatus()
 
 -- Test teleportation event communication
 spawn(function()
     task.wait(5) -- Wait for system to initialize
     
-    print("[SystemTest] 🧪 Testing teleportation event communication...")
+    print("[System] 🧪 Тест комунікації телепортації...")
     
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -97,11 +97,11 @@ spawn(function()
     local players = Players:GetPlayers()
     if #players > 0 then
         local testPlayer = players[1]
-        print("[SystemTest] 👤 Testing with player: " .. testPlayer.Name)
+        print("[System] 👤 Тест з гравцем:", testPlayer.Name)
         
         local teleportEvent = ReplicatedStorage:FindFirstChild("TeleportationEvent")
         if teleportEvent then
-            print("[SystemTest] 📡 Sending test event to client...")
+            print("[System] 📡 Відправка тестової події...")
             
             local testData = {
                 locations = {
@@ -122,14 +122,14 @@ spawn(function()
             end)
             
             if success then
-                print("[SystemTest] ✅ Test event sent successfully")
+                print("[System] ✅ Тестову подію відправлено")
             else
-                print("[SystemTest] ❌ Failed to send test event")
+                warn("[System] ❌ Не вдалося відправити тестову подію")
             end
         else
-            print("[SystemTest] ❌ TeleportationEvent not found")
+            warn("[System] ❌ TeleportationEvent не знайдено")
         end
     else
-        print("[SystemTest] 📭 No players available for testing")
+        print("[System] 📭 Немає гравців для тестування")
     end
 end)
