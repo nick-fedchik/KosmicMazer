@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.6
+Version: 1.7
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -26,7 +26,11 @@ Dependencies:
 - ServerStorage: For template access
 - Workspace: Target for loading
 
-ChangeLog:- Version 1.5: Added Scripts processing for planet locations (Client/Server folders)- Version 1.4: Refactored to use Workspace folders (Models→Workspace, PlanetModel→Workspace)
+ChangeLog:
+- Version 1.7: Fixed expectedObjects verification for Workspace structure (removed SpaceStation.SpawnLocation)
+- Version 1.6: Added Scripts processing for Planet level (Planets/Planet_N/Scripts)
+- Version 1.5: Added Scripts processing for planet locations (Client/Server folders)
+- Version 1.4: Refactored to use Workspace folders (Models→Workspace, PlanetModel→Workspace)
 - Version 1.4: Removed SpaceStation/Lighting (now uses Planet/Lighting)
 - Version 1.4: Added Lighting cleanup for game.Lighting
 - Version 1.3: Updated to use Models folder structure for planet locations
@@ -293,10 +297,9 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     
     -- Verify loading
     local expectedObjects = {
-        "Planet",
-        "SpaceStation",
-        "SpaceStation.SpawnLocation",  -- SpawnLocation is inside SpaceStation folder
-        "PlanetSurfaceScanner"
+        "Planet",              -- From Planet/Workspace/
+        "SpawnLocation",       -- From SpaceStation/Workspace/ (copied directly to Workspace)
+        "PlanetSurfaceScanner" -- From SpaceStation/Workspace/ (copied directly to Workspace)
     }
     
     local success = verifyObjectsLoaded(expectedObjects)
