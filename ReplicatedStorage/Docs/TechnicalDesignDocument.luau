@@ -4,7 +4,7 @@ KOSMICMAZER — TECHNICAL DESIGN DOCUMENT (TDD)
 ================================================================================
 
 Purpose: Технічна архітектура, системи, потоки даних та обмеження реалізації
-Version: 3.7
+Version: 3.8
 Status: Active Implementation
 Owner: Development Team
 Last Updated: 2026-01-07
@@ -63,7 +63,7 @@ ServerScriptService/
 ├── PlayerDataManager.luau    -- Керування станом гравців
 ├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.5)
 ├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.3)
-├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.4)
+├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.5)
 ├── ObjectTypeValidator.luau  -- Валідація структур (v1.1)
 └── Helpers/
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування
@@ -133,8 +133,10 @@ ServerStorage/
             │   │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
             │   │   └── ...                -- Весь контент копіюється в game.Workspace
             │   ├── Scripts/
-            │   │   └── Server/
-            │   │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+            │   │   ├── Server/
+            │   │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+            │   │   └── Client/
+            │   │       └── ...            -- LocalScript: Client скрипти (копіюються в StarterPlayerScripts)
             │   ├── Configuration/
             │   │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
             │   └── Lighting/
@@ -144,8 +146,10 @@ ServerStorage/
                 │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
                 │   └── ...                -- Весь контент копіюється в game.Workspace
                 ├── Scripts/
-                │   └── Server/
-                │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+                │   ├── Server/
+                │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+                │   └── Client/
+                │       └── ...            -- LocalScript: Client скрипти (копіюються в StarterPlayerScripts)
                 ├── Configuration/
                 │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
                 └── Lighting/
@@ -168,11 +172,21 @@ Lighting папка:
 - Локації мають Lighting (Sky для поверхні планети)
 - SpaceStation НЕ має окремої Lighting (використовує Lighting планети)
 
+Scripts папка:
+- Має дві підпапки: Server/ та Client/
+- Scripts/Server/ - ModuleScripts, залишаються в ServerStorage
+  - Доступні через require() з LocationManager
+  - Використовуються для серверної логіки (LocationGameServer, тощо)
+- Scripts/Client/ - LocalScripts, копіюються в StarterPlayerScripts
+  - Копіюються для кожного гравця при завантаженні локації
+  - Виконуються на клієнті для UI та клієнтської логіки
+
 Cleaning правила:
 - Перед завантаженням нового середовища:
   1. Очищується game.Workspace (крім Camera, Terrain)
   2. Очищується game.Lighting (всі дочірні об'єкти)
-- EnvironmentLoader.clearWorkspace() виконує обидва очищення
+  3. Client скрипти попередньої локації залишаються в StarterPlayerScripts
+- EnvironmentLoader.clearWorkspace() виконує Workspace та Lighting очищення
 
 3.3 Планована структура (див. ArchitectureImproves.luau)
 

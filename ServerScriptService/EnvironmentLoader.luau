@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.4
+Version: 1.5
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -26,8 +26,7 @@ Dependencies:
 - ServerStorage: For template access
 - Workspace: Target for loading
 
-ChangeLog:
-- Version 1.4: Refactored to use Workspace folders (Models→Workspace, PlanetModel→Workspace)
+ChangeLog:- Version 1.5: Added Scripts processing for planet locations (Client/Server folders)- Version 1.4: Refactored to use Workspace folders (Models→Workspace, PlanetModel→Workspace)
 - Version 1.4: Removed SpaceStation/Lighting (now uses Planet/Lighting)
 - Version 1.4: Added Lighting cleanup for game.Lighting
 - Version 1.3: Updated to use Models folder structure for planet locations
@@ -357,6 +356,35 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         print("[EnvironmentLoader] ✅ Location lighting loaded")
     else
         warn("[EnvironmentLoader] ⚠️ Lighting folder not found in location")
+    end
+    
+    -- Process Location Scripts
+    local scriptsFolder = locationFolder:FindFirstChild("Scripts")
+    if scriptsFolder then
+        -- Process Server scripts (keep in ServerStorage for LocationManager access)
+        local serverFolder = scriptsFolder:FindFirstChild("Server")
+        if serverFolder then
+            -- Server scripts remain in ServerStorage - LocationManager will access them directly
+            print("[EnvironmentLoader] ✅ Server scripts available in ServerStorage:", #serverFolder:GetChildren(), "scripts")
+            for _, script in ipairs(serverFolder:GetChildren()) do
+                print("[EnvironmentLoader]   -", script.Name, "(" .. script.ClassName .. ")")
+            end
+        end
+        
+        -- Process Client scripts (copy to StarterPlayerScripts)
+        local clientFolder = scriptsFolder:FindFirstChild("Client")
+        if clientFolder then
+            local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+            for _, script in ipairs(clientFolder:GetChildren()) do
+                if script:IsA("LocalScript") then
+                    local clone = script:Clone()
+                    clone.Parent = StarterPlayerScripts
+                    print("[EnvironmentLoader] ✅ Client Script copied to StarterPlayerScripts:", script.Name)
+                end
+            end
+        end
+    else
+        print("[EnvironmentLoader] ⚠️ Scripts folder not found in location (optional)")
     end
     
     print("[EnvironmentLoader] ✅ Location contents loaded")
