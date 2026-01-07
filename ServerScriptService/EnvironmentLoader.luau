@@ -98,10 +98,11 @@ local function copyFolderContents(sourceFolder, targetParent, loadOrder)
         print("[EnvironmentLoader] 📋 Using custom load order for:", sourceFolder.Name)
     end
     
-    for _, child in ipairs(children) do
+    for index, child in ipairs(children) do
         local clone = child:Clone()
         clone.Parent = targetParent
-        print("[EnvironmentLoader] 📦 Copied:", child.Name, "(" .. child.ClassName .. ") to", targetParent:GetFullName())
+        print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
+            index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
     end
     
     return true

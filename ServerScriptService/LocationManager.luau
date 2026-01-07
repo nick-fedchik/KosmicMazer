@@ -178,8 +178,9 @@ local function loadSpaceStation()
 		if spaceStation then
 			local primaryPart = spaceStation:FindFirstChild("Landing pad") or spaceStation.PrimaryPart
 			if primaryPart then
-				spaceStation:PivotTo(CFrame.new(0, 10, 0))
-				print("[Location] ✅ SpaceStation позиціоновано")
+				-- Position station higher to avoid spawn underground
+				spaceStation:PivotTo(CFrame.new(0, -450, 0))
+				print("[Location] ✅ SpaceStation позиціоновано at Y=-450")
 			else
 				warn("[Location] ⚠️ PrimaryPart не знайдено")
 			end
