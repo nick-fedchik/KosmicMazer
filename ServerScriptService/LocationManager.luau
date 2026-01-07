@@ -207,21 +207,20 @@ local function loadSpaceStation()
 					return PlanetSurfaceScanner.Initialize(planetSurfaceScanner)
 				end)
 				
-				if success then
+				if success and result then
 					print("[Location] ✅ PlanetSurfaceScanner ініціалізовано при завантаженні Space Station")
+				elseif success then
+					warn("[Location] ⚠️ PlanetSurfaceScanner не ініціалізовано (компоненти не знайдено)")
 				else
-					warn("[Location] ❌ Не вдалося ініціалізувати PlanetSurfaceScanner: " .. tostring(result))
+					warn("[Location] ❌ Помилка при ініціалізації PlanetSurfaceScanner: " .. tostring(result))
 				end
 			else
-				local expectedPath = "ServerStorage/Space/SpaceStation/Scripts/Server/PlanetSurfaceScanner.luau"
-				warn("[Location] ⚠️ PlanetSurfaceScanner модуль не знайдено")
-				warn("  └─ Очікуваний шлях: " .. expectedPath)
-				warn("  └─ Переконайтесь що ModuleScript існує в ServerStorage/Space/SpaceStation/Scripts/Server/")
+				-- Scanner module is optional, don't warn if missing
+				print("[Location] ℹ️ PlanetSurfaceScanner модуль не знайдено (опціонально)")
 			end
 		else
-			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Workspace")
-			warn("  └─ Очікуваний шлях: Workspace/PlanetSurfaceScanner (Model)")
-			warn("  └─ Модель має бути скопійована з ServerStorage/Space/SpaceStation/Models/")
+			-- Scanner model is optional, don't warn if missing
+			print("[Location] ℹ️ PlanetSurfaceScanner модель не знайдено в Workspace (опціонально)")
 		end
 		
 		print("[Location] ✅ Космічну станцію завантажено")
