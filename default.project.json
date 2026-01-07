@@ -1,0 +1,17 @@
+{
+  "name": "KosmicMazer",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$path": "ReplicatedStorage"
+    },
+    "ServerScriptService": {
+      "$path": "ServerScriptService"
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "StarterPlayerScripts"
+      }
+    }
+  }
+}
