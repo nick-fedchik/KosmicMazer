@@ -4,7 +4,7 @@ KOSMICMAZER — TECHNICAL DESIGN DOCUMENT (TDD)
 ================================================================================
 
 Purpose: Технічна архітектура, системи, потоки даних та обмеження реалізації
-Version: 3.5
+Version: 3.6
 Status: Active Implementation
 Owner: Development Team
 Last Updated: 2026-01-07
@@ -102,6 +102,8 @@ ServerStorage/
 │       │   └── Client/
 │       │       ├── StationUI.luau         -- LocalScript: UI станції
 │       │       └── ScannerUI.luau         -- LocalScript: UI сканера
+│       ├── Configuration/
+│       │   └── LoadOrder.luau             -- ModuleScript: Порядок завантаження об'єктів (v1.0)
 │       └── Lighting/
 │           ├── Sky                        -- Sky: Skybox станції
 │           └── ...
@@ -113,7 +115,7 @@ ServerStorage/
         │   ├── Sky                        -- Sky: Skybox планети
         │   └── Atmosphere                 -- Atmosphere: Атмосфера
         ├── Configuration/
-        │   └── PlanetConfig.luau          -- ModuleScript: Конфіг планети (NEW v1.0)
+        │   └── PlanetConfig.luau          -- ModuleScript: Конфіг планети (v1.0)
         └── Locations/
             ├── Location_1/
             │   ├── Models/
@@ -122,22 +124,31 @@ ServerStorage/
             │   │   └── ...
             │   ├── Scripts/
             │   │   ├── Server/
-            │   │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
+            │   │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
             │   │   └── Client/
             │   │       └── LocationUI.luau  -- LocalScript: UI локації
+            │   ├── Configuration/
+            │   │   └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів (v1.0)
             │   └── Lighting/
             │       └── Sky                -- Sky: Skybox локації
             ├── Location_2/
-            │   └── Scripts/
-            │       └── Server/
-            │           └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
+            │   ├── Models/
+            │   │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
+            │   │   └── ...
+            │   ├── Scripts/
+            │   │   └── Server/
+            │   │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+            │   └── Configuration/
+            │       └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
             └── Location_3/
-                └── Scripts/
-                    └── Server/
-                        └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
-│       ├── Location_1/
-│       └── Location_2/
-└── Effects/
+                ├── Models/
+                │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
+                │   └── ...
+                ├── Scripts/
+                │   └── Server/
+                │       └── LocationGameServer.luau  -- ModuleScript: Логіка гри (v1.0)
+                └── Configuration/
+                    └── LoadOrder.luau     -- ModuleScript: Порядок завантаження об'єктів
 
 3.2 Планована структура (див. ArchitectureImproves.luau)
 
@@ -513,7 +524,43 @@ Structure:
 - PULSE_EFFECT_SPEED: number
 
 --------------------------------------------------
-7.2 Player Data Model
+7.2 LoadOrder Configuration
+--------------------------------------------------
+
+Purpose:
+Визначає порядок завантаження об'єктів на локації для уникнення
+геометричних конфліктів та забезпечення правильної ініціалізації.
+
+Location:
+- ServerStorage/Space/SpaceStation/Configuration/LoadOrder.luau
+- ServerStorage/Planets/Planet_N/Locations/Location_N/Configuration/LoadOrder.luau
+
+Structure:
+```lua
+LoadOrder.ORDER = {
+    {name = "SpaceStation", priority = 1},  -- Завантажується першим
+    {name = "Planet", priority = 2},
+    {name = "PlanetSurfaceScanner", priority = 3},
+    {name = "SpawnLocation", priority = 999},  -- Завжди останнім
+}
+```
+
+API:
+- GetPriority(objectName: string): number - отримати пріоритет об'єкта
+- SortObjects(objects: {Instance}): {Instance} - відсортувати об'єкти за пріоритетом
+
+Rules:
+- Об'єкти не вказані в ORDER отримують пріоритет 500 (середній)
+- SpawnLocation має пріоритет 999 (завантажується останнім за замовчуванням)
+- Менший пріоритет = раніше завантажується
+- Сценарист може змінювати порядок редагуючи Configuration/LoadOrder.luau
+
+Usage:
+LocationManager завантажує LoadOrder для кожної локації та передає
+в EnvironmentLoader.LoadSpaceEnvironment() або LoadPlanetEnvironment().
+
+--------------------------------------------------
+7.3 Player Data Model
 --------------------------------------------------
 
 Current Structure:

@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.2
+Version: 1.3
 
 Features:
 - Loads Space Environment (Planet + SpaceStation)
@@ -26,6 +26,7 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.3: Updated to use Models folder structure for planet locations
 - Version 1.2: Added LoadOrder support for custom object loading sequence
 - Version 1.1: Added detailed logging and fixed SpawnLocation verification
 - Version 1.0: Initial implementation for Phase 1 refactoring
@@ -312,25 +313,26 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         return false
     end
     
-    -- Copy all location contents with load order
-    local children = {}
-    for _, child in ipairs(locationFolder:GetChildren()) do
-        if child.Name ~= "Configuration" and child.Name ~= "Scripts" then -- Don't copy config or scripts to workspace
-            table.insert(children, child)
+    -- Copy location models with load order
+    local modelsFolder = locationFolder:FindFirstChild("Models")
+    if modelsFolder then
+        print("[EnvironmentLoader] 📋 Models folder contains:", #modelsFolder:GetChildren(), "objects")
+        for _, child in ipairs(modelsFolder:GetChildren()) do
+            print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
         end
+        
+        copyFolderContents(modelsFolder, Workspace, loadOrder)
+        print("[EnvironmentLoader] ✅ Location models loaded")
+    else
+        warn("[EnvironmentLoader] ⚠️ Models folder not found in location")
+        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Models")
     end
     
-    -- Sort by load order if provided
-    if loadOrder and loadOrder.SortObjects then
-        children = loadOrder.SortObjects(children)
-        print("[EnvironmentLoader] 📋 Using custom load order for location:", locationId)
-    end
-    
-    -- Copy sorted children
-    for _, child in ipairs(children) do
-        local clone = child:Clone()
-        clone.Parent = Workspace
-        print("[EnvironmentLoader] 📦 Copied:", child.Name, "(" .. child.ClassName .. ") to Workspace")
+    -- Copy location lighting
+    local locationLighting = locationFolder:FindFirstChild("Lighting")
+    if locationLighting then
+        copyFolderContents(locationLighting, game.Lighting)
+        print("[EnvironmentLoader] ✅ Location lighting loaded")
     end
     
     print("[EnvironmentLoader] ✅ Location contents loaded")

@@ -34,11 +34,11 @@ local LoadOrder = {}
 
 -- Define loading order (lower priority = loads first)
 LoadOrder.ORDER = {
-	{name = "LocationSurface", priority = 1},
-	{name = "Buildings", priority = 2},
-	{name = "Props", priority = 3},
-	{name = "NPCs", priority = 4},
-	{name = "SpawnLocation", priority = 999},  -- Always load last by default
+	{name = "Baseplate", priority = 1},      -- Підлога/поверхня локації
+	{name = "Buildings", priority = 2},      -- Будівлі
+	{name = "Props", priority = 3},          -- Декоративні об'єкти
+	{name = "NPCs", priority = 4},           -- NPC персонажі
+	{name = "SpawnLocation", priority = 999},  -- Завжди останнім за замовчуванням
 }
 
 -- Helper function to get priority for an object
