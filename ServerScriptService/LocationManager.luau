@@ -131,23 +131,20 @@ local function cleanupWorkspace()
 	print("[Location] ✅ Очищення завершено")
 end
 
--- Load Space Station
+-- Load Space Station using new EnvironmentLoader
 local function loadSpaceStation()
-
-	-- Clone Space Station from ServerStorage/Space/SpaceStation
-	local spaceStationFolder = ServerStorage:FindFirstChild("Space")
-	if spaceStationFolder then
-		print("[Location] ✅ Папка Space знайдена")
-		local spaceStationTemplate = spaceStationFolder:FindFirstChild("SpaceStation")
-		if spaceStationTemplate then
-			print("[Location] ✅ Шаблон SpaceStation знайдено")
-			local spaceStation = spaceStationTemplate:Clone()
-			spaceStation.Name = "SpaceStation"
-			spaceStation.Parent = Workspace
-			
-			print("[Location] ✅ SpaceStation склоновано")
-
-			-- Position Space Station
+	print("[Location] 🚀 Loading Space Station using EnvironmentLoader")
+	
+	-- Load EnvironmentLoader module
+	local EnvironmentLoader = require(script.Parent:FindFirstChild("EnvironmentLoader"))
+	
+	-- Use EnvironmentLoader to load space environment
+	local success = EnvironmentLoader.LoadSpaceEnvironment(getCurrentPlanet())
+	
+	if success then
+		-- Position Space Station
+		local spaceStation = Workspace:FindFirstChild("SpaceStation")
+		if spaceStation then
 			local primaryPart = spaceStation:FindFirstChild("Landing pad") or spaceStation.PrimaryPart
 			if primaryPart then
 				spaceStation:PivotTo(CFrame.new(0, 10, 0))
@@ -155,11 +152,10 @@ local function loadSpaceStation()
 			else
 				warn("[Location] ⚠️ PrimaryPart не знайдено")
 			end
-
-			print("[Location] ✅ Космічну станцію завантажено")
+		end
 		
 		-- Initialize PlanetSurfaceScanner when Space Station is loaded
-		local planetSurfaceScanner = spaceStation:FindFirstChild("PlanetSurfaceScanner")
+		local planetSurfaceScanner = spaceStation and spaceStation:FindFirstChild("PlanetSurfaceScanner")
 		if planetSurfaceScanner then
 			local PlanetSurfaceScannerModule = script.Parent:FindFirstChild("PlanetSurfaceScanner")
 			if PlanetSurfaceScannerModule then
@@ -180,112 +176,34 @@ local function loadSpaceStation()
 			warn("[Location] ⚠️ PlanetSurfaceScanner модель не знайдено в Space Station")
 		end
 		
-		else
-			warn("[Location] ⚠️ Шаблон SpaceStation не знайдено")
-		end
+		print("[Location] ✅ Космічну станцію завантажено")
 	else
-		warn("[Location] ⚠️ Папка Space не знайдена")
+		warn("[Location] ❌ Не вдалося завантажити Space Environment")
 	end
-	
 end
 
--- Load Planet
+-- Load Planet (now handled by EnvironmentLoader)
 local function loadPlanet(planetId)
-	print("[Location] 🪐 Завантаження планети:", planetId)
-
-	local planetData = GameConfig.Planets[planetId]
-	if not planetData then
-		warn("[Location] ⚠️ Дані планети не знайдено:", planetId)
-		return false
-	end
-
-	-- Clone planet from ServerStorage/Planet_N/Planet
-	local planetFolder = ServerStorage:FindFirstChild(planetId)
-	if planetFolder then
-		local planetTemplate = planetFolder:FindFirstChild("Planet")
-		if planetTemplate then
-			local planet = planetTemplate:Clone()
-			 -- planet.Name = ""
-			planet.Parent = Workspace
-			
-			-- check the Planet presence
-			local object = Workspace:FindFirstChild("Planet")
-			if not object then
-				warn("[Location] ❌ Планета не знайдена в Workspace!")
-			else
-				print("[Location] ✅ Планета", planet.Name, "склонована")
-			end
-
-			-- Load planet environment
-			local lighting = game:GetService("Lighting")
-			local planetLighting = planetFolder:FindFirstChild("Lighting")
-
-			if planetLighting then
-				for _, lightingObject in ipairs(planetLighting:GetChildren()) do
-					lightingObject:Clone().Parent = lighting
-					print("[Location] 💡 Завантажено", lightingObject.Name, "для", planetId)
-				end
-			end
-
-			print("[Location] ✅ Планету", planetId, "завантажено")
-			return true
-		else
-			warn("[Location] ⚠️ Шаблон планети не знайдено:", planetId)
-			return false
-		end
-	else
-		warn("[Location] ⚠️ Папка планети не знайдена:", planetId)
-		return false
-	end
+	print("[Location] 🪐 Planet loading now handled by EnvironmentLoader")
+	-- This function is deprecated - planet loading is now part of EnvironmentLoader.LoadSpaceEnvironment()
+	return true
 end
 
--- Load specific location on planet
+-- Load specific location on planet using EnvironmentLoader
 local function loadLocation(planetId, locationId)
-	print("[Location] 📍 Завантаження локації:", locationId, "на", planetId)
-
-	local locationData = GameConfig.PlanetHelpers.GetLocation(planetId, locationId)
-	if not locationData then
-		warn("[Location] ⚠️ Дані локації не знайдено:", locationId)
-		return false
-	end
-
-	local planetFolder = ServerStorage:FindFirstChild(planetId)
-	if not planetFolder then
-		warn("[Location] ⚠️ Папка планети не знайдена:", planetId)
-		return false
-	end
-
-	local locationsFolder = planetFolder:FindFirstChild("Locations")
-	if not locationsFolder then
-		warn("[Location] ⚠️ Папка Locations не знайдена в:", planetId)
-		return false
-	end
-
-	local locationTemplate = locationsFolder:FindFirstChild(locationId)
-	if locationTemplate then
-		local location = locationTemplate:Clone()
-		location.Name = locationId
-		location.Parent = Workspace
-
-		-- Position location
-		local spawnPart = location:FindFirstChild("SpawnLocation")
-		if spawnPart then
-			location:PivotTo(spawnPart.CFrame)
-		end
-
-		-- Load location-specific lighting
-		local locationLighting = locationTemplate:FindFirstChild("Lighting")
-		if locationLighting then
-			for _, lightingObject in ipairs(locationLighting:GetChildren()) do
-				lightingObject:Clone().Parent = game.Lighting
-				print("[Location] 💡 Завантажено", lightingObject.Name, "для", locationId)
-			end
-		end
-
+	print("[Location] 📍 Loading planet location using EnvironmentLoader:", locationId, "на", planetId)
+	
+	-- Load EnvironmentLoader module
+	local EnvironmentLoader = require(script.Parent:FindFirstChild("EnvironmentLoader"))
+	
+	-- Use EnvironmentLoader to load planet environment
+	local success = EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId)
+	
+	if success then
 		print("[Location] ✅ Локацію", locationId, "завантажено")
 		return true
 	else
-		warn("[Location] ⚠️ Шаблон локації не знайдено:", locationId)
+		warn("[Location] ❌ Не вдалося завантажити Planet Environment")
 		return false
 	end
 end

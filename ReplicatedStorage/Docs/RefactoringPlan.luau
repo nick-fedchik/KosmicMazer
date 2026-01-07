@@ -37,7 +37,7 @@ Proposed New Structure:
    │       └── ...
    ├── Planets/                     -- All planet templates
    │   ├── Planet_1/                -- First planet
-   │   │   ├── PlanetModel/         -- Planet visual model
+   │   │   ├── PlanetModel          -- Planet visual model
    │   │   ├── Lighting/            -- Planet-specific lighting
    │   │   ├── Locations/           -- Planet locations
    │   │   │   ├── Location_1/      -- First location
