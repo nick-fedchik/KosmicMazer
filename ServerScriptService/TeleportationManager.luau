@@ -150,7 +150,7 @@ local function getCurrentSpawnLocation()
     end
     
     -- Fallback to original in ServerStorage
-    local fallback = game.ServerStorage.Space.SpaceStation.SpawnLocation
+    local fallback = game.ServerStorage.Space.SpaceStation.Workspace.SpawnLocation
     print("[TeleportationManager] ⚠️ Using fallback SpawnLocation: " .. fallback:GetFullName())
     return fallback
 end
