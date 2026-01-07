@@ -128,10 +128,17 @@ local function getCurrentSpawnLocation()
     
     print("[TeleportationManager] 🔍 Searching for SpawnLocation...")
     
-    -- Check SpaceStation first
+    -- Check SpaceStation first (direct in Workspace)
+    local spawn = workspace:FindFirstChild("SpawnLocation")
+    if spawn and spawn:IsA("SpawnLocation") then
+        print("[TeleportationManager] ✅ Found SpawnLocation in Workspace: " .. spawn:GetFullName())
+        return spawn
+    end
+    
+    -- Check inside SpaceStation model
     local spaceStation = workspace:FindFirstChild("SpaceStation")
     if spaceStation then
-        local spawn = spaceStation:FindFirstChild("SpawnLocation")
+        spawn = spaceStation:FindFirstChild("SpawnLocation")
         if spawn then
             print("[TeleportationManager] ✅ Found SpawnLocation in SpaceStation: " .. spawn:GetFullName())
             return spawn
@@ -141,7 +148,7 @@ local function getCurrentSpawnLocation()
     -- Check all Location_* models
     for _, child in ipairs(workspace:GetChildren()) do
         if child.Name:match("^Location_") then
-            local spawn = child:FindFirstChild("SpawnLocation")
+            spawn = child:FindFirstChild("SpawnLocation")
             if spawn then
                 print("[TeleportationManager] ✅ Found SpawnLocation in " .. child.Name .. ": " .. spawn:GetFullName())
                 return spawn
@@ -155,9 +162,6 @@ local function getCurrentSpawnLocation()
     return fallback
 end
 
-local spawnLocation = getCurrentSpawnLocation()
-local pointLight = spawnLocation:FindFirstChild("PointLight")
-
 -- State management
 local isTeleportationActive = false
 local pulseAnimation = nil
@@ -166,10 +170,25 @@ local teleportCooldowns = {}
 local touchDebounce = {}
 local uiStateDebounce = {} -- Separate debounce for UI state changes
 local teleportationInitialized = false
+local spawnLocation = nil  -- Will be initialized dynamically
+local pointLight = nil
 
 -- RemoteEvents (module-level variables)
 local teleportEvent
 local teleportStateEvent
+
+-- Initialize SpawnLocation reference (called after environment is loaded)
+local function initializeSpawnLocation()
+    spawnLocation = getCurrentSpawnLocation()
+    if spawnLocation then
+        pointLight = spawnLocation:FindFirstChild("PointLight")
+        print("[TeleportationManager] ✅ SpawnLocation initialized: " .. spawnLocation:GetFullName())
+        return true
+    else
+        warn("[TeleportationManager] ⚠️ Failed to initialize SpawnLocation")
+        return false
+    end
+end
 
 -- Update spawn location reference
 local function updateSpawnLocation()
@@ -933,8 +952,8 @@ function TeleportationSystem.Initialize()
         end
     end
     
-    -- Update spawn location reference
-    updateSpawnLocation()
+    -- Initialize spawn location reference
+    initializeSpawnLocation()
     
     -- Create or get RemoteEvent for teleportation
     teleportEvent = ReplicatedStorage:FindFirstChild("TeleportationEvent")

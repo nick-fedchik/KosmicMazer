@@ -1,4 +1,4 @@
---[[
+﻿--[[
 GAME DESIGN DOCUMENT (GDD)
 Проєкт: KosmicMazer
 Жанр: Exploration / Adventure
