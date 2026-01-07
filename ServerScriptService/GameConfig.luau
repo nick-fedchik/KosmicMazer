@@ -164,10 +164,71 @@ GameConfig.Planets = {
 				}
 			}
         }
+    },
+    
+    Planet_2 = {
+        Name = "Planet_2",
+        DisplayName = "Вирій",
+        Folder = "Planet",
+        IsAvailable = true, -- Available for exploration
+        Sky = "Sky",
+        Atmosphere = "Atmosphere",
+        Surface = "Surface",
+        CloudLayers = {"CloudLayer0", "CloudLayer1"},
+        Locations = {
+            Location_1 = {
+                Name = "Location_1",
+                DisplayName = "Манівці",
+                Folder = "Location_1",
+                SpawnPoint = "SpawnLocation",
+                TeleportPoint = "SpawnLocation",
+                isDiscovered = false,
+                isVisited = false,
+                TeleportTo = false,
+                Lighting = {
+                    Sky = "Sky"
+                },
+                Environment = {
+                    Baseplate = "Baseplate"
+                }
+            },
+            Location_2 = {
+                Name = "Location_2",
+                DisplayName = "Обабіч",
+                Folder = "Location_2",
+                SpawnPoint = "SpawnLocation",
+                TeleportPoint = "SpawnLocation",
+                isDiscovered = false,
+                isVisited = false,
+                TeleportTo = false,
+                Lighting = {
+                    Sky = "Sky"
+                },
+                Environment = {
+                    Baseplate = "Baseplate"
+                }
+            },
+            Location_3 = {
+                Name = "Location_3",
+                DisplayName = "Видноколо",
+                Folder = "Location_3",
+                SpawnPoint = "SpawnLocation",
+                TeleportPoint = "SpawnLocation",
+                isDiscovered = false,
+                isVisited = false,
+                TeleportTo = false,
+                Lighting = {
+                    Sky = "Sky"
+                },
+                Environment = {
+                    Baseplate = "Baseplate"
+                }
+            }
+        }
     }
     -- Future planets can be added here:
-    -- Planet_2 = { ... },
-    -- Planet_3 = { ... }
+    -- Planet_3 = { ... },
+    -- Planet_4 = { ... }
 }
 
 -- Helper functions for planet management
