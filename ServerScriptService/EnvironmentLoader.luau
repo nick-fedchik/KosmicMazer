@@ -76,6 +76,7 @@ local function copyFolderContents(sourceFolder, targetParent)
     for _, child in ipairs(sourceFolder:GetChildren()) do
         local clone = child:Clone()
         clone.Parent = targetParent
+        print("[EnvironmentLoader] 📦 Copied:", child.Name, "(" .. child.ClassName .. ") to", targetParent:GetFullName())
     end
     
     return true
@@ -174,8 +175,24 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
         -- Copy all models
         local modelsFolder = spaceStationFolder:FindFirstChild("Models")
         if modelsFolder then
+            print("[EnvironmentLoader] 📋 Models folder contains:", #modelsFolder:GetChildren(), "objects")
+            for _, child in ipairs(modelsFolder:GetChildren()) do
+                print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
+            end
+            
             copyFolderContents(modelsFolder, Workspace)
             print("[EnvironmentLoader] ✅ Space Station models loaded")
+            
+            -- Verify what's in Workspace after copying
+            print("[EnvironmentLoader] 📋 Workspace now contains:")
+            for _, child in ipairs(Workspace:GetChildren()) do
+                print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
+                if child:IsA("Model") or child:IsA("Folder") then
+                    for _, subChild in ipairs(child:GetChildren()) do
+                        print("[EnvironmentLoader]     └─ " .. subChild.Name .. " (" .. subChild.ClassName .. ")")
+                    end
+                end
+            end
         end
         
         -- Process SpaceStation Scripts
@@ -219,7 +236,7 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId)
     local expectedObjects = {
         "Planet",
         "SpaceStation",
-        "SpawnLocation",
+        "SpaceStation.SpawnLocation",  -- SpawnLocation is inside SpaceStation folder
         "PlanetSurfaceScanner"
     }
     

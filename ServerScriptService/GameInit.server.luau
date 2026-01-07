@@ -346,18 +346,23 @@ local function spawnPlayer(player, playerProfile)
 		return
 	end
 
-	-- Find spawn location on Space Station
-	local spawnLocation = game.Workspace:FindFirstChild("SpaceStation")
-	if spawnLocation then
-		spawnLocation = spawnLocation:FindFirstChild("SpawnLocation")
+	-- Find SpawnLocation in Workspace (should be loaded by LocationManager)
+	-- LocationManager.SwitchToSpaceStation() calls EnvironmentLoader.LoadSpaceEnvironment()
+	-- which copies SpawnLocation from ServerStorage to Workspace
+	local spawnLocation = nil
+	
+	-- Try to find in SpaceStation folder first
+	local spaceStation = game.Workspace:FindFirstChild("SpaceStation")
+	if spaceStation then
+		spawnLocation = spaceStation:FindFirstChild("SpawnLocation")
 	end
-
-	-- If not found in workspace, check ServerStorage (for teleportation system)
+	
+	-- If not in SpaceStation folder, try root Workspace
 	if not spawnLocation then
-		spawnLocation = game.ServerStorage.Space.SpaceStation:FindFirstChild("SpawnLocation")
+		spawnLocation = game.Workspace:FindFirstChild("SpawnLocation")
 	end
 
-	if spawnLocation then
+	if spawnLocation and spawnLocation:IsA("SpawnLocation") then
 		humanoidRootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 2, 0)
 		player:SetAttribute("CurrentLocation", "SpaceStation")
 
@@ -368,14 +373,16 @@ local function spawnPlayer(player, playerProfile)
 			}
 		end
 		print("[GameInit] ✅ Гравець з'явився на Космічній Станції")
+		print("  └─ Позиція: " .. tostring(spawnLocation.CFrame.Position))
 	else
-		warn("[GameInit] ⚠️ SpawnLocation не знайдено")
+		warn("[GameInit] ❌ SpawnLocation не знайдено в Workspace після завантаження")
 		warn("  └─ Перевірено шляхи:")
 		warn("    • Workspace/SpaceStation/SpawnLocation")
-		warn("    • ServerStorage/Space/SpaceStation/SpawnLocation")
-		warn("  └─ Використовується позиція за замовчуванням (0, 2, 0)")
-		-- Fallback to default position
-		humanoidRootPart.CFrame = CFrame.new(0, 2, 0)
+		warn("    • Workspace/SpawnLocation")
+		warn("  └─ LocationManager має завантажити SpawnLocation перед викликом spawnPlayer()")
+		warn("  └─ Використовується позиція за замовчуванням (0, 10, 0)")
+		-- Fallback to default position (higher up to avoid falling)
+		humanoidRootPart.CFrame = CFrame.new(0, 10, 0)
 		-- Set current location attribute even for fallback
 		player:SetAttribute("CurrentLocation", "SpaceStation")
 	end

@@ -67,6 +67,10 @@ local GameConfig = require(game.ServerScriptService.GameConfig)
 local currentLocation = "Dark Space"
 local isTransitioning = false
 
+-- Active location modules
+local currentLocationGameServer = nil
+local currentPlanetConfig = nil
+
 -- Helper function to get current planet based on loaded location
 local function getCurrentPlanet()
 	-- For now, default to Planet_1
@@ -77,6 +81,15 @@ end
 -- Helper function to clean workspace
 local function cleanupWorkspace()
 	print("[Location] 🧹 Очищення, об'єктів:", #Workspace:GetChildren())
+	
+	-- Cleanup current location game server before clearing workspace
+	if currentLocationGameServer and currentLocationGameServer.Cleanup then
+		currentLocationGameServer.Cleanup()
+		currentLocationGameServer = nil
+	end
+	
+	-- Clear planet config
+	currentPlanetConfig = nil
 
 	local lighting = game:GetService("Lighting")
 	print("[Location] 💡 Об'єктів освітлення:", #lighting:GetChildren())
@@ -218,6 +231,59 @@ local function loadLocation(planetId, locationId)
 	
 	if success then
 		print("[Location] ✅ Локацію", locationId, "завантажено")
+		
+		-- Load PlanetConfig for this planet
+		local planetConfigSuccess = pcall(function()
+			local planetFolder = ServerStorage:WaitForChild("Planets"):WaitForChild(planetId)
+			local configFolder = planetFolder:FindFirstChild("Configuration")
+			if configFolder then
+				local planetConfigModule = configFolder:FindFirstChild("PlanetConfig")
+				if planetConfigModule and planetConfigModule:IsA("ModuleScript") then
+					currentPlanetConfig = require(planetConfigModule)
+					print("[Location] ✅ PlanetConfig завантажено для", planetId)
+				end
+			end
+		end)
+		
+		if not planetConfigSuccess then
+			warn("[Location] ⚠️ Не вдалося завантажити PlanetConfig для", planetId)
+		end
+		
+		-- Load LocationGameServer for this location
+		local locationServerSuccess = pcall(function()
+			local planetFolder = ServerStorage:WaitForChild("Planets"):WaitForChild(planetId)
+			local locationsFolder = planetFolder:WaitForChild("Locations")
+			local locationFolder = locationsFolder:WaitForChild(locationId)
+			local scriptsFolder = locationFolder:FindFirstChild("Scripts")
+			if scriptsFolder then
+				local serverFolder = scriptsFolder:FindFirstChild("Server")
+				if serverFolder then
+					local locationServerModule = serverFolder:FindFirstChild("LocationGameServer")
+					if locationServerModule and locationServerModule:IsA("ModuleScript") then
+						-- Cleanup previous location game server
+						if currentLocationGameServer and currentLocationGameServer.Cleanup then
+							currentLocationGameServer.Cleanup()
+						end
+						
+						currentLocationGameServer = require(locationServerModule)
+						
+						-- Initialize with location model from Workspace
+						local locationModel = Workspace:FindFirstChild(locationId)
+						if locationModel then
+							currentLocationGameServer.Initialize(locationModel)
+							print("[Location] ✅ LocationGameServer ініціалізовано для", locationId)
+						else
+							warn("[Location] ⚠️ Location model not found in Workspace:", locationId)
+						end
+					end
+				end
+			end
+		end)
+		
+		if not locationServerSuccess then
+			warn("[Location] ⚠️ Не вдалося завантажити LocationGameServer для", locationId)
+		end
+		
 		return true
 	else
 		warn("[Location] ❌ Не вдалося завантажити Planet Environment")
@@ -318,7 +384,15 @@ local LocationManager = {
 	IsTransitioning = function() 
 		return isTransitioning
 	end,
-	CleanupWorkspace = cleanupWorkspace
+	CleanupWorkspace = cleanupWorkspace,
+	
+	-- New API for location modules
+	GetCurrentPlanetConfig = function()
+		return currentPlanetConfig
+	end,
+	GetCurrentLocationGameServer = function()
+		return currentLocationGameServer
+	end
 }
 
 return LocationManager

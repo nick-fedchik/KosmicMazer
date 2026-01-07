@@ -61,10 +61,10 @@ ServerScriptService/
 ├── GameConfig.luau           -- Конфігурація
 ├── DataStoreManager.luau     -- Персистенція даних гравців
 ├── PlayerDataManager.luau    -- Керування станом гравців
-├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.1)
-├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.0)
-├── EnvironmentLoader.luau    -- Завантаження середовищ
-├── ObjectTypeValidator.luau  -- Валідація структур
+├── TeleportationManager.luau -- Система телепортації (ModuleScript v4.5)
+├── LocationManager.luau      -- Перемикання локацій (ModuleScript v2.2)
+├── EnvironmentLoader.luau    -- Завантаження середовищ (v1.1)
+├── ObjectTypeValidator.luau  -- Валідація структур (v1.1)
 └── Helpers/
     ├── DataStoreCleaner.server.luau    -- Утиліта тестування
     ├── LoadingMonitor.server.luau      -- Моніторинг завантаження
@@ -73,7 +73,7 @@ ServerScriptService/
 StarterPlayer/
 └── StarterPlayerScripts/
     ├── TeleportationClient.luau  -- UI телепортації (LocalScript)
-    ├── ScannerUI.luau            -- UI сканера (LocalScript)
+    ├── ScannerUI2.client.luau    -- UI сканера (LocalScript)
     └── StationUI.luau            -- UI станції (LocalScript)
 
 ReplicatedStorage/
@@ -91,13 +91,50 @@ ReplicatedStorage/
 ServerStorage/
 ├── Space/
 │   └── SpaceStation/
-│       ├── PlanetSurfaceScanner/
-│       │   └── ScannerService.luau
-│       └── SpawnLocation/
-├── Planet_1/
-│   ├── Lighting/
-│   ├── Planet/
-│   └── Locations/
+│       ├── Models/
+│       │   ├── SpawnLocation              -- SpawnLocation: Точка спавну гравця
+│       │   ├── PlanetSurfaceScanner       -- Model: Сканер планети
+│       │   └── ...
+│       ├── Scripts/
+│       │   ├── Server/
+│       │   │   ├── PlanetSurfaceScanner.luau         -- ModuleScript: Логіка сканера
+│       │   │   └── PlanetScannerController.luau      -- ModuleScript: Контролер
+│       │   └── Client/
+│       │       ├── StationUI.luau         -- LocalScript: UI станції
+│       │       └── ScannerUI.luau         -- LocalScript: UI сканера
+│       └── Lighting/
+│           ├── Sky                        -- Sky: Skybox станції
+│           └── ...
+└── Planets/
+    └── Planet_1/
+        ├── PlanetModel/
+        │   └── Planet                     -- Model: Модель планети на орбіті
+        ├── Lighting/
+        │   ├── Sky                        -- Sky: Skybox планети
+        │   └── Atmosphere                 -- Atmosphere: Атмосфера
+        ├── Configuration/
+        │   └── PlanetConfig.luau          -- ModuleScript: Конфіг планети (NEW v1.0)
+        └── Locations/
+            ├── Location_1/
+            │   ├── Models/
+            │   │   ├── SpawnLocation      -- SpawnLocation: Точка спавну
+            │   │   ├── Baseplate          -- Part: Підлога
+            │   │   └── ...
+            │   ├── Scripts/
+            │   │   ├── Server/
+            │   │   │   └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
+            │   │   └── Client/
+            │   │       └── LocationUI.luau  -- LocalScript: UI локації
+            │   └── Lighting/
+            │       └── Sky                -- Sky: Skybox локації
+            ├── Location_2/
+            │   └── Scripts/
+            │       └── Server/
+            │           └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
+            └── Location_3/
+                └── Scripts/
+                    └── Server/
+                        └── LocationGameServer.luau  -- ModuleScript: Логіка гри (NEW v1.0)
 │       ├── Location_1/
 │       └── Location_2/
 └── Effects/
@@ -337,6 +374,101 @@ Public API:
 - startScanEffect(player)
 - getDiscoveredLocations(player)
 - updateTeleportationState()
+
+--------------------------------------------------
+5.4 PlanetConfig (NEW - IMPLEMENTED v1.0)
+--------------------------------------------------
+
+Responsibility:
+- Конфігурація та правила гри СПІЛЬНІ для всіх локацій планети
+- Фізичні властивості планети (гравітація, атмосфера)
+- Швидкості регенерації ресурсів
+- Економіка планети
+- Умови відкриття локацій
+
+Location:
+ServerStorage/Planets/{PlanetId}/Configuration/PlanetConfig.luau
+
+State:
+- PLANET_ID: string
+- PLANET_NAME: string
+- GRAVITY: number (множник, 1.0 = земна)
+- ATMOSPHERE: table (HasOxygen, Density, Color, ...)
+- LIGHTING: table (ClockTime, Brightness, ...)
+- GAME_RULES: table (AllowResourceCollection, AllowPvP, ...)
+- RESOURCE_RATES: table (Ore, Crystal, Artifact, Energy)
+- ECONOMY: table (Currency, BasePrices)
+- LOCATION_UNLOCK_CONDITIONS: table (умови відкриття)
+
+Public API:
+- GetPlanetRules(): table
+- GetGravity(): number
+- GetAtmosphere(): table
+- GetResourceRates(): table
+- IsLocationUnlocked(locationId, playerData): boolean
+- ApplyPlanetPhysics(): void (застосовує гравітацію до Workspace)
+
+Lifecycle:
+- Завантажується LocationManager при зміні планети
+- Застосовується при Initialize() LocationGameServer
+- Доступний через LocationManager.GetCurrentPlanetConfig()
+
+--------------------------------------------------
+5.5 LocationGameServer (NEW - IMPLEMENTED v1.0)
+--------------------------------------------------
+
+Responsibility:
+- Унікальна ігрова логіка для КОЖНОЇ локації окремо
+- Управління ресурсами локації (spawn, respawn)
+- Логіка NPC локації
+- Квести локації
+- Міні-ігри локації
+- Трекінг активних гравців в локації
+
+Location:
+ServerStorage/Planets/{PlanetId}/Locations/{LocationId}/Scripts/Server/LocationGameServer.luau
+
+State:
+- LOCATION_ID: string
+- LOCATION_NAME: string
+- PLANET_ID: string
+- LOCATION_RULES: table (DisplayName, Features, MaxPlayers, ...)
+- locationModel: Model (reference до Workspace)
+- activePlayers: table (активні гравці в локації)
+- resources: table (ресурси локації)
+- connections: table (події)
+- isInitialized: boolean
+
+Public API:
+- Initialize(locationModel): boolean
+- Cleanup(): void
+- OnPlayerEnter(player): void
+- OnPlayerLeave(player): void
+- GetLocationRules(): table
+- GetActivePlayersCount(): number
+- IsInitialized(): boolean
+
+Lifecycle:
+1. LocationManager.SwitchToPlanetLocation() викликає EnvironmentLoader
+2. EnvironmentLoader копіює локацію в Workspace
+3. LocationManager завантажує LocationGameServer з ServerStorage
+4. LocationManager викликає Initialize(locationModel)
+5. LocationGameServer:
+   - Завантажує ресурси (CollectionService tags)
+   - Ініціалізує NPC
+   - Ініціалізує квести
+   - Застосовує PlanetConfig.ApplyPlanetPhysics()
+6. При виході з локації: LocationManager викликає Cleanup()
+
+Integration:
+- Доступний через LocationManager.GetCurrentLocationGameServer()
+- Використовує PlanetConfig для планетарних налаштувань
+- Підключений до PlayerDataManager для прогресу гравця
+
+Створені шаблони:
+- Location_1/Scripts/Server/LocationGameServer.luau (повний функціонал)
+- Location_2/Scripts/Server/LocationGameServer.luau (базовий шаблон)
+- Location_3/Scripts/Server/LocationGameServer.luau (базовий шаблон)
 
 ================================================================================
 6. REMOTE EVENTS ARCHITECTURE
