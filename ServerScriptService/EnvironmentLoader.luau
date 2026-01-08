@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.11
+Version: 1.12
 
 Features:
 - Loads Space Environment (Planet + LocationModel)
@@ -31,6 +31,7 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.12: Added diagnostic print for PlanetSurfaceScanner children after copy (2026-01-08)
 - Version 1.11: CRITICAL FIX - Client scripts now copy to PlayerGui instead of StarterPlayerScripts (2026-01-08)
 - Version 1.11: Fixed SpaceStationUI and PlanetSurfaceScannerUI not appearing for already spawned players
 - Version 1.11: Client scripts (LocalScripts) now copy to each player's PlayerGui dynamically
@@ -679,6 +680,26 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         
         copyFolderContents(workspaceFolder, Workspace, loadOrder)
         print("[EnvironmentLoader] ✅ Location workspace loaded")
+        -- Diagnostic: List all children of PlanetSurfaceScanner after copy
+        local locationModel = Workspace:FindFirstChild("LocationModel")
+        if locationModel then
+            local equipment = locationModel:FindFirstChild("Equipment")
+            if equipment then
+                local scanner = equipment:FindFirstChild("PlanetSurfaceScanner")
+                if scanner then
+                    print("[EnvironmentLoader][DIAG] PlanetSurfaceScanner children after copy:")
+                    for _, child in ipairs(scanner:GetChildren()) do
+                        print(string.format("[EnvironmentLoader][DIAG]   - %s (%s)", child.Name, child.ClassName))
+                    end
+                else
+                    print("[EnvironmentLoader][DIAG] PlanetSurfaceScanner not found in Equipment after copy")
+                end
+            else
+                print("[EnvironmentLoader][DIAG] Equipment not found in LocationModel after copy")
+            end
+        else
+            print("[EnvironmentLoader][DIAG] LocationModel not found in Workspace after copy")
+        end
     else
         warn("[EnvironmentLoader] ⚠️ Workspace folder not found in location")
         warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Workspace")

@@ -3,7 +3,7 @@
 KOSMICMAZER — GUI Convention
 ================================================================================
 Мета: уніфікований підхід до GUI (Windows 3.1/95 стилістика).
-Версія: 3.6
+Версія: 3.7
 Статус: ACTIVE
 
 1) Стиль
@@ -34,7 +34,7 @@ KOSMICMAZER — GUI Convention
 ]]
 
 local module = {}
-module.VERSION = "3.6"
+module.VERSION = "3.7"
 module.STATUS = "ACTIVE"
 
 return module

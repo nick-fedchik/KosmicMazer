@@ -4,7 +4,7 @@ KOSMICMAZER — Planet Surface Scanner UI Client
 ================================================================================
 
 Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
-Version: 1.6
+Version: 1.7
 
 Features:
 - Відображення результатів сканування планетної поверхні (Windows 95 стиль)
@@ -36,11 +36,12 @@ Events:
 - LocationSelected: Вибір локації з результатів
 
 Dependencies:
-- GuiConvention: Кольори WIN95_COLORS та NOTIFICATION_COLORS
+- GuiConvention: Кольори WIN95_COLORS та NOTIFICATION_COLORS (defined locally)
 - TweenService: Анімації
 - PlanetSurfaceScanner: Модель сканера
 
 ChangeLog:
+- Version 1.7: Removed GuiConvention dependency, colors defined locally
 - Version 1.6: Renamed from ScannerUI to PlanetSurfaceScannerUI for clarity
 - Version 1.5: Simplified Initialize() - removed mock results simulation
 - Version 1.5: Flattened validation logic without complex nesting
@@ -67,7 +68,7 @@ local UserInputService = game:GetService("UserInputService")
 --============================================================================--
 -- MODULES
 --============================================================================--
-local GuiConvention = require(ReplicatedStorage:WaitForChild("Std"):WaitForChild("GuiConvention"))
+-- (No external modules required)
 
 --============================================================================--
 -- КОНСТАНТИ / CONSTANTS
@@ -79,11 +80,25 @@ local SCAN_DURATION = 5
 -- @const number Максимальна кількість результатів
 local MAX_RESULTS = 10
 
--- @const table Кольори Windows 95 з GuiConvention
-local WIN95_COLORS = GuiConvention.WIN95_COLORS
+-- @const table Кольори Windows 95 (локально визначені)
+local WIN95_COLORS = {
+    WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
+    ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
+    ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
+    ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
+    TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
+    TitleText = Color3.fromRGB(255, 255, 255),         -- White
+    ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
+    WindowText = Color3.fromRGB(0, 0, 0),              -- Black
+}
 
--- @const table Кольори сповіщень з GuiConvention
-local NOTIFICATION_COLORS = GuiConvention.NOTIFICATION_COLORS
+-- @const table Кольори сповіщень (локально визначені)
+local NOTIFICATION_COLORS = {
+    Success = Color3.fromRGB(39, 174, 96),    -- Green
+    Error = Color3.fromRGB(231, 76, 60),      -- Red
+    Warning = Color3.fromRGB(241, 196, 15),   -- Yellow
+    Info = Color3.fromRGB(52, 152, 219),      -- Blue
+}
 
 -- @const number Тривалість UI анімацій
 local UI_ANIMATION_DURATION = 0.3
@@ -315,7 +330,10 @@ local function createResultsWindow()
 			-- TODO: Отримати реальні дані локацій від сервера
 			-- Поки що показуємо порожні результати
 
-		PlanetSurfaceScannerUI.ShowScanResults(scanResults)
+			PlanetSurfaceScannerUI.ShowScanResults(scanResults)
+		end)
+	end)
+
 	-- Ефекти натискання для кнопок
 	local function createButtonEffect(button)
 		button.MouseEnter:Connect(function()
@@ -483,12 +501,24 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 	-- Знаходимо ScannerBaseplate
 	local scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate")
 	if not scannerBaseplate then
+		scannerBaseplate = scannerModel:WaitForChild("ScannerBaseplate", 5)
+	end
+	if not scannerBaseplate then
+		scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate", true)
+	end
+	if not scannerBaseplate then
 		warn("[PlanetSurfaceScannerUI] ⚠️ ScannerBaseplate not found in scanner model")
 		return
 	end
 
 	-- Знаходимо ProximityPrompt
 	proximityPrompt = scannerBaseplate:FindFirstChild("ProximityPrompt")
+	if not proximityPrompt then
+		proximityPrompt = scannerBaseplate:WaitForChild("ProximityPrompt", 5)
+	end
+	if not proximityPrompt then
+		proximityPrompt = scannerBaseplate:FindFirstChildWhichIsA("ProximityPrompt", true)
+	end
 	if not proximityPrompt then
 		warn("[PlanetSurfaceScannerUI] ⚠️ ProximityPrompt not found in ScannerBaseplate")
 		return
@@ -699,4 +729,4 @@ end)
 -- Експортуємо функції для глобального доступу
 _G.PlanetSurfaceScannerUI = PlanetSurfaceScannerUI
 
-return PlanetSurfaceScannerUI
+return PlanetSurfaceScannerUIц

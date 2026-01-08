@@ -4,7 +4,7 @@ KOSMICMAZER — Space Station UI Client
 ================================================================================
 
 Purpose: Створює та керує статус баром космічної станції згідно GuiConvention
-Version: 1.4
+Version: 1.5
 
 Features:
 - Горизонтальний статус бар вгорі праворуч екрану (Windows 95 стиль)
@@ -33,10 +33,10 @@ Events:
 - ExitButtonClicked: Подія натискання кнопки виходу
 
 Dependencies:
-- GuiConvention: Кольори WIN95_COLORS та стилі
 - TweenService: Анімації
 
 ChangeLog:
+- Version 1.5: Removed GuiConvention dependency, colors defined locally
 - Version 1.4: Renamed from StationUI to SpaceStationUI for clarity
 - Version 1.3: Updated for LocationModel hierarchical structure compatibility (ETAP 3)
 - Version 1.3: Tested and verified compatibility with new space station structure
@@ -59,14 +59,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 --============================================================================--
 -- MODULES
 --============================================================================--
-local GuiConvention = require(ReplicatedStorage:WaitForChild("Std"):WaitForChild("GuiConvention"))
+-- (No external modules required)
 
 --============================================================================--
 -- КОНСТАНТИ / CONSTANTS
 --============================================================================--
 
--- @const table Кольори Windows 95
-local WIN95_COLORS = GuiConvention.WIN95_COLORS
+-- @const table Кольори Windows 95 (локально визначені)
+local WIN95_COLORS = {
+    WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
+    ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
+    ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
+    ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
+    TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
+    TitleText = Color3.fromRGB(255, 255, 255),         -- White
+    ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
+    WindowText = Color3.fromRGB(0, 0, 0),              -- Black
+}
 
 -- @const string ID поточної планети за замовчуванням
 local DEFAULT_PLANET_ID = "Planet_1"
