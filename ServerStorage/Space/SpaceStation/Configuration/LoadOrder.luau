@@ -112,8 +112,8 @@ LoadOrder.ServerScripts = {
 
 -- Порядок копіювання клієнтських скриптів з SpaceStation/Scripts/Client/ → StarterPlayerScripts
 LoadOrder.ClientScripts = {
-	{name = "StationUI", priority = 1, description = "Station UI controller"},
-	{name = "ScannerUI", priority = 2, description = "Scanner interface"},
+	{name = "SpaceStationUI", priority = 1, description = "Space Station UI controller"},
+	{name = "PlanetSurfaceScannerUI", priority = 2, description = "Planet Surface Scanner interface"},
 	-- Add more client scripts here
 }
 

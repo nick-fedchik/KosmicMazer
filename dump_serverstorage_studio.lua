@@ -63,7 +63,7 @@ local function dumpServerStorage()
     print("📁 ServerStorage:")
     print("=" .. string.rep("=", 79))
     
-    dumpInstance(game.ServerStorage, "", 10, 0)
+    dumpInstance(game.ServerStorage, "", 5, 0)
     
     print("=" .. string.rep("=", 79))
     

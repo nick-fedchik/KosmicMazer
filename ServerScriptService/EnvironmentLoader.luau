@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.9
+Version: 1.11
 
 Features:
 - Loads Space Environment (Planet + LocationModel)
@@ -15,8 +15,8 @@ Features:
 - Workspace folder naming convention (content → game.Workspace)
 - Lighting folder content → game.Lighting
 - LoadOrder-based script processing with priority system
-- Automatic ModuleScript initialization
-- LocationModel hierarchical structure support
+- Automatic ModuleScript initialization with LocationModel hierarchy support
+- LocationModel hierarchical structure support with Equipment folder search
 
 API:
 - LoadSpaceEnvironment(planetId): Loads space environment with planet
@@ -31,6 +31,13 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.11: CRITICAL FIX - Client scripts now copy to PlayerGui instead of StarterPlayerScripts (2026-01-08)
+- Version 1.11: Fixed SpaceStationUI and PlanetSurfaceScannerUI not appearing for already spawned players
+- Version 1.11: Client scripts (LocalScripts) now copy to each player's PlayerGui dynamically
+- Version 1.11: Removed StarterPlayerScripts copying - scripts activate immediately
+- Version 1.10: Fixed ModuleScript.Initialize() to search LocationModel/Equipment/ (2026-01-08)
+- Version 1.10: Added fallback to Workspace for backward compatibility
+- Version 1.10: Fixed PlanetSurfaceScanner initialization by searching correct hierarchy
 - Version 1.9: Updated for LocationModel hierarchical structure (ETAP 2)
 - Version 1.9: LoadSpaceEnvironment now searches for LocationModel instead of SpaceStation
 - Version 1.9: Added LocationModel attribute validation (LocationId, LocationType)
@@ -422,8 +429,23 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
 							
 							-- Try to initialize if the module has Initialize function
 							if type(module) == "table" and module.Initialize then
-								-- Find corresponding Workspace model
-								local workspaceModel = Workspace:FindFirstChild(script.Name)
+								-- Find corresponding model (check LocationModel hierarchy first)
+								local workspaceModel = nil
+								
+								-- Check for LocationModel/Equipment/ first (new structure)
+								local locationModel = Workspace:FindFirstChild("LocationModel")
+								if locationModel then
+									local equipment = locationModel:FindFirstChild("Equipment")
+									if equipment then
+										workspaceModel = equipment:FindFirstChild(script.Name)
+									end
+								end
+								
+								-- Fallback: check directly in Workspace (old structure)
+								if not workspaceModel then
+									workspaceModel = Workspace:FindFirstChild(script.Name)
+								end
+								
 								if workspaceModel then
 									local initSuccess = module.Initialize(workspaceModel)
 									if initSuccess then
@@ -432,7 +454,8 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
 										return false, "Initialize returned false"
 									end
 								else
-									return true  -- Module loaded but no Workspace model (optional)
+									warn(string.format("[EnvironmentLoader] ⚠️ Model '%s' not found in Workspace or LocationModel/Equipment", script.Name))
+									return true  -- Module loaded but no model found (optional)
 								end
 							else
 								return true  -- Module loaded, no Initialize method
@@ -461,10 +484,10 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
                 end
             end
             
--- Process Client scripts with LoadOrder (copy to StarterPlayerScripts)
+-- Process Client scripts with LoadOrder (copy to PlayerGui of all current players)
 			local clientFolder = scriptsFolder:FindFirstChild("Client")
 			if clientFolder then
-				local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+				local Players = game:GetService("Players")
 				local clientScripts = clientFolder:GetChildren()
 				
 				-- Sort scripts by LoadOrder priority
@@ -472,22 +495,31 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
 					clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, loadOrderConfig)
 				end
 				
+				-- Copy scripts to each player's PlayerGui
 				for index, script in ipairs(clientScripts) do
 					if script:IsA("LocalScript") then
-						-- Видалити стару версію скрипта, якщо вона існує
-						local oldScript = StarterPlayerScripts:FindFirstChild(script.Name)
-						if oldScript then
-							oldScript:Destroy()
-						print(string.format("[EnvironmentLoader] 🗑️ Removed old: StarterPlayer/StarterPlayerScripts/%s", script.Name))
+						for _, player in ipairs(Players:GetPlayers()) do
+							local playerGui = player:WaitForChild("PlayerGui", 5)
+							if playerGui then
+								-- Remove old version of the script if it exists
+								local oldScript = playerGui:FindFirstChild(script.Name)
+								if oldScript then
+									oldScript:Destroy()
+									print(string.format("[EnvironmentLoader] 🗑️ Removed old: %s/PlayerGui/%s", player.Name, script.Name))
+								end
+								
+								-- Clone and parent to PlayerGui
+								local clone = script:Clone()
+								clone.Parent = playerGui
+								print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → %s/PlayerGui/%s", 
+									index, #clientScripts, script:GetFullName(), player.Name, script.Name))
+							else
+								warn(string.format("[EnvironmentLoader] ⚠️ PlayerGui not found for %s", player.Name))
+							end
+						end
 					end
-					
-					local clone = script:Clone()
-					clone.Parent = StarterPlayerScripts
-					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → StarterPlayer/StarterPlayerScripts/%s", 
-						index, #clientScripts, script:GetFullName(), script.Name))
-                    end
-                end
-            end
+				end
+			end
             
             print("[EnvironmentLoader] ✅ Space Station scripts processed")
         end

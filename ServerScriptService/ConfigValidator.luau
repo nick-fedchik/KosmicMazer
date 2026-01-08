@@ -4,15 +4,16 @@ KOSMICMAZER — Configuration Validator
 ================================================================================
 
 Purpose: Validates GameConfig structure at startup to prevent runtime errors
-Version: 1.0
+Version: 1.1
 
 Features:
 - Validates required GameConfig fields
 - Checks planet and location configurations
-- Validates ServerStorage model existence
+- Validates ServerStorage model existence with LocationModel hierarchy support
 - Provides detailed error messages and warnings
 - Fail-fast on critical configuration issues
 - Non-blocking warnings for optional components
+- LocationModel/Gameplay/SpawnLocation validation with fallback
 
 API:
 - ValidateConfig(config, serverStorage): Validates entire configuration
@@ -36,7 +37,7 @@ Dependencies:
 ]]
 
 local ConfigValidator = {}
-ConfigValidator.Version = "1.0"
+ConfigValidator.Version = "1.1"
 
 -- Validation results storage
 local validationReport = {
@@ -367,30 +368,71 @@ local function validateSpaceStation(config, serverStorage)
 				if not workspaceFolder then
 					addWarning("SpaceStation", "SpaceStation/Workspace folder not found")
 				else
-					-- Check for spawn location (can be inside SpaceStation or separate in Workspace)
-					if station.SpawnPoint then
-						local spawnLocation = workspaceFolder:FindFirstChild(station.SpawnPoint)
-						if not spawnLocation then
-							-- SpawnLocation не знайдено всередині SpaceStation - це нормально для поточної архітектури
-							addInfo("SpaceStation", string.format(
-								"SpawnPoint '%s' not found inside SpaceStation (will be loaded as separate object)", 
-								station.SpawnPoint))
-						elseif spawnLocation.ClassName ~= "SpawnLocation" then
-							addError("SpaceStation", string.format(
-								"'%s' exists but is not a SpawnLocation (found: %s)", 
-								station.SpawnPoint, spawnLocation.ClassName))
-						else
-							addInfo("SpaceStation", string.format(
-								"SpawnPoint '%s' found inside SpaceStation", station.SpawnPoint))
+					-- Check for LocationModel (new hierarchical structure)
+					local locationModel = workspaceFolder:FindFirstChild("LocationModel")
+					if locationModel then
+						-- NEW: Validate LocationModel attributes
+						local locationId = locationModel:GetAttribute("LocationId")
+						local locationType = locationModel:GetAttribute("LocationType")
+						
+						if locationId ~= "SpaceStation" or locationType ~= "Space" then
+							addWarning("SpaceStation", string.format(
+								"LocationModel attributes incorrect (LocationId: %s, LocationType: %s)", 
+								tostring(locationId), tostring(locationType)))
 						end
-					end
-					
-					-- Check for optional PlanetSurfaceScanner
-					local scanner = workspaceFolder:FindFirstChild("PlanetSurfaceScanner")
-					if scanner then
-						addInfo("SpaceStation", "PlanetSurfaceScanner found (optional)")
+						
+						-- Check SpawnPoint inside LocationModel/Gameplay/
+						if station.SpawnPoint then
+							local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+							local spawnLocation = gameplayFolder and gameplayFolder:FindFirstChild(station.SpawnPoint)
+							
+							if not spawnLocation then
+								addError("SpaceStation", string.format(
+									"SpawnPoint '%s' not found in LocationModel/Gameplay", 
+									station.SpawnPoint))
+							elseif spawnLocation.ClassName ~= "SpawnLocation" then
+								addError("SpaceStation", string.format(
+									"'%s' exists but is not a SpawnLocation (found: %s)", 
+									station.SpawnPoint, spawnLocation.ClassName))
+							else
+								addInfo("SpaceStation", string.format(
+									"✅ SpawnPoint '%s' found in LocationModel/Gameplay", station.SpawnPoint))
+							end
+						end
+						
+						-- Check for optional PlanetSurfaceScanner in Equipment/
+						local equipmentFolder = locationModel:FindFirstChild("Equipment")
+						local scanner = equipmentFolder and equipmentFolder:FindFirstChild("PlanetSurfaceScanner")
+						if scanner then
+							addInfo("SpaceStation", "✅ PlanetSurfaceScanner found in LocationModel/Equipment")
+						else
+							addInfo("SpaceStation", "PlanetSurfaceScanner not found (optional feature)")
+						end
 					else
-						addInfo("SpaceStation", "PlanetSurfaceScanner not found (optional feature)")
+						-- Fallback: old structure validation
+						if station.SpawnPoint then
+							local spawnLocation = workspaceFolder:FindFirstChild(station.SpawnPoint)
+							if not spawnLocation then
+								addInfo("SpaceStation", string.format(
+									"SpawnPoint '%s' not found (LocationModel structure missing)", 
+									station.SpawnPoint))
+							elseif spawnLocation.ClassName ~= "SpawnLocation" then
+								addError("SpaceStation", string.format(
+									"'%s' exists but is not a SpawnLocation (found: %s)", 
+									station.SpawnPoint, spawnLocation.ClassName))
+							else
+								addInfo("SpaceStation", string.format(
+									"SpawnPoint '%s' found (old structure)", station.SpawnPoint))
+							end
+						end
+						
+						-- Check for optional PlanetSurfaceScanner (old structure)
+						local scanner = workspaceFolder:FindFirstChild("PlanetSurfaceScanner")
+						if scanner then
+							addInfo("SpaceStation", "PlanetSurfaceScanner found (optional)")
+						else
+							addInfo("SpaceStation", "PlanetSurfaceScanner not found (optional feature)")
+						end
 					end
 				end
 				
@@ -482,17 +524,41 @@ local function validateServerStorageModels(config, serverStorage)
 											"Planet '%s', Location '%s': Workspace folder not found", 
 											planetId, locationId))
 									else
-										-- Check for spawn point
-										if location.SpawnPoint then
-											local spawn = locWorkspace:FindFirstChild(location.SpawnPoint)
-											if not spawn then
-												addError("ServerStorage", string.format(
-													"Planet '%s', Location '%s': SpawnPoint '%s' not found", 
-													planetId, locationId, location.SpawnPoint))
-											elseif spawn.ClassName ~= "SpawnLocation" then
-												addError("ServerStorage", string.format(
-													"Planet '%s', Location '%s': '%s' is not a SpawnLocation (found: %s)", 
-													planetId, locationId, location.SpawnPoint, spawn.ClassName))
+										-- Check for LocationModel (new hierarchical structure)
+										local locationModel = locWorkspace:FindFirstChild("LocationModel")
+										if locationModel then
+											-- NEW: Check SpawnPoint inside LocationModel/Gameplay/
+											if location.SpawnPoint then
+												local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+												local spawn = gameplayFolder and gameplayFolder:FindFirstChild(location.SpawnPoint)
+												
+												if not spawn then
+													addError("ServerStorage", string.format(
+														"Planet '%s', Location '%s': SpawnPoint '%s' not found in LocationModel/Gameplay", 
+														planetId, locationId, location.SpawnPoint))
+												elseif spawn.ClassName ~= "SpawnLocation" then
+													addError("ServerStorage", string.format(
+														"Planet '%s', Location '%s': '%s' is not a SpawnLocation (found: %s)", 
+														planetId, locationId, location.SpawnPoint, spawn.ClassName))
+												else
+													addInfo("ServerStorage", string.format(
+														"Planet '%s', Location '%s': ✅ SpawnPoint found in LocationModel/Gameplay", 
+														planetId, locationId))
+												end
+											end
+										else
+											-- Fallback: old structure (direct in Workspace)
+											if location.SpawnPoint then
+												local spawn = locWorkspace:FindFirstChild(location.SpawnPoint)
+												if not spawn then
+													addWarning("ServerStorage", string.format(
+														"Planet '%s', Location '%s': SpawnPoint '%s' not found (LocationModel structure missing)", 
+														planetId, locationId, location.SpawnPoint))
+												elseif spawn.ClassName ~= "SpawnLocation" then
+													addError("ServerStorage", string.format(
+														"Planet '%s', Location '%s': '%s' is not a SpawnLocation (found: %s)", 
+														planetId, locationId, location.SpawnPoint, spawn.ClassName))
+												end
 											end
 										end
 									end

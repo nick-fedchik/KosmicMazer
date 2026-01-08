@@ -4,7 +4,7 @@ KOSMICMAZER — Location Manager (Module)
 ================================================================================
 
 Purpose: Manages location switching and workspace organization with FSM
-Version: 3.1
+Version: 3.2
 
 Features:
 - Finite State Machine (FSM) for predictable location transitions
@@ -42,6 +42,11 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 3.2: GAME RULES FIX - Hide SpawnLocation until first planet scan (2026-01-08)
+- Version 3.2: SpawnLocation now starts fully invisible (Transparency=1, no collision, light off)
+- Version 3.2: Will be revealed by TeleportationManager after PlanetSurfaceScanner scan
+- Version 3.1: Removed PrimaryPart validation warning for static LocationModel (2026-01-08)
+- Version 3.1: PrimaryPart not required for non-dynamic location containers
 - Version 3.1: Updated for LocationModel hierarchical structure (ETAP 2)
 - Version 3.1: clearWorkspaceLocations() now removes LocationModel objects
 - Version 3.1: loadSpaceStation() updated to work with LocationModel attributes
@@ -288,6 +293,16 @@ local function loadSpaceStation()
 					local spawnLocation = gameplayFolder and gameplayFolder:FindFirstChild("SpawnLocation")
 					if spawnLocation then
 						print(string.format("  └─ SpawnLocation (inside LocationModel/Gameplay): %s", tostring(spawnLocation.Position)))
+						
+						-- CRITICAL: Hide SpawnLocation until first planet scan
+						-- It will be revealed/activated by TeleportationManager after PlanetSurfaceScanner scan
+						spawnLocation.Transparency = 1 -- Fully invisible
+						spawnLocation.CanCollide = false -- No collision until activated
+						local pointLight = spawnLocation:FindFirstChild("PointLight")
+						if pointLight then
+							pointLight.Enabled = false -- No light until activated
+						end
+						print("[Location] 🔒 SpawnLocation приховано до першого сканування планети")
 					else
 						warn("[Location] ⚠️ SpawnLocation не знайдено в LocationModel/Gameplay")
 					end
@@ -312,9 +327,8 @@ local function loadSpaceStation()
 					else
 						warn("[Location] ⚠️ Equipment секцію не знайдено в SpaceStation LocationModel")
 					end
-				else
-					warn("[Location] ⚠️ LocationModel.PrimaryPart не встановлено")
 				end
+				-- PrimaryPart не обов'язковий для статичних LocationModel
 			else
 				warn("[Location] ⚠️ LocationModel має невірні attributes")
 				warn("  └─ LocationId:", tostring(locationId), "(expected: SpaceStation)")

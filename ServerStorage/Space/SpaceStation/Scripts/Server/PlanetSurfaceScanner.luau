@@ -4,7 +4,7 @@ KOSMICMAZER — PlanetSurfaceScanner Module
 ================================================================================
 
 Purpose: Manages planet scanning functionality with GameConfig integration
-Version: 4.2 (ModuleScript version)
+Version: 4.4 (ModuleScript version)
 
 Features:
 - Reads planet location data from GameConfig structure
@@ -41,10 +41,18 @@ Dependencies:
 - SoundService
 
 ChangeLog:
+- Version 4.4: Made ScannerScreen optional - only ScannerBaseplate required (2026-01-08)
+- Version 4.4: Visual effects disabled gracefully when ScannerScreen missing
+- Version 4.4: Added player monitoring diagnostics (distance logging every 3s)
+- Version 4.4: Added monitorPlayers startup logging to confirm activation
+- Version 4.3: Added detailed initialization logging for diagnostics (2026-01-08)
+- Version 4.3: Enhanced component detection logging (baseplate, display, screen)
+- Version 4.3: Added configuration values logging (SCAN_DURATION, INTERACTION_DISTANCE)
+- Version 4.3: Added scanner model children listing when components not found
 - Version 4.2: Updated for LocationModel hierarchical structure compatibility (ETAP 3)
 - Version 4.2: Scanner now located in LocationModel.Equipment.PlanetSurfaceScanner path
 - Version 4.2: Verified compatibility with new space station organizational structure
-- Version 4.2: Integration tested with updated ScannerUI.local.luau v1.4
+- Version 4.2: Integration tested with updated PlanetSurfaceScannerUI.local.luau v1.6
 - Version 4.1: Enhanced scanner activation logic and improved error handling
 - Version 4.0: REFACTORED - Converted from Script to ModuleScript for better modularity
 
@@ -678,12 +686,29 @@ end
 
 -- Monitor players on baseplate
 local function monitorPlayers()
+    print("[PlanetSurfaceScanner] 🔄 Player monitoring started")
+    print("  └─ Checking for players every 0.3s")
+    print("  └─ INTERACTION_DISTANCE:", INTERACTION_DISTANCE)
+    print("  └─ ScannerBaseplate position:", baseplate and baseplate.Position or "nil")
+    
+    local debugCounter = 0
     while task.wait(0.3) do
         local anyPlayerOnBaseplate = false
+        debugCounter = debugCounter + 1
         
         for _, player in ipairs(Players:GetPlayers()) do
             local isOnBaseplate = isPlayerOnBaseplate(player)
             local wasOnBaseplate = scannerState.playersOnBaseplate[player]
+            
+            -- Debug logging every 10 iterations (3 seconds)
+            if debugCounter % 10 == 0 and player.Character then
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local distance = (hrp.Position - baseplate.Position).Magnitude
+                    print(string.format("[PlanetSurfaceScanner] 🔍 %s distance: %.1f (threshold: %d)", 
+                        player.Name, distance, INTERACTION_DISTANCE))
+                end
+            end
             
             if isOnBaseplate and not wasOnBaseplate then
                 scannerState.playersOnBaseplate[player] = true
@@ -727,9 +752,15 @@ function PlanetSurfaceScanner.Initialize(scannerModelRef)
     end
     
     print("[PlanetSurfaceScanner] 🚀 Initializing PlanetSurfaceScanner...")
+    print("[PlanetSurfaceScanner] 📦 Scanner model reference received:", scannerModelRef and scannerModelRef.Name or "nil")
     
     -- Initialize dependencies first
     initializeDependencies()
+    
+    print("[PlanetSurfaceScanner] 📋 Configuration loaded:")
+    print("  └─ SCAN_DURATION:", SCAN_DURATION)
+    print("  └─ INTERACTION_DISTANCE:", INTERACTION_DISTANCE)
+    print("  └─ PULSE_SPEED:", PULSE_SPEED)
     
     -- Set scanner components
     scannerModel = scannerModelRef
@@ -737,8 +768,21 @@ function PlanetSurfaceScanner.Initialize(scannerModelRef)
     display = scannerModel:FindFirstChild("ScannerDisplay")
     scannerScreen = display and display:FindFirstChild("ScannerScreen")
     
-    if not baseplate or not scannerScreen then
-        error("[PlanetSurfaceScanner] ❌ Required scanner components not found!")
+    print("[PlanetSurfaceScanner] 🔍 Looking for scanner components:")
+    print("  └─ ScannerBaseplate:", baseplate and "✅ FOUND" or "❌ NOT FOUND")
+    print("  └─ ScannerDisplay:", display and "✅ FOUND" or "❌ NOT FOUND")
+    print("  └─ ScannerScreen:", scannerScreen and "✅ FOUND" or "⚠️ NOT FOUND (visual effects disabled)")
+    
+    if not baseplate then
+        warn("[PlanetSurfaceScanner] ⚠️ Scanner model children:")
+        for _, child in ipairs(scannerModel:GetChildren()) do
+            warn("  └─", child.Name, "-", child.ClassName)
+        end
+        error("[PlanetSurfaceScanner] ❌ Required component ScannerBaseplate not found!")
+    end
+    
+    if not scannerScreen then
+        warn("[PlanetSurfaceScanner] ⚠️ ScannerScreen not found - visual effects will be disabled")
     end
     
     -- Get RemoteEvent for scan results from registry

@@ -1,10 +1,10 @@
 --[[
 ================================================================================
-KOSMICMAZER — Scanner UI Client
+KOSMICMAZER — Planet Surface Scanner UI Client
 ================================================================================
 
 Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
-Version: 1.4
+Version: 1.6
 
 Features:
 - Відображення результатів сканування планетної поверхні (Windows 95 стиль)
@@ -41,6 +41,9 @@ Dependencies:
 - PlanetSurfaceScanner: Модель сканера
 
 ChangeLog:
+- Version 1.6: Renamed from ScannerUI to PlanetSurfaceScannerUI for clarity
+- Version 1.5: Simplified Initialize() - removed mock results simulation
+- Version 1.5: Flattened validation logic without complex nesting
 - Version 1.4: Updated for LocationModel hierarchical structure (ETAP 3)
 - Version 1.4: Auto-initialization now searches for LocationModel with attributes
 - Version 1.4: Added LocationModel attribute validation (LocationId=SpaceStation, LocationType=Space)
@@ -123,8 +126,8 @@ local isScanning = false
 -- ПУБЛІЧНЕ API / PUBLIC API
 --============================================================================--
 
--- @var table ScannerUI API
-local ScannerUI = {}
+-- @var table PlanetSurfaceScannerUI API
+local PlanetSurfaceScannerUI = {}
 
 --============================================================================--
 -- ЛОКАЛЬНІ ФУНКЦІЇ / LOCAL FUNCTIONS
@@ -301,9 +304,9 @@ local function createResultsWindow()
 			resultsWindow:Destroy()
 			resultsWindow = nil
 		end
-		ScannerUI.ShowScanningAnimation()
+		PlanetSurfaceScannerUI.ShowScanningAnimation()
 		task.delay(SCAN_DURATION, function()
-			ScannerUI.HideScanningAnimation()
+			PlanetSurfaceScannerUI.HideScanningAnimation()
 			-- Отримуємо реальні дані
 			local currentPlanetId = DEFAULT_PLANET_ID
 			local planetName = PLANET_NAMES[currentPlanetId] or "Невідома планета"
@@ -312,10 +315,7 @@ local function createResultsWindow()
 			-- TODO: Отримати реальні дані локацій від сервера
 			-- Поки що показуємо порожні результати
 
-			ScannerUI.ShowScanResults(scanResults)
-		end)
-	end)
-
+		PlanetSurfaceScannerUI.ShowScanResults(scanResults)
 	-- Ефекти натискання для кнопок
 	local function createButtonEffect(button)
 		button.MouseEnter:Connect(function()
@@ -469,46 +469,46 @@ end
 @param scannerModel Model - Модель сканера для інтеграції
 @return nil
 ]]
-function ScannerUI.Initialize(scannerModel: Model): nil
-	print("[ScannerUI] 📡 Initializing Scanner UI for model:", scannerModel.Name)
+function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
+	print("[PlanetSurfaceScannerUI] 📡 Initializing Scanner UI for model:", scannerModel.Name)
 
 	-- Створюємо головний GUI
 	scannerGui = Instance.new("ScreenGui")
-	scannerGui.Name = "ScannerUI"
+	scannerGui.Name = "PlanetSurfaceScannerUI"
 	scannerGui.ResetOnSpawn = false
 	scannerGui.IgnoreGuiInset = true
 	scannerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	scannerGui.Parent = player:WaitForChild("PlayerGui")
 
-	-- Знаходимо ProximityPrompt
+	-- Знаходимо ScannerBaseplate
 	local scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate")
-	if scannerBaseplate then
-		proximityPrompt = scannerBaseplate:FindFirstChild("ProximityPrompt")
-		if proximityPrompt then
-			proximityPrompt.Triggered:Connect(function(playerWhoTriggered)
-				if playerWhoTriggered == player and not isScanning then
-					print("[ScannerUI] 📡 Scan triggered by player")
-					ScannerUI.ShowScanningAnimation()
-					task.delay(SCAN_DURATION, function()
-						ScannerUI.HideScanningAnimation()
-						-- Симуляція результатів сканування
-						local mockResults = {
-							{id = "Location_1", name = "Затоніле місто", type = "Розкопки", difficulty = "Середній"},
-							{id = "Location_2", name = "Кристалічні печери", type = "Ресурси", difficulty = "Високий"},
-							{id = "Location_3", name = "Забутий аванпост", type = "Технології", difficulty = "Низький"}
-						}
-						ScannerUI.ShowScanResults(mockResults)
-					end)
-				end
-			end)
-		else
-			warn("[ScannerUI] ⚠️ ProximityPrompt not found in ScannerBaseplate")
-		end
-	else
-		warn("[ScannerUI] ⚠️ ScannerBaseplate not found in scanner model")
+	if not scannerBaseplate then
+		warn("[PlanetSurfaceScannerUI] ⚠️ ScannerBaseplate not found in scanner model")
+		return
 	end
 
-	print("[ScannerUI] ✅ Scanner UI initialized successfully")
+	-- Знаходимо ProximityPrompt
+	proximityPrompt = scannerBaseplate:FindFirstChild("ProximityPrompt")
+	if not proximityPrompt then
+		warn("[PlanetSurfaceScannerUI] ⚠️ ProximityPrompt not found in ScannerBaseplate")
+		return
+	end
+
+	-- Підключаємо обробник ProximityPrompt
+	proximityPrompt.Triggered:Connect(function(playerWhoTriggered)
+		if playerWhoTriggered ~= player then return end
+		if isScanning then return end
+
+		print("[PlanetSurfaceScannerUI] 📡 Scan triggered by player")
+		PlanetSurfaceScannerUI.ShowScanningAnimation()
+
+		task.delay(SCAN_DURATION, function()
+			PlanetSurfaceScannerUI.HideScanningAnimation()
+			print("[PlanetSurfaceScannerUI] ✅ Scan completed, waiting for server results")
+		end)
+	end)
+
+	print("[PlanetSurfaceScannerUI] ✅ Scanner UI initialized successfully")
 end
 
 --[[
@@ -518,8 +518,8 @@ end
 @param results table - Таблиця з результатами сканування
 @return nil
 ]]
-function ScannerUI.ShowScanResults(results: {any}): nil
-	print("[ScannerUI] 📊 Showing scan results:", #results, "locations found")
+function PlanetSurfaceScannerUI.ShowScanResults(results: {any}): nil
+	print("[PlanetSurfaceScannerUI] 📊 Showing scan results:", #results, "locations found")
 
 	local resultsList = createResultsWindow()
 	if not resultsList then return end
@@ -610,7 +610,7 @@ function ScannerUI.ShowScanResults(results: {any}): nil
 		end)
 
 		teleportBtn.MouseButton1Click:Connect(function()
-			print("[ScannerUI] 🚀 Teleporting to location:", result.id)
+			print("[PlanetSurfaceScannerUI] 🚀 Teleporting to location:", result.id)
 			-- TODO: Інтеграція з системою телепортації
 		end)
 
@@ -627,11 +627,11 @@ end
 
 @return nil
 ]]
-function ScannerUI.ShowScanningAnimation(): nil
+function PlanetSurfaceScannerUI.ShowScanningAnimation(): nil
 	if isScanning then return end
 
 	isScanning = true
-	print("[ScannerUI] 📡 Starting scanning animation...")
+	print("[PlanetSurfaceScannerUI] 📡 Starting scanning animation...")
 	createScanningWindow()
 end
 
@@ -641,11 +641,11 @@ end
 
 @return nil
 ]]
-function ScannerUI.HideScanningAnimation(): nil
+function PlanetSurfaceScannerUI.HideScanningAnimation(): nil
 	if not isScanning then return end
 
 	isScanning = false
-	print("[ScannerUI] ✅ Hiding scanning animation...")
+	print("[PlanetSurfaceScannerUI] ✅ Hiding scanning animation...")
 
 	if scanningWindow then
 		local tweenOut = TweenService:Create(scanningWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -677,26 +677,26 @@ task.spawn(function()
 			if equipmentFolder then
 				local scannerModel = equipmentFolder:WaitForChild("PlanetSurfaceScanner", 10)
 				if scannerModel then
-					ScannerUI.Initialize(scannerModel)
-					print("[ScannerUI] ✅ Ініціалізовано для LocationModel.Equipment.PlanetSurfaceScanner")
+					PlanetSurfaceScannerUI.Initialize(scannerModel)
+					print("[PlanetSurfaceScannerUI] ✅ Ініціалізовано для LocationModel.Equipment.PlanetSurfaceScanner")
 				else
-					warn("[ScannerUI] ⚠️ PlanetSurfaceScanner не знайдено в LocationModel/Equipment")
+					warn("[PlanetSurfaceScannerUI] ⚠️ PlanetSurfaceScanner не знайдено в LocationModel/Equipment")
 				end
 			else
-				warn("[ScannerUI] ⚠️ Equipment папка не знайдена в LocationModel")
+				warn("[PlanetSurfaceScannerUI] ⚠️ Equipment папка не знайдена в LocationModel")
 			end
 		else
-			warn("[ScannerUI] ⚠️ LocationModel має невірні attributes:")
+			warn("[PlanetSurfaceScannerUI] ⚠️ LocationModel має невірні attributes:")
 			warn("  └─ LocationId: " .. tostring(locationId) .. " (expected: SpaceStation)")
 			warn("  └─ LocationType: " .. tostring(locationType) .. " (expected: Space)")
 		end
 	else
-		warn("[ScannerUI] ⚠️ LocationModel не знайдено в Workspace")
+		warn("[PlanetSurfaceScannerUI] ⚠️ LocationModel не знайдено в Workspace")
 		warn("  └─ Перевірте що SpaceStation завантажено через EnvironmentLoader")
 	end
 end)
 
 -- Експортуємо функції для глобального доступу
-_G.ScannerUI = ScannerUI
+_G.PlanetSurfaceScannerUI = PlanetSurfaceScannerUI
 
-return ScannerUI
+return PlanetSurfaceScannerUI

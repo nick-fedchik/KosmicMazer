@@ -1,10 +1,10 @@
 --[[
 ================================================================================
-KOSMICMAZER — Station UI Client
+KOSMICMAZER — Space Station UI Client
 ================================================================================
 
 Purpose: Створює та керує статус баром космічної станції згідно GuiConvention
-Version: 1.3
+Version: 1.4
 
 Features:
 - Горизонтальний статус бар вгорі праворуч екрану (Windows 95 стиль)
@@ -37,6 +37,7 @@ Dependencies:
 - TweenService: Анімації
 
 ChangeLog:
+- Version 1.4: Renamed from StationUI to SpaceStationUI for clarity
 - Version 1.3: Updated for LocationModel hierarchical structure compatibility (ETAP 3)
 - Version 1.3: Tested and verified compatibility with new space station structure
 - Version 1.3: No direct changes required as UI doesn't reference SpaceStation models directly
@@ -262,7 +263,7 @@ local function createExitDialog()
 
 	yesBtn.MouseButton1Click:Connect(function()
 		-- TODO: Реалізувати вихід з гри зі збереженням
-		print("[StationUI] 🚪 Player confirmed exit - implementing save and quit...")
+		print("[SpaceStationUI] 🚪 Player confirmed exit - implementing save and quit...")
 		Players.LocalPlayer:Kick("Дякуємо за гру!")
 	end)
 
@@ -439,7 +440,7 @@ local function createStatusBar()
 
 	-- Обробник натискання кнопки виходу
 	exitButton.MouseButton1Click:Connect(function()
-		print("[StationUI] 🚪 Exit button clicked!")
+		print("[SpaceStationUI] 🚪 Exit button clicked!")
 		createExitDialog()
 	end)
 
@@ -457,14 +458,14 @@ local function createStatusBar()
 		create3DEffect(exitButton, true)
 	end)
 
-	print("[StationUI] ✅ Status bar created successfully")
+	print("[SpaceStationUI] ✅ Status bar created successfully")
 end
 
 --============================================================================--
 -- ПУБЛІЧНІ ФУНКЦІЇ / PUBLIC API
 --============================================================================--
 
-local StationUI = {}
+local SpaceStationUI = {}
 
 --[[
 @function Initialize
@@ -472,8 +473,8 @@ local StationUI = {}
 
 @return nil
 ]]
-function StationUI.Initialize(): nil
-	print("[StationUI] 🚀 Initializing Station UI...")
+function SpaceStationUI.Initialize(): nil
+	print("[SpaceStationUI] 🚀 Initializing Station UI...")
 	createStatusBar()
 	return
 end
@@ -485,14 +486,14 @@ end
 @param planetId string - ID планети для відображення
 @return nil
 ]]
-function StationUI.UpdatePlanetName(planetId: string): nil
+function SpaceStationUI.UpdatePlanetName(planetId: string): nil
 	if planetNameLabel then
 		currentPlanetId = planetId
 		currentPlanetName = PLANET_NAMES[planetId] or "Невідома планета"
 		planetNameLabel.Text = currentPlanetName
-		print("[StationUI] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
+		print("[SpaceStationUI] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
 	else
-		warn("[StationUI] ⚠️ Planet label not initialized")
+		warn("[SpaceStationUI] ⚠️ Planet label not initialized")
 	end
 end
 
@@ -503,7 +504,7 @@ end
 
 @return string - ID поточної планети
 ]]
-function StationUI.GetCurrentPlanetId(): string
+function SpaceStationUI.GetCurrentPlanetId(): string
 	return currentPlanetId
 end
 
@@ -513,7 +514,7 @@ end
 
 @return string - Назва поточної планети
 ]]
-function StationUI.GetCurrentPlanetName(): string
+function SpaceStationUI.GetCurrentPlanetName(): string
 	return currentPlanetName
 end
 
@@ -523,7 +524,7 @@ end
 
 @return nil
 ]]
-function StationUI.ShowExitConfirmation(): nil
+function SpaceStationUI.ShowExitConfirmation(): nil
 	createExitDialog()
 end
 
@@ -532,6 +533,6 @@ end
 --============================================================================--
 
 -- Автоматична ініціалізація при завантаженні скрипта
-StationUI.Initialize()
+SpaceStationUI.Initialize()
 
-return StationUI
+return SpaceStationUI

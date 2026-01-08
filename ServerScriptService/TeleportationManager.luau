@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.6
+Version: 4.7
 
 Features:
 - Manages teleportation activation state
@@ -43,6 +43,10 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 4.7: GAME RULES FIX - SpawnLocation hidden until first planet scan (2026-01-08)
+- Version 4.7: Added hasBeenActivatedOnce flag to track first activation
+- Version 4.7: setInactiveState() keeps Transparency=1 until first scan completion
+- Version 4.7: setActiveState() reveals SpawnLocation and enables collision on first activation
 - Version 4.6: Updated for LocationModel hierarchical structure (ETAP 3)
 - Version 4.6: findSpawnLocation() now searches LocationModel/Gameplay/SpawnLocation
 - Version 4.6: Added LocationModel attribute validation for current location detection
@@ -201,6 +205,7 @@ end
 
 -- State management
 local isTeleportationActive = false
+local hasBeenActivatedOnce = false  -- Track if teleportation was activated at least once
 local pulseAnimation = nil
 local playersOnSpawn = {}
 local teleportCooldowns = {}
@@ -282,21 +287,30 @@ local function setInactiveState()
     
     -- Set gray color
     spawnLocation.Color = INACTIVE_COLOR
-    spawnLocation.Transparency = 0.3
+    
+    -- CRITICAL: Keep SpawnLocation hidden until first activation (planet scan)
+    if not hasBeenActivatedOnce then
+        spawnLocation.Transparency = 1  -- Fully invisible until first scan
+        spawnLocation.CanCollide = false
+        print("[Teleport] 🔒 Телепортація прихована до першого сканування планети")
+    else
+        spawnLocation.Transparency = 0.3  -- Semi-visible when deactivated after use
+        spawnLocation.CanCollide = true
+        print("[Teleport] 🔴 Телепортація НЕАКТИВНА")
+    end
     
     -- Set dim light
     if pointLight then
         pointLight.Color = INACTIVE_COLOR
         pointLight.Brightness = 0.2
-        pointLight.Enabled = false
+        pointLight.Enabled = not hasBeenActivatedOnce  -- Only disable if never activated
     end
-    
-    print("[Teleport] 🔴 Телепортація НЕАКТИВНА")
 end
 
 -- Set active state with pulsing
 local function setActiveState()
     isTeleportationActive = true
+    hasBeenActivatedOnce = true  -- Mark as activated at least once
     
     -- Update spawn location reference
     updateSpawnLocation()
@@ -316,6 +330,9 @@ local function setActiveState()
         spawnLocation.TouchEnded:Connect(onSpawnTouchEnded)
         print("[TeleportationManager] 🔗 Reconnected Touched/TouchEnded events during activation")
     end
+    
+    -- Reveal SpawnLocation on first activation
+    spawnLocation.CanCollide = true
     
     -- Set blue color
     spawnLocation.Color = ACTIVE_COLOR

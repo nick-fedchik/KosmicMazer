@@ -4,14 +4,16 @@ KOSMICMAZER — Object Type Validator
 ================================================================================
 
 Purpose: Validates object types and structure in ServerStorage
-Version: 1.2
+Version: 1.4
 
 Features:
 - Validates planet structure integrity
-- Validates location structure integrity
-- Validates space station structure integrity
+- Validates location structure integrity (LocationModel hierarchy)
+- Validates space station structure integrity (LocationModel hierarchy)
 - Provides detailed error reporting
-- Supports automatic structure fixing
+- Supports automatic structure fixing with attribute auto-correction
+- Supports LocationModel hierarchical structure (Architecture/Equipment/Environment/Gameplay)
+- Auto-sets LocationModel attributes (LocationId, LocationType, PlanetId)
 
 API:
 - ValidatePlanetStructure(planetId): Validates planet folder structure
@@ -24,6 +26,10 @@ Dependencies:
 - ServerStorage: For accessing template structures
 
 ChangeLog:
+- Version 1.4: FixLocationStructure now auto-sets/updates LocationModel attributes (2026-01-08)
+- Version 1.4: Added attribute validation and correction even if LocationModel exists
+- Version 1.4: Improved logging for attribute changes during structure fixing
+- Version 1.3: Updated for LocationModel hierarchical structure (ETAP 1-6 support)
 - Version 1.2: Updated for new folder structure (Workspace instead of Models/PlanetModel)
 - Version 1.1: Added structure validation and fixing
 - Version 1.0: Initial implementation for Phase 1 refactoring
@@ -52,10 +58,20 @@ local EXPECTED_LOCATION_STRUCTURE = {
     "Configuration"
 }
 
-local EXPECTED_LOCATION_MODELS = {
-    "InteractionObjects",
-    "Baseplate",
-    "SpawnLocation"
+-- LocationModel hierarchical structure
+local EXPECTED_LOCATIONMODEL_FOLDERS = {
+    "Architecture",
+    "Equipment",
+    "Environment",
+    "Gameplay"
+}
+
+local EXPECTED_GAMEPLAY_OBJECTS = {
+    "SpawnLocation"  -- Required spawn point
+}
+
+local EXPECTED_ARCHITECTURE_OBJECTS = {
+    "Baseplate"  -- Optional base platform
 }
 
 local EXPECTED_SPACE_STATION_STRUCTURE = {
@@ -65,11 +81,9 @@ local EXPECTED_SPACE_STATION_STRUCTURE = {
     -- Note: Lighting removed - SpaceStation uses Planet Lighting
 }
 
-local EXPECTED_SPACE_STATION_MODELS = {
-    "SpawnLocation",
-    "SpaceStation",
-    "PlanetSurfaceScanner"
-}
+-- SpaceStation uses LocationModel structure now
+-- SpawnLocation is in LocationModel/Gameplay/
+-- PlanetSurfaceScanner is in LocationModel/Equipment/
 
 local EXPECTED_SPACE_STATION_SCRIPTS = {
     "Server",
@@ -81,8 +95,8 @@ local EXPECTED_SPACE_STATION_SERVER_SCRIPTS = {
 }
 
 local EXPECTED_SPACE_STATION_CLIENT_SCRIPTS = {
-    "StationUI",
-    "ScannerUI"
+    "SpaceStationUI",
+    "PlanetSurfaceScannerUI"
 }
 
 -- Helper function to validate object type
@@ -112,7 +126,7 @@ end
 
 -- Validate planet structure
 function ObjectTypeValidator.ValidatePlanetStructure(planetId)
-    print("[ObjectTypeValidator] 🔍 Validating planet structure:", planetId, "(v1.2 - Workspace structure)")
+    print("[ObjectTypeValidator] 🔍 Validating planet structure:", planetId, "(v1.3 - LocationModel hierarchy)")
     
     local planetsFolder = ServerStorage:FindFirstChild("Planets")
     if not planetsFolder then
@@ -203,25 +217,62 @@ function ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
         end
     end
     
-    -- Check Workspace folder contents
+    -- Check Workspace folder contents - LocationModel hierarchy
     local workspaceFolder = locationFolder:FindFirstChild("Workspace")
     if workspaceFolder then
-        for _, expectedModel in ipairs(EXPECTED_LOCATION_MODELS) do
-            local model = workspaceFolder:FindFirstChild(expectedModel)
+        local locationModel = workspaceFolder:FindFirstChild("LocationModel")
+        
+        if locationModel then
+            -- NEW: Validate LocationModel attributes
+            local locationId_attr = locationModel:GetAttribute("LocationId")
+            local locationType_attr = locationModel:GetAttribute("LocationType")
+            local planetId_attr = locationModel:GetAttribute("PlanetId")
             
-            local expectedType = "Model"
-            if expectedModel == "Baseplate" then
-                expectedType = "Part"
-            elseif expectedModel == "SpawnLocation" then
-                expectedType = "SpawnLocation"
-            elseif expectedModel == "InteractionObjects" then
-                expectedType = "Folder"
+            if not locationId_attr then
+                table.insert(errors, string.format("[MISSING ATTRIBUTE] LocationModel.LocationId not set for %s/%s", planetId, locationId))
+            end
+            if not locationType_attr or locationType_attr ~= "Planet" then
+                table.insert(errors, string.format("[INVALID ATTRIBUTE] LocationModel.LocationType should be 'Planet' for %s/%s", planetId, locationId))
+            end
+            if not planetId_attr or planetId_attr ~= planetId then
+                table.insert(errors, string.format("[INVALID ATTRIBUTE] LocationModel.PlanetId should be '%s' for %s/%s", planetId, planetId, locationId))
             end
             
-            local isValid, message = validateObjectType(model, expectedType, "Planets." .. planetId .. ".Locations." .. locationId .. ".Workspace." .. expectedModel)
-            if not isValid then
-                table.insert(errors, message)
+            -- Check LocationModel hierarchy folders
+            for _, folderName in ipairs(EXPECTED_LOCATIONMODEL_FOLDERS) do
+                local folder = locationModel:FindFirstChild(folderName)
+                local isValid, message = validateObjectType(folder, "Folder", "Planets." .. planetId .. ".Locations." .. locationId .. ".Workspace.LocationModel." .. folderName)
+                if not isValid then
+                    table.insert(errors, message)
+                end
             end
+            
+            -- Check Gameplay folder for required SpawnLocation
+            local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+            if gameplayFolder then
+                for _, objectName in ipairs(EXPECTED_GAMEPLAY_OBJECTS) do
+                    local object = gameplayFolder:FindFirstChild(objectName)
+                    local isValid, message = validateObjectType(object, "SpawnLocation", "Planets." .. planetId .. ".Locations." .. locationId .. ".Workspace.LocationModel.Gameplay." .. objectName)
+                    if not isValid then
+                        table.insert(errors, message)
+                    end
+                end
+            end
+            
+            -- Check Architecture folder for optional Baseplate
+            local architectureFolder = locationModel:FindFirstChild("Architecture")
+            if architectureFolder then
+                for _, objectName in ipairs(EXPECTED_ARCHITECTURE_OBJECTS) do
+                    local object = architectureFolder:FindFirstChild(objectName)
+                    -- Baseplate is optional, just log info
+                    if not object then
+                        print("[ObjectTypeValidator] ℹ️ Optional object '", objectName, "' not found in", planetId, "/", locationId)
+                    end
+                end
+            end
+        else
+            -- Fallback: old structure warning
+            table.insert(errors, string.format("[MISSING] LocationModel not found in %s/%s - old structure not supported", planetId, locationId))
         end
     end
     
@@ -347,6 +398,8 @@ end
 
 -- Fix location structure
 function ObjectTypeValidator.FixLocationStructure(planetId, locationId)
+    print("[ObjectTypeValidator] 🔧 Fixing location structure:", planetId, "/", locationId)
+    
     local locationFolder = ServerStorage:FindFirstChild("Planets")
         :FindFirstChild(planetId)
         :FindFirstChild("Locations")
@@ -368,55 +421,71 @@ function ObjectTypeValidator.FixLocationStructure(planetId, locationId)
         end
     end
     
-    -- Fix Models folder
-    local modelsFolder = locationFolder:FindFirstChild("Models")
-    if modelsFolder then
-        -- Move misplaced objects to Models folder
-        local objectsToMove = {"Baseplate", "SpawnLocation"}
-        for _, objectName in ipairs(objectsToMove) do
-            local object = locationFolder:FindFirstChild(objectName)
-            if object then
-                local targetObject = modelsFolder:FindFirstChild(objectName)
-                if not targetObject then
-                    object.Parent = modelsFolder
-                    print("[ObjectTypeValidator] ✅ Moved", objectName, "to Models folder")
-                else
-                    warn("[ObjectTypeValidator] ⚠️ Duplicate", objectName, "found, removing")
-                    object:Destroy()
-                end
+    -- Create LocationModel hierarchy in Workspace folder
+    local workspaceFolder = locationFolder:FindFirstChild("Workspace")
+    if workspaceFolder then
+        local locationModel = workspaceFolder:FindFirstChild("LocationModel")
+        if not locationModel then
+            locationModel = Instance.new("Folder")
+            locationModel.Name = "LocationModel"
+            locationModel.Parent = workspaceFolder
+            print("[ObjectTypeValidator] ✅ Created LocationModel")
+        end
+        
+        -- Always set/update LocationModel attributes (even if folder existed)
+        local currentLocationId = locationModel:GetAttribute("LocationId")
+        local currentLocationType = locationModel:GetAttribute("LocationType")
+        local currentPlanetId = locationModel:GetAttribute("PlanetId")
+        
+        if currentLocationId ~= locationId then
+            locationModel:SetAttribute("LocationId", locationId)
+            print("[ObjectTypeValidator] ✅ Set LocationId =", locationId)
+        end
+        
+        if currentLocationType ~= "Planet" then
+            locationModel:SetAttribute("LocationType", "Planet")
+            print("[ObjectTypeValidator] ✅ Set LocationType = Planet")
+        end
+        
+        if currentPlanetId ~= planetId then
+            locationModel:SetAttribute("PlanetId", planetId)
+            print("[ObjectTypeValidator] ✅ Set PlanetId =", planetId)
+        end
+        
+        if not locationModel:GetAttribute("DisplayName") then
+            locationModel:SetAttribute("DisplayName", locationId)
+            print("[ObjectTypeValidator] ✅ Set DisplayName =", locationId)
+        end
+        
+        -- Create LocationModel hierarchy folders
+        for _, folderName in ipairs(EXPECTED_LOCATIONMODEL_FOLDERS) do
+            local folder = locationModel:FindFirstChild(folderName)
+            if not folder then
+                folder = Instance.new("Folder")
+                folder.Name = folderName
+                folder.Parent = locationModel
+                print("[ObjectTypeValidator] ✅ Created LocationModel/" .. folderName)
             end
         end
         
-        -- Create missing objects
-        local interactionObjects = modelsFolder:FindFirstChild("InteractionObjects")
-        if not interactionObjects then
-            interactionObjects = Instance.new("Folder")
-            interactionObjects.Name = "InteractionObjects"
-            interactionObjects.Parent = modelsFolder
-            print("[ObjectTypeValidator] ✅ Created InteractionObjects folder")
+        -- Move old SpawnLocation to LocationModel/Gameplay/ if exists
+        local oldSpawnLocation = workspaceFolder:FindFirstChild("SpawnLocation")
+        if oldSpawnLocation then
+            local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+            if gameplayFolder and not gameplayFolder:FindFirstChild("SpawnLocation") then
+                oldSpawnLocation.Parent = gameplayFolder
+                print("[ObjectTypeValidator] ✅ Moved SpawnLocation to LocationModel/Gameplay/")
+            end
         end
         
-        local baseplate = modelsFolder:FindFirstChild("Baseplate")
-        if not baseplate then
-            baseplate = Instance.new("Part")
-            baseplate.Name = "Baseplate"
-            baseplate.Size = Vector3.new(100, 1, 100)
-            baseplate.Material = Enum.Material.Grass
-            baseplate.Anchored = true
-            baseplate.Parent = modelsFolder
-            print("[ObjectTypeValidator] ✅ Created Baseplate")
-        end
-        
-        local spawnLocation = modelsFolder:FindFirstChild("SpawnLocation")
-        if not spawnLocation then
-            spawnLocation = Instance.new("SpawnLocation")
-            spawnLocation.Name = "SpawnLocation"
-            spawnLocation.Size = Vector3.new(8, 1, 8)
-            spawnLocation.Material = Enum.Material.Neon
-            spawnLocation.BrickColor = BrickColor.new("Bright blue")
-            spawnLocation.Anchored = true
-            spawnLocation.Parent = modelsFolder
-            print("[ObjectTypeValidator] ✅ Created SpawnLocation")
+        -- Move old Baseplate to LocationModel/Architecture/ if exists
+        local oldBaseplate = workspaceFolder:FindFirstChild("Baseplate")
+        if oldBaseplate then
+            local architectureFolder = locationModel:FindFirstChild("Architecture")
+            if architectureFolder and not architectureFolder:FindFirstChild("Baseplate") then
+                oldBaseplate.Parent = architectureFolder
+                print("[ObjectTypeValidator] ✅ Moved Baseplate to LocationModel/Architecture/")
+            end
         end
     end
     
