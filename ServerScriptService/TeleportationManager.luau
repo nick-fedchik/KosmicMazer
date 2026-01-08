@@ -91,6 +91,7 @@ else
 end
 
 local LocationManager = require(game.ServerScriptService.LocationManager)
+local RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
 
 -- Load teleportation effects (lazy loading)
 local function getTeleportParticle()
@@ -955,29 +956,18 @@ function TeleportationSystem.Initialize()
     -- Initialize spawn location reference
     initializeSpawnLocation()
     
-    -- Create or get RemoteEvent for teleportation
-    teleportEvent = ReplicatedStorage:FindFirstChild("TeleportationEvent")
-    if not teleportEvent then
-        teleportEvent = Instance.new("RemoteEvent")
-        teleportEvent.Name = "TeleportationEvent"
-        teleportEvent.Parent = ReplicatedStorage
-        print("[TeleportationManager] ✅ Created RemoteEvent TeleportationEvent")
-    else
-        print("[TeleportationManager] ℹ️ TeleportationEvent already exists")
+    -- Get RemoteEvents from registry (created by GameInit)
+    print("[TeleportationManager] Отримання RemoteEvents з реєстру...")
+    teleportEvent = RemoteEventsRegistry.Get("TeleportationEvent")
+    teleportStateEvent = RemoteEventsRegistry.Get("TeleportationStateEvent")
+    
+    if not teleportEvent or not teleportStateEvent then
+        error("[TeleportationManager] ❌ RemoteEvents не ініціалізовані! Переконайтеся що GameInit.Initialize() викликано перед TeleportationManager.Initialize()")
     end
     
-    -- Create or get RemoteEvent for teleportation state changes
-    teleportStateEvent = ReplicatedStorage:FindFirstChild("TeleportationStateEvent")
-    if not teleportStateEvent then
-        teleportStateEvent = Instance.new("RemoteEvent")
-        teleportStateEvent.Name = "TeleportationStateEvent"
-        teleportStateEvent.Parent = ReplicatedStorage
-        print("[TeleportationManager] ✅ Created RemoteEvent TeleportationStateEvent")
-    else
-        print("[TeleportationManager] ℹ️ TeleportationStateEvent already exists")
-    end
-    
-    print("[TeleportationManager] ✅ RemoteEvents ready")
+    print("[TeleportationManager] ✅ RemoteEvents отримано з реєстру")
+    print("[TeleportationManager]   - TeleportationEvent: " .. tostring(teleportEvent ~= nil))
+    print("[TeleportationManager]   - TeleportationStateEvent: " .. tostring(teleportStateEvent ~= nil))
     
     -- Connect events with spawn location update
     workspace.DescendantAdded:Connect(function(descendant)

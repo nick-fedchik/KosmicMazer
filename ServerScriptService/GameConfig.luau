@@ -39,6 +39,13 @@ local GameConfig = {}
 GameConfig.GameName = "KosmicMazer"
 GameConfig.GameVersion = "3.5"
 
+-- Data Schema Version
+GameConfig.DATA_SCHEMA_VERSION = 2 -- Current schema version for player data
+
+-- Debug settings
+GameConfig.DEBUG_MODE = false -- Set to true only for development/testing
+GameConfig.ENABLE_REMOTEEVENTS_VALIDATION = true -- Validate RemoteEvents on startup
+
 -- SpawnLocation settings
 GameConfig.SPAWN_COOLDOWN_TIME = 3 -- seconds
 GameConfig.ENTER_DEBOUNCE_TIME = 0.5 -- seconds

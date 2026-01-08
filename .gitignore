@@ -25,3 +25,5 @@ tmp/
 
 # VS Code (за потреби)
 .vscode/settings.json
+*.code-workspace
+ReplicatedStorage/ServerStorage

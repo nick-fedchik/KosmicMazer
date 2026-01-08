@@ -3,10 +3,11 @@
 KOSMICMAZER — Location Manager (Module)
 ================================================================================
 
-Purpose: Manages location switching and workspace organization
-Version: 2.3
+Purpose: Manages location switching and workspace organization with FSM
+Version: 3.0
 
 Features:
+- Finite State Machine (FSM) for predictable location transitions
 - Handles location transitions (Space Station ↔ Planet Locations)
 - Manages workspace cleanup and loading
 - Controls environment switching (Sky, Atmosphere, CloudLayers)
@@ -18,6 +19,7 @@ API:
 - SwitchToSpaceStation(): Switches to Space Station location
 - SwitchToPlanetLocation(planetId, locationId): Switches to specific planet location
 - GetCurrentLocation(): Returns current location name
+- GetState(): Returns current FSM state
 - IsTransitioning(): Returns true if currently transitioning
 - CleanupWorkspace(): Cleans up all location objects
 
@@ -39,6 +41,7 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 3.0: MAJOR - Added FSM (Finite State Machine) for location transitions with state tracking, timeouts, model validation, and fallback
 - Version 2.3: Added LoadOrder configuration support for custom loading sequences
 - Version 2.2: FIXED - Updated Called from references to reflect TeleportationManager usage
 - Version 2.1: CRITICAL - Fixed ModuleScript creation and loading issues
@@ -64,13 +67,80 @@ local DebrisService = game:GetService("Debris")
 -- Load dependencies
 local GameConfig = require(game.ServerScriptService.GameConfig)
 
+-- FSM States
+local LocationState = {
+	IDLE = "Idle",
+	CLEANING = "Cleaning",
+	VALIDATING = "Validating",
+	LOADING_PLANET = "LoadingPlanet",
+	LOADING_LOCATION = "LoadingLocation",
+	VERIFYING = "Verifying",
+	READY = "Ready",
+	ERROR = "Error",
+}
+
+-- FSM Configuration
+local STATE_TIMEOUT = {
+	[LocationState.CLEANING] = 10,
+	[LocationState.VALIDATING] = 5,
+	[LocationState.LOADING_PLANET] = 30,
+	[LocationState.LOADING_LOCATION] = 30,
+	[LocationState.VERIFYING] = 10,
+}
+
 -- State management
+local currentState = LocationState.IDLE
 local currentLocation = "Dark Space"
 local isTransitioning = false
+local stateStartTime = 0
 
 -- Active location modules
 local currentLocationGameServer = nil
 local currentPlanetConfig = nil
+
+-- State transition function
+local function transitionTo(newState, context)
+	local oldState = currentState
+	currentState = newState
+	stateStartTime = tick()
+	
+	local contextStr = context and (" (" .. context .. ")") or ""
+	print(string.format("[LocationFSM] %s → %s%s", oldState, newState, contextStr))
+end
+
+-- Check state timeout
+local function checkStateTimeout()
+	local timeout = STATE_TIMEOUT[currentState]
+	if not timeout then return false end
+	
+	local elapsed = tick() - stateStartTime
+	if elapsed > timeout then
+		warn(string.format("[LocationFSM] ⚠️ State timeout! %s exceeded %.1fs", currentState, timeout))
+		return true
+	end
+	return false
+end
+
+-- Validate model exists in ServerStorage
+local function validateModel(path)
+	local parts = {}
+	for part in string.gmatch(path, "[^/]+") do
+		table.insert(parts, part)
+	end
+	
+	local current = ServerStorage
+	for i, partName in ipairs(parts) do
+		local child = current:FindFirstChild(partName)
+		if not child then
+			warn(string.format("[LocationFSM] ❌ Model not found: %s (missing: %s)", path, partName))
+			return false
+		end
+		current = child
+	end
+	
+	print(string.format("[LocationFSM] ✅ Model validated: %s", path))
+	return true
+end
 
 -- Helper function to get current planet based on loaded location
 local function getCurrentPlanet()
@@ -81,11 +151,23 @@ end
 
 -- Helper function to clean workspace
 local function cleanupWorkspace()
+	transitionTo(LocationState.CLEANING, "Clearing workspace")
 	print("[Location] 🧹 Очищення, об'єктів:", #Workspace:GetChildren())
+	
+	-- Check timeout
+	if checkStateTimeout() then
+		transitionTo(LocationState.ERROR, "Cleanup timeout")
+		return false
+	end
 	
 	-- Cleanup current location game server before clearing workspace
 	if currentLocationGameServer and currentLocationGameServer.Cleanup then
-		currentLocationGameServer.Cleanup()
+		local success = pcall(function()
+			currentLocationGameServer.Cleanup()
+		end)
+		if not success then
+			warn("[Location] ⚠️ Помилка при Cleanup LocationGameServer")
+		end
 		currentLocationGameServer = nil
 	end
 	
@@ -143,6 +225,7 @@ local function cleanupWorkspace()
 	end
 
 	print("[Location] ✅ Очищення завершено")
+	return true
 end
 
 -- Load Space Station using new EnvironmentLoader
@@ -189,8 +272,10 @@ local function loadSpaceStation()
 		-- ServerScripts (including PlanetSurfaceScanner) are now loaded via EnvironmentLoader with LoadOrder
 		
 		print("[Location] ✅ Космічну станцію завантажено")
+		return true
 	else
 		warn("[Location] ❌ Не вдалося завантажити Space Environment")
+		return false
 	end
 end
 
@@ -311,34 +396,76 @@ local function switchToSpaceStation(planetId, locationId)
 	end
 
 	isTransitioning = true
-	print("[Location] 🔄 Перехід на SpaceStation...")
+	transitionTo(LocationState.IDLE, "Starting SpaceStation transition")
+	
+	-- Step 1: Validate models exist
+	transitionTo(LocationState.VALIDATING, "Checking SpaceStation models")
+	if not validateModel("Space/SpaceStation") then
+		warn("[Location] ❌ SpaceStation model not found - fallback to safe state")
+		transitionTo(LocationState.ERROR, "Model validation failed")
+		isTransitioning = false
+		return false
+	end
 
+	-- Step 2: Cleanup
 	print("[Location] 🧹 Очищення Workspace...")
-	cleanupWorkspace()
+	if not cleanupWorkspace() then
+		warn("[Location] ❌ Cleanup failed")
+		isTransitioning = false
+		return false
+	end
 	wait(0.5)
 	
-	print("[Location] 📦 Завантаження планети", planetId)
-	-- Load planet
-	if not loadPlanet(planetId) then
+	-- Step 3: Load planet
+	transitionTo(LocationState.LOADING_PLANET, planetId)
+	if checkStateTimeout() then
+		warn("[Location] ❌ Planet loading timeout")
+		transitionTo(LocationState.ERROR, "Planet timeout")
 		isTransitioning = false
 		return false
 	end
-
-	print("[Location] 📦 Завантаження SpaceStation...")
 	
-	if not loadSpaceStation() then
+	print("[Location] 📦 Завантаження планети", planetId)
+	if not loadPlanet(planetId) then
+		transitionTo(LocationState.ERROR, "Planet load failed")
 		isTransitioning = false
 		return false
 	end
 
+	-- Step 4: Load SpaceStation
+	transitionTo(LocationState.LOADING_LOCATION, "SpaceStation")
+	if checkStateTimeout() then
+		warn("[Location] ❌ SpaceStation loading timeout")
+		transitionTo(LocationState.ERROR, "SpaceStation timeout")
+		isTransitioning = false
+		return false
+	end
+	
+	print("[Location] 📦 Завантаження SpaceStation...")
+	if not loadSpaceStation() then
+		transitionTo(LocationState.ERROR, "SpaceStation load failed")
+		isTransitioning = false
+		return false
+	end
+
+	-- Step 5: Verify
+	transitionTo(LocationState.VERIFYING, "SpaceStation verification")
+	
+	-- Find SpawnLocation (should be directly in Workspace after loading)
+	local spawnLocation = Workspace:FindFirstChild("SpawnLocation", true)
+	
+	if not spawnLocation then
+		warn("[Location] ❌ SpawnLocation not found in Workspace")
+		warn("[Location]   └─ Expected: Workspace.SpawnLocation")
+		transitionTo(LocationState.ERROR, "No SpawnLocation")
+		isTransitioning = false
+		return false
+	end
+	
+	-- Success!
+	transitionTo(LocationState.READY, "SpaceStation")
 	currentLocation = "SpaceStation"
 	isTransitioning = false
-	
-	-- Find spawn location on Space Station
-	local spawnLocation = game.Workspace:FindFirstChild("SpaceStation")
-	if spawnLocation then
-		spawnLocation = spawnLocation:FindFirstChild("SpawnLocation")
-	end
 	
 	print("[Location] ✅ Перехід на SpaceStation завершено")
 	return true
@@ -357,18 +484,67 @@ local function switchToPlanetLocation(planetId, locationId)
 	end
 
 	isTransitioning = true
+	transitionTo(LocationState.IDLE, "Starting planet location transition")
 	print("[Location] 🔄 Перехід на", locationId, "на", planetId)
-
-	cleanupWorkspace()
-
-
-
-	-- Load specific location
-	if not loadLocation(planetId, locationId) then
+	
+	-- Step 1: Validate models
+	transitionTo(LocationState.VALIDATING, "Checking planet/location models")
+	local planetPath = "Planets/" .. planetId
+	local locationPath = planetPath .. "/Locations/" .. locationId
+	
+	if not validateModel(planetPath) then
+		warn("[Location] ❌ Planet model not found:", planetId)
+		transitionTo(LocationState.ERROR, "Planet not found")
+		isTransitioning = false
+		return false
+	end
+	
+	if not validateModel(locationPath) then
+		warn("[Location] ❌ Location model not found:", locationId)
+		transitionTo(LocationState.ERROR, "Location not found")
 		isTransitioning = false
 		return false
 	end
 
+	-- Step 2: Cleanup
+	if not cleanupWorkspace() then
+		warn("[Location] ❌ Cleanup failed")
+		isTransitioning = false
+		return false
+	end
+
+	-- Step 3: Load location
+	transitionTo(LocationState.LOADING_LOCATION, locationId)
+	if checkStateTimeout() then
+		warn("[Location] ❌ Location loading timeout")
+		transitionTo(LocationState.ERROR, "Location timeout")
+		isTransitioning = false
+		return false
+	end
+	
+	if not loadLocation(planetId, locationId) then
+		transitionTo(LocationState.ERROR, "Location load failed")
+		isTransitioning = false
+		return false
+	end
+
+	-- Step 4: Verify
+	transitionTo(LocationState.VERIFYING, locationId)
+	
+	-- Find SpawnLocation (should be directly in Workspace after loading)
+	local spawnLocation = Workspace:FindFirstChild("SpawnLocation", true)
+	
+	if not spawnLocation then
+		warn("[Location] ❌ SpawnLocation not found in Workspace")
+		warn("[Location]   └─ Expected: Workspace.SpawnLocation")
+		warn("[Location]   └─ Location:", locationId, "Planet:", planetId)
+		transitionTo(LocationState.ERROR, "No SpawnLocation")
+		isTransitioning = false
+		return false
+	end
+	
+	-- Success!
+	transitionTo(LocationState.READY, locationId)
 	currentLocation = locationId
 	isTransitioning = false
 
@@ -379,6 +555,7 @@ end
 -- Public API
 local LocationManager = {
 	Initialize = function()
+		transitionTo(LocationState.IDLE, "Initialization")
 		print("[Location] ✅ Менеджер локацій ініціалізовано")
 	end,
 	SwitchToSpaceStation = switchToSpaceStation,
@@ -386,10 +563,16 @@ local LocationManager = {
 	GetCurrentLocation = function() 
 		return currentLocation
 	end,
+	GetState = function()
+		return currentState
+	end,
 	IsTransitioning = function() 
 		return isTransitioning
 	end,
 	CleanupWorkspace = cleanupWorkspace,
+	
+	-- FSM States (exported for external use)
+	LocationState = LocationState,
 	
 	-- New API for location modules
 	GetCurrentPlanetConfig = function()

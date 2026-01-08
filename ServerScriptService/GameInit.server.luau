@@ -4,9 +4,10 @@ KOSMICMAZER — Game Init
 ================================================================================
 
 Purpose: Complete game initialization with intelligent player data handling
-Version: 3.5
+Version: 3.7
 
 Features:
+- Configuration validation at startup (ConfigValidator v1.0)
 - Player Login Screen with progress bar and avatar display
 - Intelligent player data loading and type detection
 - Dynamic environment preparation based on player data
@@ -23,6 +24,7 @@ API:
 - initializeGameSystem(): Initializes core systems
 
 Calls to:
+- ConfigValidator: ValidateConfig() for startup configuration validation
 - DataStoreManager: LoadPlayerData(), UpdatePlayerData(), Initialize()
 - PlayerDataManager: GetPlayerInfo()
 - GameConfig: Reads planet and game configuration
@@ -38,6 +40,7 @@ Events:
 - Players.PlayerAdded: Triggers player initialization flow
 
 Dependencies:
+- ConfigValidator module
 - GameConfig module
 - DataStoreManager module
 - PlayerDataManager module
@@ -47,6 +50,7 @@ Dependencies:
 - TweenService
 
 ChangeLog:
+- Version 3.7: ENHANCED - Added ConfigValidator to validate GameConfig at startup
 - Version 3.6: CRITICAL - Added TeleportationManager initialization in initializeGameSystem()
 - Version 3.5: CRITICAL - Updated to use LocationManager as ModuleScript (v2.0)
 - Version 3.5: ENHANCED - Added LocationManager.Initialize() call in initializeGameSystem()
@@ -69,10 +73,16 @@ local TweenService = game:GetService("TweenService")
 
 -- Load modules
 local GameConfig = require(script.Parent:FindFirstChild("GameConfig"))
+local ConfigValidator = require(script.Parent:FindFirstChild("ConfigValidator"))
 local DataStoreManager = require(script.Parent:FindFirstChild("DataStoreManager"))
 local PlayerDataManager = require(script.Parent:FindFirstChild("PlayerDataManager"))
+local RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
 
-
+-- Validate GameConfig before proceeding
+local configValid, validationReport = ConfigValidator.ValidateConfig(GameConfig, ServerStorage)
+if not configValid then
+	error("[GameInit] ❌ GameConfig validation failed! Cannot start game with invalid configuration. Check errors above.")
+end
 
 -- Game state
 local gameState = {
@@ -401,6 +411,25 @@ local function onPlayerAdded(player)
 	-- Create login screen
 	local loginGui = createBootScreen(player)
 
+
+	-- Stage 0. Initialize RemoteEvents (must be first!)
+	updateBootProgress(loginGui, 0.05, "Ініціалізація комунікації...")
+	print("[GameInit] Ініціалізація RemoteEvents...")
+	local success, errorMsg = RemoteEventsRegistry.Initialize()
+	if not success then
+		warn("[GameInit] ❌ Не вдалося ініціалізувати RemoteEvents:", errorMsg)
+		error("[GameInit] Неможливо продовжити без RemoteEvents")
+	end
+	print("[GameInit] ✅ RemoteEvents готові")
+	
+	-- Validate RemoteEvents
+	if GameConfig.ENABLE_REMOTEEVENTS_VALIDATION then
+		local valid, errors = RemoteEventsRegistry.Validate()
+		if not valid then
+			warn("[GameInit] ❌ Помилки валідації RemoteEvents:", table.concat(errors, ", "))
+		end
+	end
+	task.wait(0.5)
 
 	-- Stage 1. Initialize Game DataStore Manager
 	updateBootProgress(loginGui, 0.1, "Ініціалізація сховища даних...")

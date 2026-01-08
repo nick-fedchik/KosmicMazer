@@ -63,9 +63,19 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
--- RemoteEvents
-local teleportEvent = ReplicatedStorage:WaitForChild("TeleportationEvent")
-local teleportStateEvent = ReplicatedStorage:WaitForChild("TeleportationStateEvent")
+-- Load RemoteEventsRegistry
+local RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
+
+-- RemoteEvents (using registry for better error handling)
+print("[TeleportClient] Очікування RemoteEvents...")
+local teleportEvent = RemoteEventsRegistry.WaitFor("TeleportationEvent", 30)
+local teleportStateEvent = RemoteEventsRegistry.WaitFor("TeleportationStateEvent", 30)
+
+if not teleportEvent or not teleportStateEvent then
+	error("[TeleportClient] ❌ Не вдалося отримати RemoteEvents! Гра не може працювати.")
+end
+
+print("[TeleportClient] ✅ RemoteEvents готові")
 
 -- UI state
 local teleportGui = nil

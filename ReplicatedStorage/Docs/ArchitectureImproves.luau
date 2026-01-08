@@ -12,7 +12,7 @@ Last Updated: 2026-01-07
 ЧАСТИНА I: АРХІТЕКТУРНІ ПОКРАЩЕННЯ
 ================================================================================
 
-⏫ РЕАЛІЗОВАНО В v3.9:
+⏫ РЕАЛІЗОВАНО В v4.0:
 - ✅ Workspace Structure Refactoring: Models→Workspace, PlanetModel→Workspace
 - ✅ 3-level Scripts hierarchy: SpaceStation/Scripts, Planet/Scripts, Location/Scripts
 - ✅ Optional PlanetSurfaceScanner: graceful degradation implemented
@@ -21,18 +21,41 @@ Last Updated: 2026-01-07
 - ✅ EnvironmentLoader v1.8: LoadOrder-based script processing integrated
 - ✅ LoadOrderProcessor v1.0: Utility for processing LoadOrder configs
 - ✅ TeleportationManager: fixed fallback paths for Workspace structure
+- ✅ RemoteEventsRegistry: централізоване управління RemoteEvents (2026-01-08)
+- ✅ Location FSM: FSM v3.0 з 8 станами, timeouts, validation (2026-01-08)
+- ✅ Data Schema & Migrations: SchemaVersion + migratePlayerData() (2026-01-08)
+- ✅ BaseLocationManager: Base class для всіх location managers (2026-01-08)
+- ✅ Config Validation: ConfigValidator v1.0 з перевіркою GameConfig (2026-01-08)
 
 ⏬ PENDING IMPLEMENTATION:
-- 🔄 RemoteEventsRegistry (HIGH)
-- 🔄 Data Schema & Migrations (MEDIUM)
-- 🔄 Location FSM (HIGH)
-- 🔄 BaseLocationManager (PHASE 2)
-- 🔄 Config Validation (MEDIUM)
 
 ================================================================================
 1) ЄДИНЕ ДЖЕРЕЛО ІСТИНИ ДЛЯ REMOTEEVENTS
 ================================================================================
-Проблема: RemoteEvents створюються в різних скриптах, можливі дублікати.
+Статус: 🎯 ГОТОВЕ ДО ВПРОВАДЖЕННЯ
+Пріоритет: ВИСОКИЙ
+Час виконання: 1-2 години
+
+Проблема:
+RemoteEvents створюються в різних місцях:
+1. TeleportationManager.luau (lines 961, 972):
+   - TeleportationEvent
+   - TeleportationStateEvent
+2. Потенційно в майбутньому: PlanetSurfaceScanner, PlayerDataReady
+3. Немає централізованого реєстру та валідації
+
+Поточні RemoteEvents:
+✅ Існуючі:
+   - TeleportationEvent (створюється в TeleportationManager.luau:961)
+   - TeleportationStateEvent (створюється в TeleportationManager.luau:972)
+
+📋 Заплановані:
+   - PlanetSurfaceScanner_Results (для сканера планет)
+   - PlayerDataReady (для ініціалізації систем)
+
+Клієнти використовують (TeleportationClient.client.luau:67-68):
+   - WaitForChild("TeleportationEvent")
+   - WaitForChild("TeleportationStateEvent")
 
 Рішення:
 - Створити ReplicatedStorage/RemoteEventsRegistry.luau модуль
@@ -40,21 +63,157 @@ Last Updated: 2026-01-07
 - Клієнтські скрипти лише WaitForChild(), ніколи Instance.new()
 - Валідатор існування RemoteEvents під час старту (server-side assert)
 
-Приклад:
-    local Registry = {}
-    Registry.Events = {
-        TeleportationEvent = Instance.new("RemoteEvent"),
-        TeleportationStateEvent = Instance.new("RemoteEvent"),
-        PlanetSurfaceScanner_Results = Instance.new("RemoteEvent"),
-        PlayerDataReady = Instance.new("RemoteEvent"),
-    }
-    for name, event in pairs(Registry.Events) do
-        event.Name = name
-        event.Parent = ReplicatedStorage
-    end
-    return Registry
+ДЕТАЛЬНИЙ ПЛАН ВИКОНАННЯ:
 
-Пріоритет: ВИСОКИЙ
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 1: СТВОРИТИ RemoteEventsRegistry.luau                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ReplicatedStorage/RemoteEventsRegistry.luau                          │
+│ Тип: ModuleScript                                                           │
+│                                                                             │
+│ Структура:                                                                  │
+│   local RemoteEventsRegistry = {}                                           │
+│   RemoteEventsRegistry.Events = {}                                          │
+│   RemoteEventsRegistry.Functions = {}                                       │
+│                                                                             │
+│   function RemoteEventsRegistry.Initialize()                                │
+│       -- Створення RemoteEvents на сервері                                  │
+│   end                                                                       │
+│                                                                             │
+│   function RemoteEventsRegistry.Get(eventName: string)                      │
+│       -- Отримання RemoteEvent за ім'ям (для сервера)                      │
+│   end                                                                       │
+│                                                                             │
+│   function RemoteEventsRegistry.WaitFor(eventName: string, timeout: number) │
+│       -- Очікування RemoteEvent (для клієнта)                              │
+│   end                                                                       │
+│                                                                             │
+│   function RemoteEventsRegistry.Validate()                                  │
+│       -- Валідація існування всіх RemoteEvents                             │
+│   end                                                                       │
+│                                                                             │
+│ Список RemoteEvents:                                                        │
+│   - TeleportationEvent                                                      │
+│   - TeleportationStateEvent                                                 │
+│   - PlanetSurfaceScanner_Results                                            │
+│   - PlayerDataReady                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 2: ОНОВИТИ GameInit.server.luau                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ServerScriptService/GameInit.server.luau                             │
+│                                                                             │
+│ Зміни:                                                                      │
+│   1. Додати require RemoteEventsRegistry на початку:                       │
+│      local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry) │
+│                                                                             │
+│   2. В initializeGameSystem() додати ПЕРЕД ініціалізацією інших систем:   │
+│      -- Initialize RemoteEvents first                                       │
+│      print("[GameInit] Ініціалізація RemoteEvents...")                     │
+│      RemoteEventsRegistry.Initialize()                                      │
+│      print("[GameInit] ✅ RemoteEvents готові")                            │
+│                                                                             │
+│   3. Додати валідацію після ініціалізації:                                 │
+│      local valid, errors = RemoteEventsRegistry.Validate()                  │
+│      if not valid then                                                      │
+│          warn("[GameInit] ❌ Помилки валідації RemoteEvents:", errors)     │
+│      end                                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 3: РЕФАКТОРИТИ TeleportationManager.luau                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ServerScriptService/TeleportationManager.luau                        │
+│                                                                             │
+│ Зміни:                                                                      │
+│   1. Додати require на початку:                                            │
+│      local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry) │
+│                                                                             │
+│   2. ВИДАЛИТИ створення RemoteEvents (lines 958-980):                      │
+│      -- Create or get RemoteEvent for teleportation                         │
+│      teleportEvent = ReplicatedStorage:FindFirstChild("TeleportationEvent") │
+│      if not teleportEvent then                                              │
+│          teleportEvent = Instance.new("RemoteEvent")                        │
+│          ...                                                                │
+│      end                                                                    │
+│                                                                             │
+│   3. ЗАМІНИТИ на отримання з реєстру:                                      │
+│      -- Get RemoteEvents from registry                                      │
+│      teleportEvent = RemoteEventsRegistry.Get("TeleportationEvent")         │
+│      teleportStateEvent = RemoteEventsRegistry.Get("TeleportationStateEvent") │
+│                                                                             │
+│      if not teleportEvent or not teleportStateEvent then                    │
+│          error("[TeleportationManager] ❌ RemoteEvents not initialized!")  │
+│      end                                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 4: ОНОВИТИ КЛІЄНТСЬКІ СКРИПТИ                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: StarterPlayerScripts/TeleportationClient.client.luau                 │
+│                                                                             │
+│ Зміни:                                                                      │
+│   1. ОПЦІОНАЛЬНО: Використати RemoteEventsRegistry.WaitFor() замість      │
+│      звичайного WaitForChild():                                             │
+│                                                                             │
+│      local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry) │
+│      local teleportEvent = RemoteEventsRegistry.WaitFor("TeleportationEvent", 30) │
+│      local teleportStateEvent = RemoteEventsRegistry.WaitFor("TeleportationStateEvent", 30) │
+│                                                                             │
+│      if not teleportEvent or not teleportStateEvent then                    │
+│          error("[TeleportClient] ❌ Failed to get RemoteEvents!")          │
+│      end                                                                    │
+│                                                                             │
+│   2. АБО залишити поточний WaitForChild() - працює теж добре:             │
+│      local teleportEvent = ReplicatedStorage:WaitForChild("TeleportationEvent") │
+│      local teleportStateEvent = ReplicatedStorage:WaitForChild("TeleportationStateEvent") │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 5: ДОДАТИ В GameConfig.luau                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ServerScriptService/GameConfig.luau                                  │
+│                                                                             │
+│ Зміни:                                                                      │
+│   Додати на початку файлу:                                                 │
+│                                                                             │
+│   -- Debug settings                                                         │
+│   GameConfig.DEBUG_MODE = false -- Set to true only for development        │
+│   GameConfig.ENABLE_REMOTEEVENTS_VALIDATION = true -- Validate on startup  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ КРОК 6: ОНОВИТИ HELPERS (якщо потрібно)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ServerScriptService/Helpers/SystemTest.server.luau                   │
+│       ServerScriptService/Helpers/LoadingMonitor.server.luau                │
+│                                                                             │
+│ Зміни:                                                                      │
+│   Додати перевірку GameConfig.DEBUG_MODE на початку:                       │
+│                                                                             │
+│   local GameConfig = require(ServerScriptService.GameConfig)                │
+│   if not GameConfig.DEBUG_MODE then                                         │
+│       print("[SystemTest] DEBUG_MODE disabled - script inactive")          │
+│       return -- Не запускати в продакшені                                  │
+│   end                                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+ОЧІКУВАНІ РЕЗУЛЬТАТИ:
+- RemoteEventsRegistry.luau створено в ReplicatedStorage
+- GameInit.server.luau викликає Initialize() при старті
+- TeleportationManager.luau використовує Get() замість створення
+- Клієнтські скрипти отримують RemoteEvents через WaitForChild() або WaitFor()
+- Валідація RemoteEvents при старті гри
+- Логи підтверджують створення всіх RemoteEvents
+
+ПЕРЕВАГИ РІШЕННЯ:
+✅ Жодних дублікатів RemoteEvents
+✅ Централізоване управління
+✅ Легко додати нові RemoteEvents (просто в список)
+✅ Валідація існування при старті
+✅ Зрозуміла помилка якщо RemoteEvent не створено
+✅ Відповідає Код Конвенції проєкту
 
 ================================================================================
 2) СХЕМА ДАНИХ І МІГРАЦІЇ

@@ -4,7 +4,7 @@ KOSMICMAZER — DataStore Cleaner
 ================================================================================
 
 Purpose: Removes all player data from DataStore (testing only)
-Version: 1.0
+Version: 1.1
 
 Features:
 - Removes player data from DataStore
@@ -30,7 +30,8 @@ Dependencies:
 - Players service
 
 ChangeLog:
-- Initial implementation for testing cleanup
+- Version 1.1: Added DEBUG_MODE check for production safety
+- Version 1.0: Initial implementation for testing cleanup
 - Added comprehensive safety warnings
 - Enhanced with error handling and logging
 
@@ -42,6 +43,18 @@ Only use in testing environment
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+
+-- Load GameConfig
+local ServerScriptService = game:GetService("ServerScriptService")
+local GameConfig = require(ServerScriptService:WaitForChild("GameConfig"))
+
+-- Check if DEBUG_MODE is enabled
+if not GameConfig.DEBUG_MODE then
+    print("[DataCleaner] 🔒 DEBUG_MODE вимкнено - скрипт неактивний (продакшен)")
+    return
+end
+
+print("[DataCleaner] 🧪 DEBUG_MODE активний - очищувач доступний")
 
 -- WARNING: This will delete ALL player data!
 -- Only use in testing environment

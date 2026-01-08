@@ -4,7 +4,7 @@ KOSMICMAZER — DataStore Manager
 ================================================================================
 
 Purpose: Simple and reliable data storage using DataStoreService
-Version: 1.2
+Version: 2.0
 
 Features:
 - Automatic data loading and saving
@@ -13,6 +13,7 @@ Features:
 - Settings management
 - Session tracking
 - JSON serialization for data integrity
+- Schema versioning and automatic data migration
 
 API:
 - LoadPlayerData(player): Loads player data from DataStore
@@ -43,6 +44,7 @@ Dependencies:
 - GameConfig (for default values)
 
 ChangeLog:
+- Version 2.0: Added schema versioning and automatic migration system
 - Version 1.2: Updated header format to comply with CODE CONVENTION section 14
 - Version 1.1: Fixed Studio compatibility and JSON serialization
 - Initial implementation for reliable data storage
@@ -72,6 +74,7 @@ local RETRY_DELAY = 1 -- seconds
 -- Default player data structure
 local function getDefaultPlayerData(player)
     return {
+        SchemaVersion = GameConfig.DATA_SCHEMA_VERSION,
         PlayerId = player.UserId,
         PlayerName = player.Name,
         CurrentPlanet = GameConfig.DEFAULT_PLANET,
@@ -189,7 +192,51 @@ local function safeDataStoreCall(dataStore, method, key, value)
     
     return false, nil
 end
-
+-- Migrate player data from old schema to new schema
+local function migratePlayerData(playerData, player)
+	local currentSchema = GameConfig.DATA_SCHEMA_VERSION
+	local dataSchema = playerData.SchemaVersion or 1
+	
+	if dataSchema == currentSchema then
+		return playerData -- No migration needed
+	end
+	
+	print(string.format("[DataStore] 🔄 Міграція даних з версії %d до %d", dataSchema, currentSchema))
+	
+	-- Migration from v1 to v2
+	if dataSchema < 2 then
+		-- Consolidate stats into single Stats table
+		local newStats = {
+			JoinDate = playerData.Stats and playerData.Stats.JoinDate or os.time(),
+			LastLogin = os.time(),
+			TotalPlayTime = playerData.Stats and playerData.Stats.TotalPlayTime or 0,
+			TotalTeleports = playerData.Stats and playerData.Stats.TeleportsUsed or 0,
+			LocationsDiscovered = playerData.Stats and playerData.Stats.LocationsDiscovered or 0,
+		}
+		
+		-- Add Settings table if missing
+		if not playerData.Settings or type(playerData.Settings) ~= "table" then
+			playerData.Settings = {
+				MusicVolume = 1.0,
+				SFXVolume = 1.0,
+			}
+		end
+		
+		-- Update structure
+		playerData.Stats = newStats
+		playerData.SchemaVersion = 2
+		
+		print("[DataStore] ✅ Міграція v1→v2 завершена")
+	end
+	
+	-- Future migrations can be added here
+	-- if dataSchema < 3 then
+	--     -- Migration v2 to v3
+	-- end
+	
+	playerData.SchemaVersion = currentSchema
+	return playerData
+end
 -- Load player data from DataStore
 function DataStoreManager.LoadPlayerData(player)
     local userId = tostring(player.UserId)
@@ -205,10 +252,10 @@ function DataStoreManager.LoadPlayerData(player)
             print("[DataStore] ℹ️ Дата приєднання:", os.date("%Y-%m-%d %H:%M:%S", joinDate))
         end
         
-        -- Validate and migrate data if needed
-        local playerData = data
+        -- Migrate data if needed
+        local playerData = migratePlayerData(data, player)
         
-        -- Ensure required fields exist
+        -- Ensure required fields exist (backwards compatibility)
         if not playerData.PlayerId then
             playerData.PlayerId = player.UserId
         end
