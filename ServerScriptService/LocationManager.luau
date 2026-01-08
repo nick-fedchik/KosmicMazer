@@ -4,7 +4,7 @@ KOSMICMAZER — Location Manager (Module)
 ================================================================================
 
 Purpose: Manages location switching and workspace organization with FSM
-Version: 3.0
+Version: 3.1
 
 Features:
 - Finite State Machine (FSM) for predictable location transitions
@@ -13,6 +13,7 @@ Features:
 - Controls environment switching (Sky, Atmosphere, CloudLayers)
 - Integrates with teleportation system
 - Prevents concurrent transitions
+- LocationModel hierarchical structure support
 
 API:
 - Initialize(): Initializes the location manager
@@ -41,6 +42,10 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 3.1: Updated for LocationModel hierarchical structure (ETAP 2)
+- Version 3.1: clearWorkspaceLocations() now removes LocationModel objects
+- Version 3.1: loadSpaceStation() updated to work with LocationModel attributes
+- Version 3.1: Added LocationModel positioning and validation through attributes
 - Version 3.0: MAJOR - Added FSM (Finite State Machine) for location transitions with state tracking, timeouts, model validation, and fallback
 - Version 2.3: Added LoadOrder configuration support for custom loading sequences
 - Version 2.2: FIXED - Updated Called from references to reflect TeleportationManager usage
@@ -115,7 +120,7 @@ local function checkStateTimeout()
 	
 	local elapsed = tick() - stateStartTime
 	if elapsed > timeout then
-		warn(string.format("[LocationFSM] ⚠️ State timeout! %s exceeded %.1fs", currentState, timeout))
+		warn(string.format("[LocationFSM] ⚠️ Перевищено таймаут стану %s (%.1fs)", currentState, timeout))
 		return true
 	end
 	return false
@@ -132,13 +137,13 @@ local function validateModel(path)
 	for i, partName in ipairs(parts) do
 		local child = current:FindFirstChild(partName)
 		if not child then
-			warn(string.format("[LocationFSM] ❌ Model not found: %s (missing: %s)", path, partName))
+			warn(string.format("[LocationFSM] ❌ Не знайдено модель: %s (відсутня: %s)", path, partName))
 			return false
 		end
 		current = child
 	end
 	
-	print(string.format("[LocationFSM] ✅ Model validated: %s", path))
+	print(string.format("[LocationFSM] ✅ Перевірено модель: %s", path))
 	return true
 end
 
@@ -218,6 +223,12 @@ local function cleanupWorkspace()
 			child:Destroy()
 			print("[Location] 🗑️ Видалено планету:", child.Name)
 		end
+		-- Clear LocationModel (new hierarchical structure)
+		if child.Name == "LocationModel" then
+			child:Destroy()
+			print("[Location] 🗑️ Видалено LocationModel")
+		end
+		-- Clear old SpaceStation models (fallback compatibility)
 		if child.Name == "SpaceStation" then
 			child:Destroy()
 			print("[Location] 🗑️ Видалено SpaceStation")
@@ -256,17 +267,61 @@ local function loadSpaceStation()
 	local success = EnvironmentLoader.LoadSpaceEnvironment(getCurrentPlanet(), loadOrder)
 	
 	if success then
-		-- Position Space Station
-		local spaceStation = Workspace:FindFirstChild("SpaceStation")
-		if spaceStation then
-			local primaryPart = spaceStation:FindFirstChild("Landing pad") or spaceStation.PrimaryPart
-			if primaryPart then
-				-- Position station higher to avoid spawn underground
-				spaceStation:PivotTo(CFrame.new(0, -450, 0))
-				print("[Location] ✅ SpaceStation позиціоновано at Y=-450")
+		-- Position LocationModel (this will move all children including SpawnLocation)
+		local locationModel = Workspace:FindFirstChild("LocationModel")
+		
+		if locationModel then
+			-- Validate LocationModel attributes
+			local locationId = locationModel:GetAttribute("LocationId")
+			local locationType = locationModel:GetAttribute("LocationType")
+			
+			if locationId == "SpaceStation" and locationType == "Space" then
+				local primaryPart = locationModel.PrimaryPart
+				if primaryPart then
+					-- Position station at Y=-450
+					locationModel:PivotTo(CFrame.new(0, -450, 0))
+					print("[Location] ✅ LocationModel позиціоновано at Y=-450")
+					print(string.format("  └─ LocationModel.PrimaryPart: %s", tostring(locationModel.PrimaryPart.Position)))
+					
+					-- Check SpawnLocation inside LocationModel/Gameplay
+					local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+					local spawnLocation = gameplayFolder and gameplayFolder:FindFirstChild("SpawnLocation")
+					if spawnLocation then
+						print(string.format("  └─ SpawnLocation (inside LocationModel/Gameplay): %s", tostring(spawnLocation.Position)))
+					else
+						warn("[Location] ⚠️ SpawnLocation не знайдено в LocationModel/Gameplay")
+					end
+					
+					-- Check for equipment and other sections
+					for _, section in ipairs(locationModel:GetChildren()) do
+						if section:IsA("Folder") then
+							local itemCount = #section:GetChildren()
+							print(string.format("  └─ Section %s: %d items", section.Name, itemCount))
+						end
+					end
+
+					-- Log PlanetSurfaceScanner position for diagnostics
+					local equipmentFolder = locationModel:FindFirstChild("Equipment")
+					if equipmentFolder then
+						local scannerModel = equipmentFolder:FindFirstChild("PlanetSurfaceScanner")
+						if scannerModel then
+							print(string.format("  └─ PlanetSurfaceScanner (inside SpaceStation): %s", tostring(scannerModel:GetPivot().Position)))
+						else
+							warn("[Location] ⚠️ PlanetSurfaceScanner не знайдено всередині SpaceStation")
+						end
+					else
+						warn("[Location] ⚠️ Equipment секцію не знайдено в SpaceStation LocationModel")
+					end
+				else
+					warn("[Location] ⚠️ LocationModel.PrimaryPart не встановлено")
+				end
 			else
-				warn("[Location] ⚠️ PrimaryPart не знайдено")
+				warn("[Location] ⚠️ LocationModel має невірні attributes")
+				warn("  └─ LocationId:", tostring(locationId), "(expected: SpaceStation)")
+				warn("  └─ LocationType:", tostring(locationType), "(expected: Space)")
 			end
+		else
+			warn("[Location] ⚠️ SpaceStation не знайдено в Workspace")
 		end
 		
 		-- ServerScripts (including PlanetSurfaceScanner) are now loaded via EnvironmentLoader with LoadOrder
@@ -396,13 +451,13 @@ local function switchToSpaceStation(planetId, locationId)
 	end
 
 	isTransitioning = true
-	transitionTo(LocationState.IDLE, "Starting SpaceStation transition")
+	transitionTo(LocationState.IDLE, "Початок переходу на КС")
 	
 	-- Step 1: Validate models exist
-	transitionTo(LocationState.VALIDATING, "Checking SpaceStation models")
+	transitionTo(LocationState.VALIDATING, "Перевірка моделей КС")
 	if not validateModel("Space/SpaceStation") then
 		warn("[Location] ❌ SpaceStation model not found - fallback to safe state")
-		transitionTo(LocationState.ERROR, "Model validation failed")
+		transitionTo(LocationState.ERROR, "Помилка валідації моделі")
 		isTransitioning = false
 		return false
 	end
@@ -417,39 +472,39 @@ local function switchToSpaceStation(planetId, locationId)
 	wait(0.5)
 	
 	-- Step 3: Load planet
-	transitionTo(LocationState.LOADING_PLANET, planetId)
+	transitionTo(LocationState.LOADING_PLANET, "Завантаження планети " .. planetId)
 	if checkStateTimeout() then
 		warn("[Location] ❌ Planet loading timeout")
-		transitionTo(LocationState.ERROR, "Planet timeout")
+		transitionTo(LocationState.ERROR, "Таймаут завантаження планети")
 		isTransitioning = false
 		return false
 	end
 	
 	print("[Location] 📦 Завантаження планети", planetId)
 	if not loadPlanet(planetId) then
-		transitionTo(LocationState.ERROR, "Planet load failed")
+		transitionTo(LocationState.ERROR, "Помилка завантаження планети")
 		isTransitioning = false
 		return false
 	end
 
 	-- Step 4: Load SpaceStation
-	transitionTo(LocationState.LOADING_LOCATION, "SpaceStation")
+	transitionTo(LocationState.LOADING_LOCATION, "Завантаження КС")
 	if checkStateTimeout() then
 		warn("[Location] ❌ SpaceStation loading timeout")
-		transitionTo(LocationState.ERROR, "SpaceStation timeout")
+		transitionTo(LocationState.ERROR, "Таймаут завантаження КС")
 		isTransitioning = false
 		return false
 	end
 	
 	print("[Location] 📦 Завантаження SpaceStation...")
 	if not loadSpaceStation() then
-		transitionTo(LocationState.ERROR, "SpaceStation load failed")
+		transitionTo(LocationState.ERROR, "Помилка завантаження КС")
 		isTransitioning = false
 		return false
 	end
 
 	-- Step 5: Verify
-	transitionTo(LocationState.VERIFYING, "SpaceStation verification")
+	transitionTo(LocationState.VERIFYING, "Перевірка готовності КС")
 	
 	-- Find SpawnLocation (should be directly in Workspace after loading)
 	local spawnLocation = Workspace:FindFirstChild("SpawnLocation", true)
@@ -457,13 +512,13 @@ local function switchToSpaceStation(planetId, locationId)
 	if not spawnLocation then
 		warn("[Location] ❌ SpawnLocation not found in Workspace")
 		warn("[Location]   └─ Expected: Workspace.SpawnLocation")
-		transitionTo(LocationState.ERROR, "No SpawnLocation")
+		transitionTo(LocationState.ERROR, "Відсутня точка появи")
 		isTransitioning = false
 		return false
 	end
 	
 	-- Success!
-	transitionTo(LocationState.READY, "SpaceStation")
+	transitionTo(LocationState.READY, "КС готова")
 	currentLocation = "SpaceStation"
 	isTransitioning = false
 	
@@ -484,24 +539,24 @@ local function switchToPlanetLocation(planetId, locationId)
 	end
 
 	isTransitioning = true
-	transitionTo(LocationState.IDLE, "Starting planet location transition")
+	transitionTo(LocationState.IDLE, "Початок переходу на локацію планети")
 	print("[Location] 🔄 Перехід на", locationId, "на", planetId)
 	
 	-- Step 1: Validate models
-	transitionTo(LocationState.VALIDATING, "Checking planet/location models")
+	transitionTo(LocationState.VALIDATING, "Перевірка моделей планети/локації")
 	local planetPath = "Planets/" .. planetId
 	local locationPath = planetPath .. "/Locations/" .. locationId
 	
 	if not validateModel(planetPath) then
 		warn("[Location] ❌ Planet model not found:", planetId)
-		transitionTo(LocationState.ERROR, "Planet not found")
+		transitionTo(LocationState.ERROR, "Планету не знайдено")
 		isTransitioning = false
 		return false
 	end
 	
 	if not validateModel(locationPath) then
 		warn("[Location] ❌ Location model not found:", locationId)
-		transitionTo(LocationState.ERROR, "Location not found")
+		transitionTo(LocationState.ERROR, "Локацію не знайдено")
 		isTransitioning = false
 		return false
 	end
@@ -514,22 +569,22 @@ local function switchToPlanetLocation(planetId, locationId)
 	end
 
 	-- Step 3: Load location
-	transitionTo(LocationState.LOADING_LOCATION, locationId)
+	transitionTo(LocationState.LOADING_LOCATION, "Завантаження " .. locationId)
 	if checkStateTimeout() then
 		warn("[Location] ❌ Location loading timeout")
-		transitionTo(LocationState.ERROR, "Location timeout")
+		transitionTo(LocationState.ERROR, "Таймаут завантаження локації")
 		isTransitioning = false
 		return false
 	end
 	
 	if not loadLocation(planetId, locationId) then
-		transitionTo(LocationState.ERROR, "Location load failed")
+		transitionTo(LocationState.ERROR, "Помилка завантаження локації")
 		isTransitioning = false
 		return false
 	end
 
 	-- Step 4: Verify
-	transitionTo(LocationState.VERIFYING, locationId)
+	transitionTo(LocationState.VERIFYING, "Перевірка готовності " .. locationId)
 	
 	-- Find SpawnLocation (should be directly in Workspace after loading)
 	local spawnLocation = Workspace:FindFirstChild("SpawnLocation", true)
@@ -538,13 +593,13 @@ local function switchToPlanetLocation(planetId, locationId)
 		warn("[Location] ❌ SpawnLocation not found in Workspace")
 		warn("[Location]   └─ Expected: Workspace.SpawnLocation")
 		warn("[Location]   └─ Location:", locationId, "Planet:", planetId)
-		transitionTo(LocationState.ERROR, "No SpawnLocation")
+		transitionTo(LocationState.ERROR, "Відсутня точка появи")
 		isTransitioning = false
 		return false
 	end
 	
 	-- Success!
-	transitionTo(LocationState.READY, locationId)
+	transitionTo(LocationState.READY, locationId .. " готова")
 	currentLocation = locationId
 	isTransitioning = false
 
@@ -555,7 +610,7 @@ end
 -- Public API
 local LocationManager = {
 	Initialize = function()
-		transitionTo(LocationState.IDLE, "Initialization")
+		transitionTo(LocationState.IDLE, "Ініціалізація")
 		print("[Location] ✅ Менеджер локацій ініціалізовано")
 	end,
 	SwitchToSpaceStation = switchToSpaceStation,

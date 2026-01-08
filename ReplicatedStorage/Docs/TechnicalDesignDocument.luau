@@ -1056,7 +1056,164 @@ Documentation:
 - docs/CONFIG_VALIDATION_QUICK_REFERENCE.md
 
 ================================================================================
-15. ASSUMPTIONS AND CONSTRAINTS
+15. ДОДАВАННЯ НОВИХ ЛОКАЦІЙ  
+================================================================================
+
+15.1 Hierarchical Model Structure Standard
+
+Всі локації у KosmicMazer використовують стандартизовану структуру моделей
+для забезпечення коректної роботи координат, телепортації та скриптів.
+
+15.1.1 Стандартна назва моделі: LocationModel
+
+Головна модель кожної локації ЗАВЖДИ має назву "LocationModel" незалежно
+від типу локації (SpaceStation, планетна локація, тощо).
+
+15.1.2 Обов'язкові Attributes
+
+Кожна LocationModel повинна мати 3 обов'язкові attributes:
+- LocationId (String): унікальний ідентифікатор ("SpaceStation", "CrystalCaverns")  
+- LocationType (String): тип локації ("Space", "Planet")
+- DisplayName (String): назва для відображення ("Cosmic Research Station")
+
+Додатково для планетних локацій:
+- PlanetId (String): ідентифікатор планети ("Planet_1")
+
+15.1.3 PrimaryPart
+
+LocationModel ОБОВ'ЯЗКОВО повинна мати встановлений PrimaryPart для:
+- Коректного позиціонування через PivotTo()
+- Обрахунку центру координат для embedded об'єктів  
+- Синхронного руху всієї локації
+
+15.1.4 Організаційні секції
+
+Всі об'єкти локації організовуються в логічні Folder секції:
+- Architecture/ - будівлі, структури, статичні об'єкти
+- Equipment/ - обладнання, машини, інтерактивні пристрої  
+- Environment/ - декорації, стіни, підлога, стеля, ефекти
+- Resources/ - ресурсні ноди, збираємі об'єкти (тільки для планет)
+- Gameplay/ - SpawnLocation, objectives, hazards, checkpoints
+
+КРИТИЧНО: SpawnLocation завжди в Gameplay/ секції!
+
+================================================================================
+15.2 ПОКРОКОВІ ІНСТРУКЦІЇ - SPACE STATION
+================================================================================
+
+Для реструктуризації космічної станції під стандартну структуру:
+
+КРОК 1: Перейменувати модель
+1. Відкрий Roblox Studio
+2. Йди до ServerStorage → Space → SpaceStation → Workspace  
+3. Правий клік на SpaceStation (Model)
+4. Rename → LocationModel
+
+КРОК 2: Додати Attributes  
+1. Вибери LocationModel
+2. В Properties панелі знайди Attributes секцію
+3. Додай Attributes:
+   - Name: LocationId, Type: String, Value: SpaceStation
+   - Name: LocationType, Type: String, Value: Space
+   - Name: DisplayName, Type: String, Value: Cosmic Research Station
+
+КРОК 3: Встановити PrimaryPart
+1. Вибери LocationModel  
+2. В Properties панелі знайди PrimaryPart
+3. Клікни на dropdown і вибери SpaceStationPrimaryPart (або аналогічний)
+
+КРОК 4: Створити організаційні Folders
+1. Правий клік на LocationModel → Insert Object → Folder
+2. Створи Folders: Architecture, Equipment, Environment, Gameplay
+
+КРОК 5: Організувати Architecture моделі
+Перенеси ці моделі в Architecture/:
+- 4-way, 5-way bottom, Airlock, Control tower, Room, Window
+
+КРОК 6: Перенести SpawnLocation
+Перетягни SpawnLocation з кореня LocationModel в Gameplay/
+
+КРОК 7: Перевірка
+Запусти в Command Bar:
+```lua
+local locationModel = game.ServerStorage.Space.SpaceStation.Workspace.LocationModel
+print("✅ Назва:", locationModel.Name)
+print("✅ LocationId:", locationModel:GetAttribute("LocationId"))
+print("✅ LocationType:", locationModel:GetAttribute("LocationType"))
+print("✅ PrimaryPart:", locationModel.PrimaryPart and locationModel.PrimaryPart.Name or "НЕМАЄ!")  
+print("✅ SpawnLocation в Gameplay:", locationModel.Gameplay:FindFirstChild("SpawnLocation") and "ТАК" or "НЕМАЄ!")
+```
+
+================================================================================
+15.3 ПОКРОКОВІ ІНСТРУКЦІЇ - PLANET LOCATIONS  
+================================================================================
+
+Для планетних локацій (Planet_1/Location_[1-3]):
+
+КРОК 1: Створити LocationModel
+1. Йди до ServerStorage → Planets → Planet_1 → Locations → Location_X → Workspace  
+2. Правий клік в Workspace → Insert Object → Model
+3. Rename → LocationModel
+
+КРОК 2: Додати Attributes
+Додай Attributes до LocationModel:
+- Name: LocationId, Type: String, Value: CrystalCaverns/IronMines/CopperDeposits
+- Name: LocationType, Type: String, Value: Planet  
+- Name: PlanetId, Type: String, Value: Planet_1
+- Name: DisplayName, Type: String, Value: Садочок/Гута/Канапка
+
+КРОК 3: Встановити PrimaryPart
+1. Вибери LocationModel
+2. PrimaryPart → Baseplate (головна поверхня локації)
+
+КРОК 4: Створити секції
+Створи Folders: Environment, Resources, Gameplay
+
+КРОК 5: Перенести об'єкти
+- Baseplate → Environment/Baseplate
+- InteractionObjects/ → Resources/ (весь folder)
+- SpawnLocation → Gameplay/SpawnLocation  
+
+КРОК 6: Перевірка
+```lua  
+local locationModel = game.ServerStorage.Planets.Planet_1.Locations.Location_1.Workspace.LocationModel
+print("✅ LocationId:", locationModel:GetAttribute("LocationId"))
+print("✅ PlanetId:", locationModel:GetAttribute("PlanetId"))
+print("✅ PrimaryPart:", locationModel.PrimaryPart.Name)
+print("✅ Структура:", #locationModel:GetChildren(), "секцій")
+```
+
+================================================================================
+15.4 ІНТЕГРАЦІЯ З КОДОМ
+================================================================================
+
+Після реструктуризації моделей необхідно оновити код:
+
+15.4.1 EnvironmentLoader
+- LoadSpaceEnvironment(): шукати LocationModel замість SpaceStation
+- LoadPlanetEnvironment(): шукати LocationModel в location/Workspace/
+- Додати перевірку LocationId attributes при завантаженні
+
+15.4.2 GameInit  
+- spawnPlayerAtLocation(): шукати SpawnLocation в locationModel.Gameplay
+
+15.4.3 LocationManager
+- Всі PivotTo() операції на locationModel замість окремих моделей
+
+15.4.4 Client Scripts
+- StationUI: отримувати DisplayName з locationModel attributes
+- ScannerUI: шукати equipment в locationModel.Equipment
+
+15.5 Переваги стандартної структури
+✅ Один PivotTo() рухає всю локацію разом
+✅ SpawnLocation завжди рухається з локацією  
+✅ Чіткі шляхи для пошуку об'єктів скриптами
+✅ Attributes замість хардкодингу назв
+✅ Легко додавати нові локації без зміни коду
+✅ Стандартизована структура для всіх типів локацій
+
+================================================================================
+16. ASSUMPTIONS AND CONSTRAINTS
 ================================================================================
 
 - Підтримка мультиплеєра (кілька гравців одночасно)

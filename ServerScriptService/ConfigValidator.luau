@@ -367,16 +367,21 @@ local function validateSpaceStation(config, serverStorage)
 				if not workspaceFolder then
 					addWarning("SpaceStation", "SpaceStation/Workspace folder not found")
 				else
-					-- Check for spawn location
+					-- Check for spawn location (can be inside SpaceStation or separate in Workspace)
 					if station.SpawnPoint then
 						local spawnLocation = workspaceFolder:FindFirstChild(station.SpawnPoint)
 						if not spawnLocation then
-							addError("SpaceStation", string.format(
-								"SpawnPoint '%s' not found in SpaceStation/Workspace", station.SpawnPoint))
+							-- SpawnLocation не знайдено всередині SpaceStation - це нормально для поточної архітектури
+							addInfo("SpaceStation", string.format(
+								"SpawnPoint '%s' not found inside SpaceStation (will be loaded as separate object)", 
+								station.SpawnPoint))
 						elseif spawnLocation.ClassName ~= "SpawnLocation" then
 							addError("SpaceStation", string.format(
 								"'%s' exists but is not a SpawnLocation (found: %s)", 
 								station.SpawnPoint, spawnLocation.ClassName))
+						else
+							addInfo("SpaceStation", string.format(
+								"SpawnPoint '%s' found inside SpaceStation", station.SpawnPoint))
 						end
 					end
 					

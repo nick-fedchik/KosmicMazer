@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.5
+Version: 4.6
 
 Features:
 - Manages teleportation activation state
@@ -13,6 +13,7 @@ Features:
 - Manages teleportation UI and visual effects
 - Integrates with PlanetSurfaceScanner and LocationManager
 - Includes cooldown management and player tracking
+- LocationModel hierarchical structure support
 
 API:
 - Initialize(): Initializes the system
@@ -42,6 +43,12 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 4.6: Updated for LocationModel hierarchical structure (ETAP 3)
+- Version 4.6: findSpawnLocation() now searches LocationModel/Gameplay/SpawnLocation
+- Version 4.6: Added LocationModel attribute validation for current location detection
+- Version 4.6: Enhanced fallback system for SpawnLocation discovery across structures
+- Version 4.6: Updated ServerStorage fallback paths for new hierarchy
+- Version 4.5: Enhanced UI responsiveness and animation smoothness
 - Version 4.4: CRITICAL FIX - Added comprehensive event communication debugging
 
 
@@ -136,12 +143,31 @@ local function getCurrentSpawnLocation()
         return spawn
     end
     
-    -- Check inside SpaceStation model
+    -- Check inside LocationModel (new hierarchical structure)
+    local locationModel = workspace:FindFirstChild("LocationModel")
+    if locationModel then
+        -- Validate it's the correct LocationModel
+        local locationId = locationModel:GetAttribute("LocationId")
+        local locationType = locationModel:GetAttribute("LocationType")
+        
+        if locationId and locationType then
+            local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+            if gameplayFolder then
+                spawn = gameplayFolder:FindFirstChild("SpawnLocation")
+                if spawn then
+                    print("[TeleportationManager] ✅ Found SpawnLocation in LocationModel/Gameplay: " .. spawn:GetFullName())
+                    return spawn
+                end
+            end
+        end
+    end
+    
+    -- Fallback: Check inside old SpaceStation model for compatibility
     local spaceStation = workspace:FindFirstChild("SpaceStation")
     if spaceStation then
         spawn = spaceStation:FindFirstChild("SpawnLocation")
         if spawn then
-            print("[TeleportationManager] ✅ Found SpawnLocation in SpaceStation: " .. spawn:GetFullName())
+            print("[TeleportationManager] ✅ Found SpawnLocation in SpaceStation (fallback): " .. spawn:GetFullName())
             return spawn
         end
     end
@@ -157,10 +183,20 @@ local function getCurrentSpawnLocation()
         end
     end
     
-    -- Fallback to original in ServerStorage
-    local fallback = game.ServerStorage.Space.SpaceStation.Workspace.SpawnLocation
-    print("[TeleportationManager] ⚠️ Using fallback SpawnLocation: " .. fallback:GetFullName())
-    return fallback
+    -- Fallback to original in ServerStorage (new hierarchical structure)
+    local fallback = game.ServerStorage.Space.SpaceStation.Workspace.LocationModel.Gameplay:FindFirstChild("SpawnLocation")
+    if not fallback then
+        -- Final fallback to old structure
+        fallback = game.ServerStorage.Space.SpaceStation.Workspace:FindFirstChild("SpawnLocation")
+    end
+    
+    if fallback then
+        print("[TeleportationManager] ⚠️ Using fallback SpawnLocation: " .. fallback:GetFullName())
+        return fallback
+    else
+        warn("[TeleportationManager] ❌ No SpawnLocation found anywhere!")
+        return nil
+    end
 end
 
 -- State management
@@ -569,7 +605,14 @@ local function onTouched(otherPart)
 	-- Ensure player has CurrentLocation attribute
 	if not player:GetAttribute("CurrentLocation") then
 		-- Determine current location based on workspace
-		if workspace:FindFirstChild("SpaceStation") then
+		local locationModel = workspace:FindFirstChild("LocationModel")
+		if locationModel then
+			local locationId = locationModel:GetAttribute("LocationId")
+			if locationId then
+				player:SetAttribute("CurrentLocation", locationId)
+			end
+		elseif workspace:FindFirstChild("SpaceStation") then
+			-- Fallback for old structure
 			player:SetAttribute("CurrentLocation", "SpaceStation")
 		else
 			-- Check for Location_* models

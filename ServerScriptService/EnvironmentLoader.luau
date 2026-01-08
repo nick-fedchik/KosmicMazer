@@ -4,10 +4,10 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.8
+Version: 1.9
 
 Features:
-- Loads Space Environment (Planet + SpaceStation)
+- Loads Space Environment (Planet + LocationModel)
 - Loads Planet Environment (Location only)
 - Clears Workspace and Lighting completely
 - Verifies all objects loaded
@@ -16,6 +16,7 @@ Features:
 - Lighting folder content → game.Lighting
 - LoadOrder-based script processing with priority system
 - Automatic ModuleScript initialization
+- LocationModel hierarchical structure support
 
 API:
 - LoadSpaceEnvironment(planetId): Loads space environment with planet
@@ -30,6 +31,10 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.9: Updated for LocationModel hierarchical structure (ETAP 2)
+- Version 1.9: LoadSpaceEnvironment now searches for LocationModel instead of SpaceStation
+- Version 1.9: Added LocationModel attribute validation (LocationId, LocationType)
+- Version 1.9: Updated expectedObjects verification for LocationModel structure
 - Version 1.8: Integrated LoadOrder-based script processing for all levels
 - Version 1.8: ServerScripts now processed with priority system (SpaceStation/Planet/Location)
 - Version 1.8: Automatic ModuleScript.Initialize() calling with Workspace model matching
@@ -58,6 +63,49 @@ local ServerStorage = game:GetService("ServerStorage")
 local GameConfig = require(game.ServerScriptService.GameConfig)
 local ObjectTypeValidator = require(script.Parent:FindFirstChild("ObjectTypeValidator"))
 local LoadOrderProcessor = require(script.Parent:FindFirstChild("LoadOrderProcessor"))
+local ClientScriptInitializer = require(script.Parent:FindFirstChild("ClientScriptInitializer"))
+
+-- Helper function to dump all object properties for debugging
+local function dumpObjectProperties(object, indent)
+	indent = indent or ""
+	local output = {}
+	
+	table.insert(output, string.format("%s[%s] %s", indent, object.ClassName, object.Name))
+	table.insert(output, string.format("%s  └─ FullName: %s", indent, object:GetFullName()))
+	table.insert(output, string.format("%s  └─ Parent: %s", indent, object.Parent and object.Parent.Name or "nil"))
+	
+	-- Position/CFrame for BasePart or Model
+	if object:IsA("BasePart") then
+		table.insert(output, string.format("%s  └─ Position: %s", indent, tostring(object.Position)))
+		table.insert(output, string.format("%s  └─ CFrame: %s", indent, tostring(object.CFrame)))
+		table.insert(output, string.format("%s  └─ Size: %s", indent, tostring(object.Size)))
+		table.insert(output, string.format("%s  └─ Anchored: %s", indent, tostring(object.Anchored)))
+		table.insert(output, string.format("%s  └─ CanCollide: %s", indent, tostring(object.CanCollide)))
+		table.insert(output, string.format("%s  └─ Transparency: %s", indent, tostring(object.Transparency)))
+	elseif object:IsA("Model") then
+		if object.PrimaryPart then
+			table.insert(output, string.format("%s  └─ PrimaryPart: %s", indent, object.PrimaryPart.Name))
+			table.insert(output, string.format("%s  └─ PrimaryPart.Position: %s", indent, tostring(object.PrimaryPart.Position)))
+		end
+		local pivot = object:GetPivot()
+		table.insert(output, string.format("%s  └─ Pivot: %s", indent, tostring(pivot.Position)))
+	end
+	
+	-- Custom Attributes
+	local attributes = object:GetAttributes()
+	if next(attributes) then
+		table.insert(output, string.format("%s  └─ Attributes:", indent))
+		for key, value in pairs(attributes) do
+			table.insert(output, string.format("%s      • %s = %s", indent, key, tostring(value)))
+		end
+	end
+	
+	-- Children count
+	local children = object:GetChildren()
+	table.insert(output, string.format("%s  └─ Children: %d", indent, #children))
+	
+	return table.concat(output, "\n")
+end
 
 -- Helper function to clear workspace completely
 local function clearWorkspace()
@@ -109,8 +157,19 @@ local function copyFolderContents(sourceFolder, targetParent, loadOrder)
     for index, child in ipairs(children) do
         local clone = child:Clone()
         clone.Parent = targetParent
-        print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
-            index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+        
+        -- Додаткове логування для SpawnLocation
+        if child.Name == "SpawnLocation" and child:IsA("SpawnLocation") then
+            print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
+                index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+            print("[EnvironmentLoader] 🔍 DUMP: Original SpawnLocation:")
+            print(dumpObjectProperties(child, "    "))
+            print("[EnvironmentLoader] 🔍 DUMP: Cloned SpawnLocation:")
+            print(dumpObjectProperties(clone, "    "))
+        else
+            print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
+                index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+        end
     end
     
     return true
@@ -258,10 +317,17 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
 			
 			for index, script in ipairs(clientScripts) do
 				if script:IsA("LocalScript") then
-					local clone = script:Clone()
-					clone.Parent = StarterPlayerScripts
-					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Client Script copied: %s", 
-						index, #clientScripts, script.Name))
+				-- Видалити стару версію скрипта, якщо вона існує
+				local oldScript = StarterPlayerScripts:FindFirstChild(script.Name)
+				if oldScript then
+					oldScript:Destroy()
+					print(string.format("[EnvironmentLoader] 🗑️ Removed old: StarterPlayer/StarterPlayerScripts/%s", script.Name))
+				end
+				
+				local clone = script:Clone()
+				clone.Parent = StarterPlayerScripts
+				print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → StarterPlayer/StarterPlayerScripts/%s", 
+					index, #clientScripts, script:GetFullName(), script.Name))
                 end
             end
         end
@@ -274,30 +340,52 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     end
     
     if spaceStationFolder then
-        -- Copy all workspace objects with load order
+        -- Copy LocationModel from workspace with attribute validation
         local workspaceFolder = spaceStationFolder:FindFirstChild("Workspace")
         if workspaceFolder then
             print("[EnvironmentLoader] 📋 SpaceStation Workspace contains:", #workspaceFolder:GetChildren(), "objects")
-            for _, child in ipairs(workspaceFolder:GetChildren()) do
-                print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
-            end
             
-            copyFolderContents(workspaceFolder, Workspace, loadOrder)
-            print("[EnvironmentLoader] ✅ Space Station workspace loaded")
-            
-            -- Verify what's in Workspace after copying
-            print("[EnvironmentLoader] 📋 Workspace now contains:")
-            for _, child in ipairs(Workspace:GetChildren()) do
-                print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
-                if child:IsA("Model") or child:IsA("Folder") then
-                    for _, subChild in ipairs(child:GetChildren()) do
-                        print("[EnvironmentLoader]     └─ " .. subChild.Name .. " (" .. subChild.ClassName .. ")")
+            -- Find and validate LocationModel
+            local locationModel = workspaceFolder:FindFirstChild("LocationModel")
+            if locationModel and locationModel:IsA("Model") then
+                -- Validate LocationModel attributes
+                local locationId = locationModel:GetAttribute("LocationId")
+                local locationType = locationModel:GetAttribute("LocationType")
+                local displayName = locationModel:GetAttribute("DisplayName")
+                
+                if locationId == "SpaceStation" and locationType == "Space" then
+                    print("[EnvironmentLoader] ✅ LocationModel validated:", displayName or "SpaceStation")
+                    
+                    -- Clone LocationModel to Workspace
+                    local clonedModel = locationModel:Clone()
+                    clonedModel.Parent = Workspace
+                    
+                    print("[EnvironmentLoader] ✅ LocationModel copied to Workspace")
+                    print("[EnvironmentLoader] 📋 LocationModel contains:")
+                    for _, section in ipairs(clonedModel:GetChildren()) do
+                        if section:IsA("Folder") then
+                            print("[EnvironmentLoader]   📁 " .. section.Name .. " (" .. #section:GetChildren() .. " items)")
+                        elseif section:IsA("BasePart") and section.Name:find("PrimaryPart") then
+                            print("[EnvironmentLoader]   🧱 " .. section.Name .. " (PrimaryPart)")
+                        else
+                            print("[EnvironmentLoader]   - " .. section.Name .. " (" .. section.ClassName .. ")")
+                        end
                     end
+                else
+                    warn("[EnvironmentLoader] ❌ LocationModel attributes invalid:")
+                    warn("  └─ LocationId: " .. tostring(locationId) .. " (expected: SpaceStation)")
+                    warn("  └─ LocationType: " .. tostring(locationType) .. " (expected: Space)")
+                    return false
                 end
+            else
+                warn("[EnvironmentLoader] ❌ LocationModel not found in Workspace")
+                warn("  └─ Очікуваний шлях: ServerStorage/Space/SpaceStation/Workspace/LocationModel")
+                return false
             end
         else
             warn("[EnvironmentLoader] ⚠️ SpaceStation Workspace folder not found")
             warn("  └─ Очікуваний шлях: ServerStorage/Space/SpaceStation/Workspace")
+            return false
         end
         
 -- Process SpaceStation Scripts with LoadOrder
@@ -386,10 +474,17 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
 				
 				for index, script in ipairs(clientScripts) do
 					if script:IsA("LocalScript") then
-						local clone = script:Clone()
-						clone.Parent = StarterPlayerScripts
-						print(string.format("[EnvironmentLoader] ✅ [%d/%d] Client Script copied to StarterPlayerScripts: %s", 
-							index, #clientScripts, script.Name))
+						-- Видалити стару версію скрипта, якщо вона існує
+						local oldScript = StarterPlayerScripts:FindFirstChild(script.Name)
+						if oldScript then
+							oldScript:Destroy()
+						print(string.format("[EnvironmentLoader] 🗑️ Removed old: StarterPlayer/StarterPlayerScripts/%s", script.Name))
+					end
+					
+					local clone = script:Clone()
+					clone.Parent = StarterPlayerScripts
+					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → StarterPlayer/StarterPlayerScripts/%s", 
+						index, #clientScripts, script:GetFullName(), script.Name))
                     end
                 end
             end
@@ -407,15 +502,17 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     
     -- Verify loading
     local expectedObjects = {
-        "Planet",              -- From Planet/Workspace/
-        "SpawnLocation",       -- From SpaceStation/Workspace/ (copied directly to Workspace)
-        "PlanetSurfaceScanner" -- From SpaceStation/Workspace/ (copied directly to Workspace)
+        "Planet",        -- From Planet/Workspace/
+        "LocationModel"  -- From SpaceStation/Workspace/LocationModel (hierarchical structure)
     }
     
     local success = verifyObjectsLoaded(expectedObjects)
     
     if success then
         print("[EnvironmentLoader] ✅ Space Environment loaded successfully")
+        
+        -- Initialize client scripts after environment is ready
+        ClientScriptInitializer.InitializeAllClientScripts("SpaceStation", planetId, nil)
     else
         warn("[EnvironmentLoader] ❌ Space Environment loading incomplete")
     end
@@ -508,14 +605,21 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
 			
 			for index, script in ipairs(clientScripts) do
 				if script:IsA("LocalScript") then
+					-- Видалити стару версію скрипта, якщо вона існує
+					local oldScript = StarterPlayerScripts:FindFirstChild(script.Name)
+					if oldScript then
+						oldScript:Destroy()
+						print(string.format("[EnvironmentLoader] 🗑️ Removed old: StarterPlayer/StarterPlayerScripts/%s", script.Name))
+					end
+					
 					local clone = script:Clone()
 					clone.Parent = StarterPlayerScripts
-					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Planet Client Script copied: %s", 
-						index, #clientScripts, script.Name))
-                end
-            end
-        end
-    end
+					print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → StarterPlayer/StarterPlayerScripts/%s", 
+						index, #clientScripts, script:GetFullName(), script.Name))
+				end
+			end
+		end
+	end
     
     -- Get location folder
     local locationsFolder = planetFolder:FindFirstChild("Locations")
@@ -607,10 +711,17 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
             
             for index, script in ipairs(clientScripts) do
                 if script:IsA("LocalScript") then
+                    -- Видалити стару версію скрипта, якщо вона існує
+                    local oldScript = StarterPlayerScripts:FindFirstChild(script.Name)
+                    if oldScript then
+                        oldScript:Destroy()
+                        print(string.format("[EnvironmentLoader] 🗑️ Removed old: StarterPlayer/StarterPlayerScripts/%s", script.Name))
+                    end
+                    
                     local clone = script:Clone()
                     clone.Parent = StarterPlayerScripts
-                    print(string.format("[EnvironmentLoader] ✅ [%d/%d] Location Client Script copied: %s", 
-                        index, #clientScripts, script.Name))
+                    print(string.format("[EnvironmentLoader] ✅ [%d/%d] Copied: %s → StarterPlayer/StarterPlayerScripts/%s", 
+                        index, #clientScripts, script:GetFullName(), script.Name))
                 end
             end
         end

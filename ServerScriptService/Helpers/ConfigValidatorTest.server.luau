@@ -4,13 +4,25 @@ KOSMICMAZER — Config Validator Test Script
 ================================================================================
 
 Purpose: Test ConfigValidator functionality
-Version: 1.0
+Version: 1.1
 Type: Helper Script
 
 Note: This is a one-time test script. Should be removed after validation testing.
 
+ChangeLog:
+- v1.1: Updated to follow LoggingConvention v3.6
+- v1.1: Disabled by default - validation now runs in GameInit
+
 ================================================================================
 ]]
+
+-- 🔒 DISABLED: Validation now runs automatically in GameInit
+-- To enable this test, set ENABLE_TEST = true
+local ENABLE_TEST = false
+
+if not ENABLE_TEST then
+	return
+end
 
 local ServerStorage = game:GetService("ServerStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -19,35 +31,23 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(ServerScriptService:WaitForChild("GameConfig"))
 local ConfigValidator = require(ServerScriptService:WaitForChild("ConfigValidator"))
 
-print("\n" .. string.rep("=", 80))
-print("STARTING CONFIG VALIDATOR TEST")
-print(string.rep("=", 80))
+print("[ConfigValidatorTest] 🚀 Running validation test...")
 
 -- Run validation
 local success, result = pcall(function()
 	local isValid, report = ConfigValidator.ValidateConfig(GameConfig, ServerStorage)
 	
 	if isValid then
-		print("\n✅ Configuration is VALID!")
-		print("Errors: " .. #report.errors)
-		print("Warnings: " .. #report.warnings)
-		print("Info: " .. #report.info)
+		print("[ConfigValidatorTest] ✅ Valid (E:" .. #report.errors .. " W:" .. #report.warnings .. " I:" .. #report.info .. ")")
 	else
-		print("\n❌ Configuration has CRITICAL ERRORS!")
-		print("Errors: " .. #report.errors)
-		print("Warnings: " .. #report.warnings)
-		print("Info: " .. #report.info)
+		warn("[ConfigValidatorTest] ❌ Failed (E:" .. #report.errors .. " W:" .. #report.warnings .. " I:" .. #report.info .. ")")
 	end
 	
 	return isValid, report
 end)
 
 if not success then
-	warn("❌ Test failed with error:", result)
+	warn("[ConfigValidatorTest] 💀 Test error:", result)
 else
-	print("\n✅ Test completed successfully")
+	print("[ConfigValidatorTest] ✅ Test complete")
 end
-
-print("\n" .. string.rep("=", 80))
-print("CONFIG VALIDATOR TEST COMPLETE")
-print(string.rep("=", 80) .. "\n")

@@ -1,0 +1,702 @@
+--[[
+================================================================================
+KOSMICMAZER — Scanner UI Client
+================================================================================
+
+Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
+Version: 1.4
+
+Features:
+- Відображення результатів сканування планетної поверхні (Windows 95 стиль)
+- Анімований індикатор сканування з прогрес баром
+- Список знайдених локацій з детальною інформацією
+- 3D ефекти для кнопок згідно GuiConvention
+- Інтеграція з ProximityPrompt для активації сканера
+- Анімації з TweenService (Back.Out, Quad.In, Linear)
+- LocationModel hierarchical structure support
+
+API:
+- Initialize(scannerModel): Ініціалізує UI для моделі сканера
+- ShowScanResults(results): Показує результати сканування
+- ShowScanningAnimation(): Показує анімацію сканування
+- HideScanningAnimation(): Ховає анімацію сканування
+
+Calls to:
+- Players: Отримання локального гравця
+- StarterGui: Створення GUI елементів
+- TweenService: Анімації переходів
+- ProximityPrompt: Виявлення наближення гравця
+
+Called from:
+- PlanetSurfaceScanner: Автоматична ініціалізація при завантаженні
+
+Events:
+- ScanStarted: Початок сканування
+- ScanCompleted: Завершення сканування
+- LocationSelected: Вибір локації з результатів
+
+Dependencies:
+- GuiConvention: Кольори WIN95_COLORS та NOTIFICATION_COLORS
+- TweenService: Анімації
+- PlanetSurfaceScanner: Модель сканера
+
+ChangeLog:
+- Version 1.4: Updated for LocationModel hierarchical structure (ETAP 3)
+- Version 1.4: Auto-initialization now searches for LocationModel with attributes
+- Version 1.4: Added LocationModel attribute validation (LocationId=SpaceStation, LocationType=Space)
+- Version 1.4: Scanner search updated to LocationModel.Equipment.PlanetSurfaceScanner
+- Version 1.3: Enhanced error messages and diagnostics for new structure
+- Version 1.2: Removed GameConfig dependency, using local constants
+- Version 1.1: Added scanning animation with progress bar
+
+================================================================================
+]]
+
+--============================================================================--
+-- SERVICES
+--============================================================================--
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+--============================================================================--
+-- MODULES
+--============================================================================--
+local GuiConvention = require(ReplicatedStorage:WaitForChild("Std"):WaitForChild("GuiConvention"))
+
+--============================================================================--
+-- КОНСТАНТИ / CONSTANTS
+--============================================================================--
+
+-- @const number Тривалість сканування в секундах
+local SCAN_DURATION = 5
+
+-- @const number Максимальна кількість результатів
+local MAX_RESULTS = 10
+
+-- @const table Кольори Windows 95 з GuiConvention
+local WIN95_COLORS = GuiConvention.WIN95_COLORS
+
+-- @const table Кольори сповіщень з GuiConvention
+local NOTIFICATION_COLORS = GuiConvention.NOTIFICATION_COLORS
+
+-- @const number Тривалість UI анімацій
+local UI_ANIMATION_DURATION = 0.3
+
+-- @const string ID поточної планети за замовчуванням
+local DEFAULT_PLANET_ID = "Planet_1"
+
+-- @const table Назви планет
+local PLANET_NAMES = {
+	["Planet_1"] = "Планета 1",
+	["Planet_2"] = "Планета 2",
+}
+
+--============================================================================--
+-- ГЛОБАЛЬНІ ЗМІННІ / GLOBAL VARIABLES
+--============================================================================--
+
+-- @var Player Локальний гравець
+local player = Players.LocalPlayer
+
+-- @var ScreenGui? Головний GUI контейнер
+local scannerGui = nil
+
+-- @var Frame? Вікно результатів сканування
+local resultsWindow = nil
+
+-- @var Frame? Вікно анімації сканування
+local scanningWindow = nil
+
+-- @var Model? Модель сканера
+local scannerModel = nil
+
+-- @var ProximityPrompt? Промпт активації сканера
+local proximityPrompt = nil
+
+-- @var boolean Чи триває сканування
+local isScanning = false
+
+--============================================================================--
+-- ПУБЛІЧНЕ API / PUBLIC API
+--============================================================================--
+
+-- @var table ScannerUI API
+local ScannerUI = {}
+
+--============================================================================--
+-- ЛОКАЛЬНІ ФУНКЦІЇ / LOCAL FUNCTIONS
+--============================================================================--
+
+-- Створює 3D ефект для кнопки (Windows 95 стиль)
+-- @param button TextButton - Кнопка для стилізації
+-- @param raised boolean - Чи кнопка "піднята"
+local function create3DEffect(button: TextButton, raised: boolean)
+	if raised then
+		button.BorderSizePixel = 2
+		button.BorderColor3 = WIN95_COLORS.ButtonHighlight
+		-- Створюємо світлу рамку зверху/зліва
+		local lightBorder = Instance.new("Frame")
+		lightBorder.Name = "LightBorder"
+		lightBorder.Size = UDim2.new(1, 2, 1, 2)
+		lightBorder.Position = UDim2.new(0, -1, 0, -1)
+		lightBorder.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
+		lightBorder.BorderSizePixel = 0
+		lightBorder.ZIndex = button.ZIndex + 1
+		lightBorder.Parent = button
+
+		-- Створюємо темну рамку знизу/справа
+		local darkBorder = Instance.new("Frame")
+		darkBorder.Name = "DarkBorder"
+		darkBorder.Size = UDim2.new(1, 2, 1, 2)
+		darkBorder.Position = UDim2.new(0, 1, 0, 1)
+		darkBorder.BackgroundColor3 = WIN95_COLORS.ButtonShadow
+		darkBorder.BorderSizePixel = 0
+		darkBorder.ZIndex = button.ZIndex + 1
+		darkBorder.Parent = button
+	else
+		button.BorderSizePixel = 2
+		button.BorderColor3 = WIN95_COLORS.ButtonDarkShadow
+		-- Видаляємо 3D ефекти
+		local lightBorder = button:FindFirstChild("LightBorder")
+		if lightBorder then lightBorder:Destroy() end
+		local darkBorder = button:FindFirstChild("DarkBorder")
+		if darkBorder then darkBorder:Destroy() end
+	end
+end
+
+-- Створює вікно результатів сканування
+local function createResultsWindow()
+	if resultsWindow then
+		resultsWindow:Destroy()
+	end
+
+	resultsWindow = Instance.new("Frame")
+	resultsWindow.Name = "ScanResultsWindow"
+	resultsWindow.Size = UDim2.new(0, 400, 0, 300)
+	resultsWindow.Position = UDim2.new(0.5, -200, 0.5, -150)
+	resultsWindow.BackgroundColor3 = WIN95_COLORS.WindowBackground
+	resultsWindow.BorderSizePixel = 0
+	resultsWindow.Parent = scannerGui
+
+	-- Title bar
+	local titleBar = Instance.new("Frame")
+	titleBar.Name = "TitleBar"
+	titleBar.Size = UDim2.new(1, 0, 0, 20)
+	titleBar.Position = UDim2.new(0, 0, 0, 0)
+	titleBar.BackgroundColor3 = WIN95_COLORS.TitleBarActive
+	titleBar.BorderSizePixel = 0
+	titleBar.Parent = resultsWindow
+
+	-- Title text
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "TitleLabel"
+	titleLabel.Size = UDim2.new(1, -60, 1, 0)
+	titleLabel.Position = UDim2.new(0, 5, 0, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "Результати сканування поверхні"
+	titleLabel.TextColor3 = WIN95_COLORS.TitleText
+	titleLabel.Font = Enum.Font.SourceSansBold
+	titleLabel.TextSize = 12
+	titleLabel.Parent = titleBar
+
+	-- Close button
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Name = "CloseBtn"
+	closeBtn.Size = UDim2.new(0, 16, 0, 14)
+	closeBtn.Position = UDim2.new(1, -18, 0, 3)
+	closeBtn.BackgroundColor3 = WIN95_COLORS.ButtonFace
+	closeBtn.BorderSizePixel = 1
+	closeBtn.Text = "X"
+	closeBtn.Font = Enum.Font.SourceSans
+	closeBtn.TextSize = 10
+	closeBtn.Parent = titleBar
+	create3DEffect(closeBtn, true)
+
+	-- Content area
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.Size = UDim2.new(1, -4, 1, -44)
+	content.Position = UDim2.new(0, 2, 0, 22)
+	content.BackgroundTransparency = 1
+	content.Parent = resultsWindow
+
+	-- Results list
+	local resultsList = Instance.new("ScrollingFrame")
+	resultsList.Name = "ResultsList"
+	resultsList.Size = UDim2.new(1, -10, 1, -10)
+	resultsList.Position = UDim2.new(0, 5, 0, 5)
+	resultsList.BackgroundColor3 = WIN95_COLORS.WindowBackground
+	resultsList.BorderSizePixel = 1
+	resultsList.BorderColor3 = WIN95_COLORS.ButtonShadow
+	resultsList.ScrollBarThickness = 12
+	resultsList.Parent = content
+
+	-- Button container
+	local buttonContainer = Instance.new("Frame")
+	buttonContainer.Name = "ButtonContainer"
+	buttonContainer.Size = UDim2.new(1, -4, 0, 30)
+	buttonContainer.Position = UDim2.new(0, 2, 1, -32)
+	buttonContainer.BackgroundTransparency = 1
+	buttonContainer.Parent = resultsWindow
+
+	-- Rescan button
+	local rescanBtn = Instance.new("TextButton")
+	rescanBtn.Name = "RescanBtn"
+	rescanBtn.Size = UDim2.new(0, 100, 1, 0)
+	rescanBtn.Position = UDim2.new(0, 5, 0, 0)
+	rescanBtn.BackgroundColor3 = WIN95_COLORS.ButtonFace
+	rescanBtn.BorderSizePixel = 1
+	rescanBtn.Text = "Перескановати"
+	rescanBtn.Font = Enum.Font.SourceSans
+	rescanBtn.TextSize = 12
+	rescanBtn.Parent = buttonContainer
+	create3DEffect(rescanBtn, true)
+
+	-- Close button
+	local closeBtn2 = Instance.new("TextButton")
+	closeBtn2.Name = "CloseBtn2"
+	closeBtn2.Size = UDim2.new(0, 80, 1, 0)
+	closeBtn2.Position = UDim2.new(1, -85, 0, 0)
+	closeBtn2.BackgroundColor3 = WIN95_COLORS.ButtonFace
+	closeBtn2.BorderSizePixel = 1
+	closeBtn2.Text = "Закрити"
+	closeBtn2.Font = Enum.Font.SourceSans
+	closeBtn2.TextSize = 12
+	closeBtn2.Parent = buttonContainer
+	create3DEffect(closeBtn2, true)
+
+	-- Анімація появи
+	resultsWindow.Size = UDim2.new(0, 0, 0, 0)
+	local tweenIn = TweenService:Create(resultsWindow, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 400, 0, 300)
+	})
+	tweenIn:Play()
+
+	-- Обробники кнопок
+	closeBtn.MouseButton1Click:Connect(function()
+		local tweenOut = TweenService:Create(resultsWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, 0)
+		})
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
+		resultsWindow:Destroy()
+		resultsWindow = nil
+	end)
+
+	closeBtn2.MouseButton1Click:Connect(function()
+		local tweenOut = TweenService:Create(resultsWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, 0)
+		})
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
+		resultsWindow:Destroy()
+		resultsWindow = nil
+	end)
+
+	rescanBtn.MouseButton1Click:Connect(function()
+		if resultsWindow then
+			resultsWindow:Destroy()
+			resultsWindow = nil
+		end
+		ScannerUI.ShowScanningAnimation()
+		task.delay(SCAN_DURATION, function()
+			ScannerUI.HideScanningAnimation()
+			-- Отримуємо реальні дані
+			local currentPlanetId = DEFAULT_PLANET_ID
+			local planetName = PLANET_NAMES[currentPlanetId] or "Невідома планета"
+			local scanResults = {}
+			
+			-- TODO: Отримати реальні дані локацій від сервера
+			-- Поки що показуємо порожні результати
+
+			ScannerUI.ShowScanResults(scanResults)
+		end)
+	end)
+
+	-- Ефекти натискання для кнопок
+	local function createButtonEffect(button)
+		button.MouseEnter:Connect(function()
+			create3DEffect(button, false)
+		end)
+		button.MouseLeave:Connect(function()
+			create3DEffect(button, true)
+		end)
+		button.MouseButton1Down:Connect(function()
+			create3DEffect(button, false)
+		end)
+		button.MouseButton1Up:Connect(function()
+			create3DEffect(button, true)
+		end)
+	end
+
+	createButtonEffect(closeBtn)
+	createButtonEffect(closeBtn2)
+	createButtonEffect(rescanBtn)
+
+	return resultsList
+end
+
+-- Створює вікно анімації сканування
+local function createScanningWindow()
+	if scanningWindow then
+		scanningWindow:Destroy()
+	end
+
+	scanningWindow = Instance.new("Frame")
+	scanningWindow.Name = "ScanningWindow"
+	scanningWindow.Size = UDim2.new(0, 300, 0, 150)
+	scanningWindow.Position = UDim2.new(0.5, -150, 0.5, -75)
+	scanningWindow.BackgroundColor3 = WIN95_COLORS.WindowBackground
+	scanningWindow.BorderSizePixel = 0
+	scanningWindow.Parent = scannerGui
+
+	-- Title bar
+	local titleBar = Instance.new("Frame")
+	titleBar.Name = "TitleBar"
+	titleBar.Size = UDim2.new(1, 0, 0, 20)
+	titleBar.Position = UDim2.new(0, 0, 0, 0)
+	titleBar.BackgroundColor3 = WIN95_COLORS.TitleBarActive
+	titleBar.BorderSizePixel = 0
+	titleBar.Parent = scanningWindow
+
+	-- Title text
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "TitleLabel"
+	titleLabel.Size = UDim2.new(1, -60, 1, 0)
+	titleLabel.Position = UDim2.new(0, 5, 0, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "Сканування поверхні..."
+	titleLabel.TextColor3 = WIN95_COLORS.TitleText
+	titleLabel.Font = Enum.Font.SourceSansBold
+	titleLabel.TextSize = 12
+	titleLabel.Parent = titleBar
+
+	-- Content area
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.Size = UDim2.new(1, -4, 1, -44)
+	content.Position = UDim2.new(0, 2, 0, 22)
+	content.BackgroundTransparency = 1
+	content.Parent = scanningWindow
+
+	-- Scanning animation
+	local scanningIcon = Instance.new("TextLabel")
+	scanningIcon.Name = "ScanningIcon"
+	scanningIcon.Size = UDim2.new(0, 50, 0, 50)
+	scanningIcon.Position = UDim2.new(0.5, -25, 0, 10)
+	scanningIcon.BackgroundColor3 = WIN95_COLORS.WindowBackground
+	scanningIcon.BorderSizePixel = 1
+	scanningIcon.BorderColor3 = WIN95_COLORS.ButtonShadow
+	scanningIcon.Text = "📡"
+	scanningIcon.TextColor3 = WIN95_COLORS.WindowText
+	scanningIcon.Font = Enum.Font.SourceSans
+	scanningIcon.TextSize = 24
+	scanningIcon.Parent = content
+
+	-- Progress bar container
+	local progressContainer = Instance.new("Frame")
+	progressContainer.Name = "ProgressContainer"
+	progressContainer.Size = UDim2.new(1, -20, 0, 20)
+	progressContainer.Position = UDim2.new(0, 10, 0, 70)
+	progressContainer.BackgroundColor3 = WIN95_COLORS.ButtonShadow
+	progressContainer.BorderSizePixel = 0
+	progressContainer.Parent = content
+
+	-- Progress bar fill
+	local progressBar = Instance.new("Frame")
+	progressBar.Name = "ProgressBar"
+	progressBar.Size = UDim2.new(0, 0, 1, 0)
+	progressBar.Position = UDim2.new(0, 0, 0, 0)
+	progressBar.BackgroundColor3 = NOTIFICATION_COLORS.Info
+	progressBar.BorderSizePixel = 0
+	progressBar.Parent = progressContainer
+
+	-- Status text
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "StatusLabel"
+	statusLabel.Size = UDim2.new(1, -20, 0, 20)
+	statusLabel.Position = UDim2.new(0, 10, 0, 100)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = "Аналіз поверхні..."
+	statusLabel.TextColor3 = WIN95_COLORS.WindowText
+	statusLabel.Font = Enum.Font.SourceSans
+	statusLabel.TextSize = 12
+	statusLabel.Parent = content
+
+	-- Анімація появи
+	scanningWindow.Size = UDim2.new(0, 0, 0, 0)
+	local tweenIn = TweenService:Create(scanningWindow, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 300, 0, 150)
+	})
+	tweenIn:Play()
+
+	-- Анімація прогрес бару
+	local progressTween = TweenService:Create(progressBar, TweenInfo.new(SCAN_DURATION, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(1, 0, 1, 0)
+	})
+	progressTween:Play()
+
+	-- Анімація іконки
+	local rotationTween = TweenService:Create(scanningIcon, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
+		Rotation = 360
+	})
+	rotationTween:Play()
+
+	-- Оновлення статус тексту
+	local statusMessages = {"Аналіз поверхні...", "Сканування рельєфу...", "Виявлення аномалій...", "Обробка даних..."}
+	for i, message in ipairs(statusMessages) do
+		task.delay((i - 1) * (SCAN_DURATION / #statusMessages), function()
+			if statusLabel and statusLabel.Parent then
+				statusLabel.Text = message
+			end
+		end)
+	end
+
+	return scanningWindow
+end
+
+--============================================================================--
+-- ПУБЛІЧНІ ФУНКЦІЇ / PUBLIC API IMPLEMENTATION
+--============================================================================--
+
+--[[
+@function Initialize
+Ініціалізує UI для моделі сканера
+
+@param scannerModel Model - Модель сканера для інтеграції
+@return nil
+]]
+function ScannerUI.Initialize(scannerModel: Model): nil
+	print("[ScannerUI] 📡 Initializing Scanner UI for model:", scannerModel.Name)
+
+	-- Створюємо головний GUI
+	scannerGui = Instance.new("ScreenGui")
+	scannerGui.Name = "ScannerUI"
+	scannerGui.ResetOnSpawn = false
+	scannerGui.IgnoreGuiInset = true
+	scannerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	scannerGui.Parent = player:WaitForChild("PlayerGui")
+
+	-- Знаходимо ProximityPrompt
+	local scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate")
+	if scannerBaseplate then
+		proximityPrompt = scannerBaseplate:FindFirstChild("ProximityPrompt")
+		if proximityPrompt then
+			proximityPrompt.Triggered:Connect(function(playerWhoTriggered)
+				if playerWhoTriggered == player and not isScanning then
+					print("[ScannerUI] 📡 Scan triggered by player")
+					ScannerUI.ShowScanningAnimation()
+					task.delay(SCAN_DURATION, function()
+						ScannerUI.HideScanningAnimation()
+						-- Симуляція результатів сканування
+						local mockResults = {
+							{id = "Location_1", name = "Затоніле місто", type = "Розкопки", difficulty = "Середній"},
+							{id = "Location_2", name = "Кристалічні печери", type = "Ресурси", difficulty = "Високий"},
+							{id = "Location_3", name = "Забутий аванпост", type = "Технології", difficulty = "Низький"}
+						}
+						ScannerUI.ShowScanResults(mockResults)
+					end)
+				end
+			end)
+		else
+			warn("[ScannerUI] ⚠️ ProximityPrompt not found in ScannerBaseplate")
+		end
+	else
+		warn("[ScannerUI] ⚠️ ScannerBaseplate not found in scanner model")
+	end
+
+	print("[ScannerUI] ✅ Scanner UI initialized successfully")
+end
+
+--[[
+@function ShowScanResults
+Показує результати сканування у вікні
+
+@param results table - Таблиця з результатами сканування
+@return nil
+]]
+function ScannerUI.ShowScanResults(results: {any}): nil
+	print("[ScannerUI] 📊 Showing scan results:", #results, "locations found")
+
+	local resultsList = createResultsWindow()
+	if not resultsList then return end
+
+	-- Очищуємо попередні результати
+	for _, child in ipairs(resultsList:GetChildren()) do
+		child:Destroy()
+	end
+
+	-- Створюємо елементи результатів
+	local yOffset = 5
+	for i, result in ipairs(results) do
+		if i > MAX_RESULTS then break end
+
+		local resultFrame = Instance.new("Frame")
+		resultFrame.Name = "Result" .. i
+		resultFrame.Size = UDim2.new(1, -10, 0, 60)
+		resultFrame.Position = UDim2.new(0, 5, 0, yOffset)
+		resultFrame.BackgroundColor3 = WIN95_COLORS.WindowBackground
+		resultFrame.BorderSizePixel = 1
+		resultFrame.BorderColor3 = WIN95_COLORS.ButtonShadow
+		resultFrame.Parent = resultsList
+
+		-- Назва локації
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Name = "NameLabel"
+		nameLabel.Size = UDim2.new(1, -10, 0, 20)
+		nameLabel.Position = UDim2.new(0, 5, 0, 5)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Text = result.name or "Невідома локація"
+		nameLabel.TextColor3 = WIN95_COLORS.WindowText
+		nameLabel.Font = Enum.Font.SourceSansBold
+		nameLabel.TextSize = 12
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.Parent = resultFrame
+
+		-- Тип локації
+		local typeLabel = Instance.new("TextLabel")
+		typeLabel.Name = "TypeLabel"
+		typeLabel.Size = UDim2.new(0, 150, 0, 15)
+		typeLabel.Position = UDim2.new(0, 5, 0, 25)
+		typeLabel.BackgroundTransparency = 1
+		typeLabel.Text = "Тип: " .. (result.type or "Невідомо")
+		typeLabel.TextColor3 = WIN95_COLORS.WindowText
+		typeLabel.Font = Enum.Font.SourceSans
+		typeLabel.TextSize = 10
+		typeLabel.TextXAlignment = Enum.TextXAlignment.Left
+		typeLabel.Parent = resultFrame
+
+		-- Складність
+		local difficultyLabel = Instance.new("TextLabel")
+		difficultyLabel.Name = "DifficultyLabel"
+		difficultyLabel.Size = UDim2.new(0, 150, 0, 15)
+		difficultyLabel.Position = UDim2.new(0, 5, 0, 40)
+		difficultyLabel.BackgroundTransparency = 1
+		difficultyLabel.Text = "Складність: " .. (result.difficulty or "Невідомо")
+		difficultyLabel.TextColor3 = WIN95_COLORS.WindowText
+		difficultyLabel.Font = Enum.Font.SourceSans
+		difficultyLabel.TextSize = 10
+		difficultyLabel.TextXAlignment = Enum.TextXAlignment.Left
+		difficultyLabel.Parent = resultFrame
+
+		-- Кнопка телепортації
+		local teleportBtn = Instance.new("TextButton")
+		teleportBtn.Name = "TeleportBtn"
+		teleportBtn.Size = UDim2.new(0, 80, 0, 25)
+		teleportBtn.Position = UDim2.new(1, -85, 0, 30)
+		teleportBtn.BackgroundColor3 = WIN95_COLORS.ButtonFace
+		teleportBtn.BorderSizePixel = 1
+		teleportBtn.Text = "Телепорт"
+		teleportBtn.Font = Enum.Font.SourceSans
+		teleportBtn.TextSize = 10
+		teleportBtn.Parent = resultFrame
+		create3DEffect(teleportBtn, true)
+
+		-- Ефекти кнопки
+		teleportBtn.MouseEnter:Connect(function()
+			create3DEffect(teleportBtn, false)
+		end)
+		teleportBtn.MouseLeave:Connect(function()
+			create3DEffect(teleportBtn, true)
+		end)
+		teleportBtn.MouseButton1Down:Connect(function()
+			create3DEffect(teleportBtn, false)
+		end)
+		teleportBtn.MouseButton1Up:Connect(function()
+			create3DEffect(teleportBtn, true)
+		end)
+
+		teleportBtn.MouseButton1Click:Connect(function()
+			print("[ScannerUI] 🚀 Teleporting to location:", result.id)
+			-- TODO: Інтеграція з системою телепортації
+		end)
+
+		yOffset = yOffset + 65
+	end
+
+	-- Оновлюємо розмір ScrollingFrame
+	resultsList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+--[[
+@function ShowScanningAnimation
+Показує анімацію сканування
+
+@return nil
+]]
+function ScannerUI.ShowScanningAnimation(): nil
+	if isScanning then return end
+
+	isScanning = true
+	print("[ScannerUI] 📡 Starting scanning animation...")
+	createScanningWindow()
+end
+
+--[[
+@function HideScanningAnimation
+Ховає анімацію сканування
+
+@return nil
+]]
+function ScannerUI.HideScanningAnimation(): nil
+	if not isScanning then return end
+
+	isScanning = false
+	print("[ScannerUI] ✅ Hiding scanning animation...")
+
+	if scanningWindow then
+		local tweenOut = TweenService:Create(scanningWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, 0)
+		})
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
+		scanningWindow:Destroy()
+		scanningWindow = nil
+	end
+end
+
+--============================================================================--
+-- ІНІЦІАЛІЗАЦІЯ / INITIALIZATION
+--============================================================================--
+
+-- Автоматична ініціалізація при завантаженні скрипта
+task.spawn(function()
+	-- Чекаємо поки LocationModel буде завантажено
+	local locationModel = game.Workspace:WaitForChild("LocationModel", 30)
+	if locationModel then
+		-- Валідуємо що це SpaceStation LocationModel
+		local locationId = locationModel:GetAttribute("LocationId")
+		local locationType = locationModel:GetAttribute("LocationType")
+		
+		if locationId == "SpaceStation" and locationType == "Space" then
+			-- Шукаємо PlanetSurfaceScanner в Equipment секції
+			local equipmentFolder = locationModel:FindFirstChild("Equipment")
+			if equipmentFolder then
+				local scannerModel = equipmentFolder:WaitForChild("PlanetSurfaceScanner", 10)
+				if scannerModel then
+					ScannerUI.Initialize(scannerModel)
+					print("[ScannerUI] ✅ Ініціалізовано для LocationModel.Equipment.PlanetSurfaceScanner")
+				else
+					warn("[ScannerUI] ⚠️ PlanetSurfaceScanner не знайдено в LocationModel/Equipment")
+				end
+			else
+				warn("[ScannerUI] ⚠️ Equipment папка не знайдена в LocationModel")
+			end
+		else
+			warn("[ScannerUI] ⚠️ LocationModel має невірні attributes:")
+			warn("  └─ LocationId: " .. tostring(locationId) .. " (expected: SpaceStation)")
+			warn("  └─ LocationType: " .. tostring(locationType) .. " (expected: Space)")
+		end
+	else
+		warn("[ScannerUI] ⚠️ LocationModel не знайдено в Workspace")
+		warn("  └─ Перевірте що SpaceStation завантажено через EnvironmentLoader")
+	end
+end)
+
+-- Експортуємо функції для глобального доступу
+_G.ScannerUI = ScannerUI
+
+return ScannerUI

@@ -4,7 +4,7 @@ KOSMICMAZER — Game Init
 ================================================================================
 
 Purpose: Complete game initialization with intelligent player data handling
-Version: 3.7
+Version: 3.8
 
 Features:
 - Configuration validation at startup (ConfigValidator v1.0)
@@ -13,6 +13,7 @@ Features:
 - Dynamic environment preparation based on player data
 - Planet-specific world loading
 - Player spawning coordination
+- LocationModel hierarchical structure support
 - Comprehensive workspace cleanup
 
 API:
@@ -50,6 +51,11 @@ Dependencies:
 - TweenService
 
 ChangeLog:
+- Version 3.8: Updated for LocationModel hierarchical structure (ETAP 2)
+- Version 3.8: spawnPlayerAtLocation() now searches LocationModel/Gameplay/SpawnLocation
+- Version 3.8: Added LocationModel attribute validation before spawning
+- Version 3.8: Enhanced fallback system for SpawnLocation discovery
+- Version 3.8: Updated diagnostic messages for new structure paths
 - Version 3.7: ENHANCED - Added ConfigValidator to validate GameConfig at startup
 - Version 3.6: CRITICAL - Added TeleportationManager initialization in initializeGameSystem()
 - Version 3.5: CRITICAL - Updated to use LocationManager as ModuleScript (v2.0)
@@ -358,16 +364,33 @@ local function spawnPlayer(player, playerProfile)
 
 	-- Find SpawnLocation in Workspace (should be loaded by LocationManager)
 	-- LocationManager.SwitchToSpaceStation() calls EnvironmentLoader.LoadSpaceEnvironment()
-	-- which copies SpawnLocation from ServerStorage to Workspace
+	-- SpawnLocation is now inside LocationModel/Gameplay/
 	local spawnLocation = nil
 	
-	-- Try to find in SpaceStation folder first
-	local spaceStation = game.Workspace:FindFirstChild("SpaceStation")
-	if spaceStation then
-		spawnLocation = spaceStation:FindFirstChild("SpawnLocation")
+	-- Try to find SpawnLocation inside LocationModel first
+	local locationModel = game.Workspace:FindFirstChild("LocationModel")
+	if locationModel then
+		-- Validate it's the SpaceStation LocationModel
+		local locationId = locationModel:GetAttribute("LocationId")
+		local locationType = locationModel:GetAttribute("LocationType")
+		
+		if locationId == "SpaceStation" and locationType == "Space" then
+			local gameplayFolder = locationModel:FindFirstChild("Gameplay")
+			if gameplayFolder then
+				spawnLocation = gameplayFolder:FindFirstChild("SpawnLocation")
+			end
+		end
 	end
 	
-	-- If not in SpaceStation folder, try root Workspace
+	-- Fallback: try to find old SpaceStation structure for compatibility
+	if not spawnLocation then
+		local spaceStation = game.Workspace:FindFirstChild("SpaceStation")
+		if spaceStation then
+			spawnLocation = spaceStation:FindFirstChild("SpawnLocation")
+		end
+	end
+	
+	-- Final fallback: try root Workspace
 	if not spawnLocation then
 		spawnLocation = game.Workspace:FindFirstChild("SpawnLocation")
 	end
@@ -383,12 +406,28 @@ local function spawnPlayer(player, playerProfile)
 			}
 		end
 		print("[GameInit] ✅ Гравець з'явився на Космічній Станції")
-		print("  └─ Позиція: " .. tostring(spawnLocation.CFrame.Position))
+		print("  └─ SpawnLocation: " .. tostring(spawnLocation.CFrame.Position))
+		print("  └─ Гравець (HumanoidRootPart): " .. tostring(humanoidRootPart.CFrame.Position))
+		
+		-- Перевірка висоти LocationModel для діагностики
+		local locationModel = game.Workspace:FindFirstChild("LocationModel")
+		if locationModel and locationModel.PrimaryPart then
+			print("  └─ LocationModel PrimaryPart: " .. tostring(locationModel.PrimaryPart.Position))
+		elseif locationModel then
+			print("  └─ LocationModel знайдено, але PrimaryPart не встановлено")
+		else
+			-- Fallback для старої структури
+			local spaceStation = game.Workspace:FindFirstChild("SpaceStation")
+			if spaceStation and spaceStation.PrimaryPart then
+				print("  └─ SpaceStation PrimaryPart (fallback): " .. tostring(spaceStation.PrimaryPart.Position))
+			end
+		end
 	else
 		warn("[GameInit] ❌ SpawnLocation не знайдено в Workspace після завантаження")
 		warn("  └─ Перевірено шляхи:")
-		warn("    • Workspace/SpaceStation/SpawnLocation")
-		warn("    • Workspace/SpawnLocation")
+		warn("    • Workspace/LocationModel/Gameplay/SpawnLocation (новий)")
+		warn("    • Workspace/SpaceStation/SpawnLocation (старий)")
+		warn("    • Workspace/SpawnLocation (fallback)")
 		warn("  └─ LocationManager має завантажити SpawnLocation перед викликом spawnPlayer()")
 		warn("  └─ Використовується позиція за замовчуванням (0, 10, 0)")
 		-- Fallback to default position (higher up to avoid falling)

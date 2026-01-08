@@ -72,25 +72,25 @@ RemoteEvents створюються в різних місцях:
 │ Тип: ModuleScript                                                           │
 │                                                                             │
 │ Структура:                                                                  │
-│   local RemoteEventsRegistry = {}                                           │
-│   RemoteEventsRegistry.Events = {}                                          │
-│   RemoteEventsRegistry.Functions = {}                                       │
+│   -- local RemoteEventsRegistry = {}                                           │
+│   -- RemoteEventsRegistry.Events = {}                                          │
+│   -- RemoteEventsRegistry.Functions = {}                                       │
 │                                                                             │
-│   function RemoteEventsRegistry.Initialize()                                │
+│   -- function RemoteEventsRegistry.Initialize()                                │
 │       -- Створення RemoteEvents на сервері                                  │
-│   end                                                                       │
+│   -- end                                                                       │
 │                                                                             │
-│   function RemoteEventsRegistry.Get(eventName: string)                      │
+│   -- function RemoteEventsRegistry.Get(eventName: string)                      │
 │       -- Отримання RemoteEvent за ім'ям (для сервера)                      │
-│   end                                                                       │
+│   -- end                                                                       │
 │                                                                             │
-│   function RemoteEventsRegistry.WaitFor(eventName: string, timeout: number) │
+│   -- function RemoteEventsRegistry.WaitFor(eventName: string, timeout: number) │
 │       -- Очікування RemoteEvent (для клієнта)                              │
-│   end                                                                       │
+│   -- end                                                                       │
 │                                                                             │
-│   function RemoteEventsRegistry.Validate()                                  │
+│   -- function RemoteEventsRegistry.Validate()                                  │
 │       -- Валідація існування всіх RemoteEvents                             │
-│   end                                                                       │
+│   -- end                                                                       │
 │                                                                             │
 │ Список RemoteEvents:                                                        │
 │   - TeleportationEvent                                                      │
@@ -106,19 +106,19 @@ RemoteEvents створюються в різних місцях:
 │                                                                             │
 │ Зміни:                                                                      │
 │   1. Додати require RemoteEventsRegistry на початку:                       │
-│      local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry) │
+│      -- local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry) │
 │                                                                             │
 │   2. В initializeGameSystem() додати ПЕРЕД ініціалізацією інших систем:   │
 │      -- Initialize RemoteEvents first                                       │
-│      print("[GameInit] Ініціалізація RemoteEvents...")                     │
-│      RemoteEventsRegistry.Initialize()                                      │
-│      print("[GameInit] ✅ RemoteEvents готові")                            │
+│      -- print("[GameInit] Ініціалізація RemoteEvents...")                     │
+│      -- RemoteEventsRegistry.Initialize()                                      │
+│      -- print("[GameInit] ✅ RemoteEvents готові")                            │
 │                                                                             │
 │   3. Додати валідацію після ініціалізації:                                 │
-│      local valid, errors = RemoteEventsRegistry.Validate()                  │
-│      if not valid then                                                      │
-│          warn("[GameInit] ❌ Помилки валідації RemoteEvents:", errors)     │
-│      end                                                                    │
+│      -- local valid, errors = RemoteEventsRegistry.Validate()                  │
+│      -- if not valid then                                                      │
+│      --     warn("[GameInit] ❌ Помилки валідації RemoteEvents:", errors)     │
+│      -- end                                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -228,6 +228,7 @@ RemoteEvents створюються в різних місцях:
 - Звести всі статистики до одного розділу Stats
 
 Структура даних v2:
+--[[
     PlayerData = {
         SchemaVersion = 2,
         CurrentPlanet = "Planet_1",
@@ -248,6 +249,7 @@ RemoteEvents створюються в різних місцях:
         }
     }
 
+
 Пріоритет: СЕРЕДНІЙ
 
 ================================================================================
@@ -262,6 +264,7 @@ RemoteEvents створюються в різних місцях:
 - Перевірка наявності моделей у ServerStorage до початку свічу
 
 FSM стани:
+'''lua
     LocationState = {
         IDLE = "Idle",
         CLEANING = "Cleaning",
@@ -271,6 +274,7 @@ FSM стани:
         READY = "Ready",
         ERROR = "Error",
     }
+'''
 
 Pipeline:
     IDLE -> CLEANING -> LOADING_PLANET -> LOADING_LOCATION -> VERIFYING -> READY
@@ -293,14 +297,17 @@ Pipeline:
 - Винести логіку станів у явну FSM
 
 FSM стани:
+'''lua
     TeleportState = {
         INACTIVE = "Inactive",
         ACTIVE = "Active",
         COOLDOWN = "Cooldown",
         TELEPORTING = "Teleporting",
     }
+```
 
 Приклад керування підключеннями:
+'''lua
     local connections = {}
     
     local function connectToSpawn(spawn)
@@ -312,6 +319,7 @@ FSM стани:
         table.insert(connections, spawn.Touched:Connect(onTouched))
         table.insert(connections, spawn.TouchEnded:Connect(onTouchEnded))
     end
+```
 
 Пріоритет: СЕРЕДНІЙ
 
@@ -348,10 +356,12 @@ Data Flow:
 - SystemTest/LoadingMonitor не створюють RemoteEvents
 
 Приклад:
+'''lua
     local GameConfig = require(...)
     if not GameConfig.DEBUG_MODE then
         return -- Не запускати в продакшені
     end
+```
 
 Пріоритет: НИЗЬКИЙ
 
@@ -749,6 +759,7 @@ LocationManager тепер автоматично:
 ================================================================================
 
 GameConfig розширення:
+--[[
     {
         -- Системні налаштування
         DEBUG_MODE = false,
@@ -802,6 +813,7 @@ GameConfig розширення:
             }
         }
     }
+
 
 ================================================================================
 12) СИСТЕМА ІГРОВИХ СЕРЕДОВИЩ
@@ -1663,12 +1675,230 @@ PHASE 6: Cleanup (1 день)
     - Правила розміщення скриптів в Roblox
 
 ================================================================================
+
+
+================================================================================
+ЧАСТИНА III: НОВІ АРХІТЕКТУРНІ ПРОПОЗИЦІЇ (2026-01-08)
+================================================================================
+
+================================================================================
+A) CLIENT SCRIPT INITIALIZER FRAMEWORK
+================================================================================
+Статус: 🔄 НОВА ПРОПОЗИЦІЯ
+Пріоритет: ВИСОКИЙ
+Час виконання: 2-3 години
+
+Проблема:
+- Client scripts потребують доступу до моделей у Workspace
+- Моделі завантажуються асинхронно через EnvironmentLoader  
+- Поточне рішення з task.spawn() - це хак, не системне
+
+Рішення - розширити LoadOrder систему:
+1. LoadOrderProcessor обробляє Client scripts з ініціалізацією
+2. Client scripts експортують Initialize(environment) функцію  
+3. EnvironmentLoader викликає ClientScriptInitializer після завантаження
+4. Стандартні шляхи пошуку моделей
+
+Архітектура:
+ServerScriptService/
+├─ LoadOrderProcessor.luau (існує)
+└─ ClientScriptInitializer.luau (новий)
+
+StarterPlayerScripts/ (після копіювання)
+├─ StationUI.local.luau
+├─ ScannerUI.local.luau  
+└─ ClientEnvironment.luau (новий helper)
+
+Workflow:
+1. EnvironmentLoader копіює client scripts
+2. EnvironmentLoader викликає ClientScriptInitializer.InitializeAll()
+3. ClientScriptInitializer знаходить всі client scripts з Initialize()
+4. Викликає script.Initialize(environment) з моделями Workspace
+
+Client Script Pattern:
+
+```lua
+local ScannerUI = {}
+
+function ScannerUI.Initialize(environment)
+    local scannerModel = environment:FindModel("PlanetSurfaceScanner")
+    -- ініціалізація з моделлю
+end
+
+return ScannerUI
+```
+
+Environment API:
+```lua  
+environment:FindModel("ModelName") -> Model | nil
+environment:GetLocation() -> "SpaceStation" | "Planet_1/Location_1" 
+environment:GetCurrentPlanet() -> "Planet_1"
+```
+
+================================================================================
+B) HIERARCHICAL MODEL STRUCTURE  
+================================================================================
+Статус: 🔄 НОВА ПРОПОЗИЦІЯ
+Пріоритет: КРИТИЧНИЙ 
+Час виконання: 4-6 годин
+
+ПРОБЛЕМА: Моделі в окремих корнях Workspace погано взаємодіють, SpawnLocation та PlanetSurfaceScanner не рухаються з SpaceStation, немає чіткої структури embedded моделей, складно знайти SpawnLocation в ієрархії.
+
+РІШЕННЯ: ГОЛОВНА МОДЕЛЬ + EMBEDDED МОДЕЛІ
+
+Принципи організації:
+✅ Одна головна модель на рівень гри
+✅ SpawnLocation - дочірній об'єкт головної моделі  
+✅ Embedded моделі - дочірні моделі головної моделі
+✅ PrimaryPart головної моделі = центр координат
+✅ При PivotTo() все рухається разом
+✅ Скрипти знають точну ієрархію
+
+ІНТЕГРАЦІЯ З АРХІТЕКТУРОЮ SERVERSTORAGE:
+
+🎯 ЗБЕРЕЖЕНА СТРУКТУРА ServerStorage (з ArchitectureImproves):
+ServerStorage/Space/SpaceStation/
+├── Workspace/ 
+│   └── LocationModel (Model) [СТАНДАРТНА НАЗВА ЗАМІСТЬ "SpaceStation"]
+│       ├── PrimaryPart: SpaceStationCore (Part)
+│       ├── Attributes:
+│       │   ├── LocationId: "SpaceStation"
+│       │   ├── LocationType: "Space" 
+│       │   └── DisplayName: "Cosmic Research Station"
+│       ├── Architecture/        [EMBEDDED МОДЕЛІ]
+│       ├── Equipment/
+│       ├── Environment/
+│       ├── Resources/
+│       └── Gameplay/
+├── Scripts/                     [БЕЗ ЗМІН - як в ArchitectureImproves]
+│   ├── Server/
+│   │   ├── SpaceStationManager.luau
+│   │   ├── PlanetSurfaceScanner.luau
+│   │   └── PlanetScannerController.luau
+│   └── Client/
+│       ├── StationUI.client.luau
+│       └── ScannerUI.client.luau
+└── Configuration/               [БЕЗ ЗМІН - як v ArchitectureImproves]
+    ├── LoadOrder.luau
+    └── Settings.luau
+
+🎯 ЗБЕРЕЖЕНА СТРУКТУРА Planet Location (з ArchitectureImproves):
+ServerStorage/Planets/Planet_1/Locations/Location_1/
+├── Workspace/
+│   └── LocationModel (Model) [СТАНДАРТНА НАЗВА ЗАМІСТЬ назви локації]
+│       ├── PrimaryPart: CavernFloor (Part)  
+│       ├── Attributes:
+│       │   ├── LocationId: "CrystalCaverns"
+│       │   ├── LocationType: "Planet"
+│       │   ├── PlanetId: "Planet_1"
+│       │   └── DisplayName: "Crystal Mining Caverns"
+│       ├── Environment/         [EMBEDDED МОДЕЛІ]
+│       ├── Resources/
+│       └── Gameplay/
+├── Scripts/                     [БЕЗ ЗМІН - як в ArchitectureImproves]
+│   ├── Server/
+│   │   ├── LocationGameServer.luau
+│   │   └── ResourceController.luau
+│   └── Client/
+│       ├── LocationUI.client.luau
+│       └── DialogSystem.client.luau
+├── Lighting/                    [БЕЗ ЗМІН - як in ArchitectureImproves]
+│   ├── Sky
+│   └── LightSources
+└── Configuration/               [БЕЗ ЗМІН - як v ArchitectureImproves]
+    ├── LoadOrder.luau
+    └── Settings.luau
+
+СТАНДАРТИЗОВАНІ НАЗВИ МОДЕЛЕЙ:
+✅ Назва = "LocationModel" (для всіх локацій однаково)
+✅ PrimaryPart = центральний об'єкт для позиціонування  
+✅ Організована в логічні Folder секції
+✅ Атрибут LocationId = унікальний ідентифікатор ("SpaceStation", "CrystalCaverns")
+✅ Атрибут LocationType = тип локації ("Space", "Planet")
+
+Універсальний код:
+```lua
+-- Замість хардкоду назв
+local locationModel = workspace:FindFirstChild("LocationModel")
+local locationId = locationModel:GetAttribute("LocationId")
+
+if locationId == "SpaceStation" then
+    -- Логіка для космічної станції
+end
+```
+
+ПЕРЕВАГИ ІНТЕГРОВАНОГО ПІДХОДУ:
+✅ **Повна сумісність з ArchitectureImproves:**
+- Scripts/Server/, Scripts/Client/ структура БЕЗ ЗМІН
+- Configuration/LoadOrder.luau продовжує працювати
+- Lighting/ копіювання залишається таким самим  
+- Система копіювання скриптів зберігається
+
+✅ **Стандартизація моделей:**
+- Назва "LocationModel" для всіх локацій
+- Attributes замість хардкоду назв
+- Один `PivotTo()` рухає всю локацію
+- Embedded моделі автоматично рухаються разом
+
+================================================================================
+C) EXTENDED LOADORDER SYSTEM v3.0
+================================================================================
+Статус: 🔄 РОЗШИРЕННЯ ІСНУЮЧОГО
+Пріоритет: СЕРЕДНІЙ
+Час виконання: 1-2 години
+
+LoadOrder System v2.0 розширити для підтримки Client Script Framework:
+
+ДОДАТИ в LoadOrder.luau:
+```lua
+return {
+    Version = "3.0",
+    
+    -- Існуючі секції БЕЗ ЗМІН
+    WorkspaceObjects = { ... },
+    ServerScripts = { ... },
+    
+    -- НОВА СЕКЦІЯ для Client Script Framework
+    ClientScripts = {
+        {
+            name = "StationUI", 
+            priority = 1, 
+            hasInitializer = true,
+            description = "Station status UI with Initialize() method"
+        },
+        {
+            name = "ScannerUI", 
+            priority = 2, 
+            hasInitializer = true,
+            description = "Planet scanner UI with Initialize() method"
+        },
+    },
+    
+    -- НОВА СЕКЦІЯ для Environment Context
+    EnvironmentContext = {
+        LocationModelName = "LocationModel",  -- стандартна назва
+        PrimarySearchPaths = {
+            "Equipment.PlanetSurfaceScanner",
+            "Gameplay.SpawnLocation",
+            "Architecture.LandingPad"
+        }
+    }
+}
+```
+
+LoadOrderProcessor розширити для обробки ClientScripts з hasInitializer:
+```lua
+function LoadOrderProcessor:ProcessClientScripts(clientScriptsConfig, environment)
+    for _, scriptConfig in clientScriptsConfig do
+        if scriptConfig.hasInitializer then
+            -- Викликати ClientScriptInitializer для скриптів з Initialize()
+            ClientScriptInitializer.RegisterScript(scriptConfig.name, environment)
+        end
+    end
+end
+```
+
 ]]
 
-local module = {}
-
-module.VERSION = "3.5"
-module.STATUS = "PLANNING"
-module.LAST_UPDATED = "2026-01-07"
-
-return module
+-- Заглушка для запобігання помилкам компіляції
+return {}

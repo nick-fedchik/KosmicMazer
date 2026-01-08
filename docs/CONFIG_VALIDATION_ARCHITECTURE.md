@@ -166,13 +166,13 @@
     ▼                ▼              ▼
 ┌────────┐      ┌─────────┐    ┌──────┐
 │ ERROR  │      │ WARNING │    │ INFO │
-│ (❌)   │      │  (⚠️)   │    │ (ℹ️)  │
+│ (❌)   │      │  (⚠️)  │    │ (ℹ️) │
 └───┬────┘      └────┬────┘    └───┬──┘
     │                │             │
-    ├─→ Add to      ├─→ Add to    └─→ Add to
-    │   errors[]    │   warnings[]    info[]
-    │               │
-    └─→ Set        └─→ Continue
+    ├─→ Add to       ├─→ Add to    └─→ Add to
+    │   errors[]     │   warnings[]    info[]
+    │                │
+    └─→ Set          └─→ Continue
         criticalFailure = true
 
             │
