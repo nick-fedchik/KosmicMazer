@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.7
+Version: 4.8
 
 Features:
 - Manages teleportation activation state
@@ -43,6 +43,7 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 4.8: Fixed planet template path from ServerStorage/Planet_1 to ServerStorage/Planets/Planet_1
 - Version 4.7: GAME RULES FIX - SpawnLocation hidden until first planet scan (2026-01-08)
 - Version 4.7: Added hasBeenActivatedOnce flag to track first activation
 - Version 4.7: setInactiveState() keeps Transparency=1 until first scan completion
@@ -712,7 +713,8 @@ local function onTouched(otherPart)
 			print("[TeleportationManager] 📋 Checking location: " .. location.DisplayName .. " (" .. location.LocationId .. ")")
 			
 			-- CRITICAL FIX: Check if location template exists in ServerStorage
-			local locationTemplate = game.ServerStorage:FindFirstChild("Planet_1")
+			local planetsFolder = game.ServerStorage:FindFirstChild("Planets")
+			local locationTemplate = planetsFolder and planetsFolder:FindFirstChild("Planet_1")
 			if locationTemplate then
 				local locationFolder = locationTemplate:FindFirstChild("Locations")
 				if locationFolder then
@@ -729,16 +731,16 @@ local function onTouched(otherPart)
 						end
 					else
 						warn("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId)
-						warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations/" .. location.LocationId)
+						warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1/Locations/" .. location.LocationId)
 						warn("  └─ Телепортацію заблоковано")
 					end
 				else
 					warn("[TeleportationManager] ❌ Locations folder not found")
-					warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations")
+					warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1/Locations")
 				end
 			else
 				warn("[TeleportationManager] ❌ Planet_1 template not found")
-				warn("  └─ Очікуваний шлях: ServerStorage/Planet_1")
+				warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1")
 			end
 		end
 

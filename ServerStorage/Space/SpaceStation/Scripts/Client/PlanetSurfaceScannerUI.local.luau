@@ -4,7 +4,7 @@ KOSMICMAZER — Planet Surface Scanner UI Client
 ================================================================================
 
 Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
-Version: 1.7
+Version: 1.8
 
 Features:
 - Відображення результатів сканування планетної поверхні (Windows 95 стиль)
@@ -41,6 +41,7 @@ Dependencies:
 - PlanetSurfaceScanner: Модель сканера
 
 ChangeLog:
+- Version 1.8: Added debug logging for ProximityPrompt triggering
 - Version 1.7: Removed GuiConvention dependency, colors defined locally
 - Version 1.6: Renamed from ScannerUI to PlanetSurfaceScannerUI for clarity
 - Version 1.5: Simplified Initialize() - removed mock results simulation
@@ -529,7 +530,7 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 		if playerWhoTriggered ~= player then return end
 		if isScanning then return end
 
-		print("[PlanetSurfaceScannerUI] 📡 Scan triggered by player")
+		print("[PlanetSurfaceScannerUI] 📡 ProximityPrompt TRIGGERED by player:", playerWhoTriggered.Name)
 		PlanetSurfaceScannerUI.ShowScanningAnimation()
 
 		task.delay(SCAN_DURATION, function()
@@ -537,6 +538,8 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 			print("[PlanetSurfaceScannerUI] ✅ Scan completed, waiting for server results")
 		end)
 	end)
+
+	print("[PlanetSurfaceScannerUI] 🎯 ProximityPrompt configured - Enabled:", proximityPrompt.Enabled, "MaxActivationDistance:", proximityPrompt.MaxActivationDistance)
 
 	print("[PlanetSurfaceScannerUI] ✅ Scanner UI initialized successfully")
 end
