@@ -56,6 +56,7 @@ ChangeLog:
 ]]
 
 local LocationGameServer = {}
+LocationGameServer.Version = "2.0"
 
 --============================================================================--
 -- SERVICES
@@ -146,10 +147,10 @@ LocationGameServer.LOCATION_RULES = {
 Завантажує ресурси локації
 ]]
 local function loadResources()
-	print("[LocationGameServer] 📦 Завантаження ресурсів для", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 📦 Завантаження ресурсів для", LocationGameServer.LOCATION_NAME)
 	
 	if not locationModel then
-		warn("[LocationGameServer] ⚠️ LocationModel not set")
+		warn("[LocationGameServer 2.0] ⚠️ LocationModel not set")
 		return
 	end
 	
@@ -172,17 +173,17 @@ local function loadResources()
 		})
 	end
 	
-	print("[LocationGameServer] ✅ Завантажено ресурсів:", #resources)
+	print("[LocationGameServer 2.0] ✅ Завантажено ресурсів:", #resources)
 end
 
 --[[
 Ініціалізує NPC в локації
 ]]
 local function initializeNPCs()
-	print("[LocationGameServer] 👥 Ініціалізація NPC для", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 👥 Ініціалізація NPC для", LocationGameServer.LOCATION_NAME)
 	
 	if not locationModel then
-		warn("[LocationGameServer] ⚠️ LocationModel not set")
+		warn("[LocationGameServer 2.0] ⚠️ LocationModel not set")
 		return
 	end
 	
@@ -193,11 +194,11 @@ local function initializeNPCs()
 			for _, npc in ipairs(npcsFolder:GetChildren()) do
 				if npc:IsA("Model") then
 					-- TODO: Ініціалізувати NPC логіку
-					print("[LocationGameServer] 👤 NPC знайдено:", npc.Name)
+					print("[LocationGameServer 2.0] 👤 NPC знайдено:", npc.Name)
 				end
 			end
 		else
-			print("[LocationGameServer] ℹ️ Немає NPC в цій локації")
+			print("[LocationGameServer 2.0] ℹ️ Немає NPC в цій локації")
 		end
 	end
 end
@@ -206,7 +207,7 @@ end
 Ініціалізує квести локації
 ]]
 local function initializeQuests()
-	print("[LocationGameServer] 📜 Ініціалізація квестів для", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 📜 Ініціалізація квестів для", LocationGameServer.LOCATION_NAME)
 	
 	-- TODO: Завантажити квести з конфігу
 	-- TODO: Зареєструвати квести в QuestManager
@@ -216,7 +217,7 @@ end
 Обробляє збір ресурсу гравцем
 ]]
 local function onResourceHarvested(player, resource)
-	print("[LocationGameServer] ⛏️ Гравець", player.Name, "зібрав ресурс:", resource.Type)
+	print("[LocationGameServer 2.0] ⛏️ Гравець", player.Name, "зібрав ресурс:", resource.Type)
 	
 	-- TODO: Додати ресурс в інвентар гравця
 	-- TODO: Запустити респавн ресурсу
@@ -235,11 +236,11 @@ end
 ]]
 function LocationGameServer.Initialize(model)
 	if isInitialized then
-		warn("[LocationGameServer] ⚠️ Already initialized for", LocationGameServer.LOCATION_NAME)
+		warn("[LocationGameServer 2.0] ⚠️ Already initialized for", LocationGameServer.LOCATION_NAME)
 		return false
 	end
 	
-	print("[LocationGameServer] 🎮 Ініціалізація гри для локації:", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 🎮 Ініціалізація гри для локації:", LocationGameServer.LOCATION_NAME)
 	
 	locationModel = model
 	
@@ -252,13 +253,13 @@ function LocationGameServer.Initialize(model)
 		
 		-- Перевіряємо чи є необхідні секції
 		if not architectureFolder then
-			warn("[LocationGameServer] ⚠️ Architecture folder missing!")
+			warn("[LocationGameServer 2.0] ⚠️ Architecture folder missing!")
 		end
 		if not gameplayFolder then
-			warn("[LocationGameServer] ⚠️ Gameplay folder missing!")
+			warn("[LocationGameServer 2.0] ⚠️ Gameplay folder missing!")
 		end
 		
-		print("[LocationGameServer] ✅ LocationModel структура ініціалізована")
+		print("[LocationGameServer 2.0] ✅ LocationModel структура ініціалізована")
 		print("  Architecture:", architectureFolder and "✅" or "❌")
 		print("  Equipment:", equipmentFolder and "✅" or "❌") 
 		print("  Environment:", environmentFolder and "✅" or "❌")
@@ -273,12 +274,14 @@ function LocationGameServer.Initialize(model)
 	-- Застосувати планетарні правила
 	if PlanetConfig then
 		PlanetConfig.ApplyPlanetPhysics()
-		print("[LocationGameServer] ✅ Застосовано фізику планети")
+		print("[LocationGameServer 2.0] ✅ Застосовано фізику планети")
 	end
 	
 	isInitialized = true
-	print("[LocationGameServer] ✅ Локація", LocationGameServer.LOCATION_NAME, "ініціалізована")
-	
+	local scriptName = "LocationGameServer"
+	local scriptVersion = LocationGameServer.Version
+	print(string.format("[%s %s] ✅ Локація %s ініціалізована", scriptName, scriptVersion, LocationGameServer.LOCATION_NAME))
+
 	return true
 end
 
@@ -289,7 +292,7 @@ end
 @return nil
 ]]
 function LocationGameServer.Cleanup()
-	print("[LocationGameServer] 🧹 Очищення локації:", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 🧹 Очищення локації:", LocationGameServer.LOCATION_NAME)
 	
 	-- Відключити всі події
 	for _, connection in ipairs(connections) do
@@ -311,7 +314,7 @@ function LocationGameServer.Cleanup()
 	gameplayFolder = nil
 	isInitialized = false
 	
-	print("[LocationGameServer] ✅ Локацію очищено")
+	print("[LocationGameServer 2.0] ✅ Локацію очищено")
 end
 
 --[[
@@ -322,7 +325,7 @@ end
 @return nil
 ]]
 function LocationGameServer.OnPlayerEnter(player)
-	print("[LocationGameServer] 👋 Гравець", player.Name, "увійшов в", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 👋 Гравець", player.Name, "увійшов в", LocationGameServer.LOCATION_NAME)
 	
 	activePlayers[player.UserId] = {
 		Player = player,
@@ -343,7 +346,7 @@ end
 @return nil
 ]]
 function LocationGameServer.OnPlayerLeave(player)
-	print("[LocationGameServer] 👋 Гравець", player.Name, "покинув", LocationGameServer.LOCATION_NAME)
+	print("[LocationGameServer 2.0] 👋 Гравець", player.Name, "покинув", LocationGameServer.LOCATION_NAME)
 	
 	local playerData = activePlayers[player.UserId]
 	if playerData then
@@ -351,8 +354,8 @@ function LocationGameServer.OnPlayerLeave(player)
 		-- TODO: Оновити статистику
 		
 		local timeSpent = tick() - playerData.EnterTime
-		print("[LocationGameServer] ⏱️ Час в локації:", math.floor(timeSpent), "секунд")
-		print("[LocationGameServer] 📊 Зібрано ресурсів:", playerData.ResourcesCollected)
+		print("[LocationGameServer 2.0] ⏱️ Час в локації:", math.floor(timeSpent), "секунд")
+		print("[LocationGameServer 2.0] 📊 Зібрано ресурсів:", playerData.ResourcesCollected)
 	end
 	
 	activePlayers[player.UserId] = nil

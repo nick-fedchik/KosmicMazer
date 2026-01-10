@@ -1,9 +1,9 @@
 --[[
 ================================================================================
-KOSMICMAZER — Location_1 Game Server
+KOSMICMAZER — Location_2 Game Server
 ================================================================================
 
-Purpose: Серверна логіка гри для Location_2 (Мурашник) на Planet_1
+Purpose: Серверна логіка гри для Location_2 (Садочок) на Planet_2
 Version: 2.0
 
 Features:
@@ -45,7 +45,7 @@ Called from:
 - EnvironmentLoader: При ініціалізації середовища
 
 Dependencies:
-- PlanetConfig module (Planet_1)
+- PlanetConfig module (Planet_2)
 - GameConfig module
 - PlayerDataManager module
 
@@ -56,7 +56,6 @@ ChangeLog:
 ]]
 
 local LocationGameServer = {}
-LocationGameServer.Version = "2.0"
 
 --============================================================================--
 -- SERVICES
@@ -73,7 +72,7 @@ local GameConfig = require(game.ServerScriptService:WaitForChild("GameConfig"))
 -- Load PlanetConfig from ServerStorage
 local PlanetConfig
 pcall(function()
-	local planet1Folder = ServerStorage:WaitForChild("Planets"):WaitForChild("Planet_1")
+	local planet1Folder = ServerStorage:WaitForChild("Planets"):WaitForChild("Planet_2")
 	local configFolder = planet1Folder:WaitForChild("Configuration")
 	PlanetConfig = require(configFolder:WaitForChild("PlanetConfig"))
 end)
@@ -84,7 +83,7 @@ end)
 
 LocationGameServer.LOCATION_ID = "Location_2"
 LocationGameServer.LOCATION_NAME = "Мурашник"
-LocationGameServer.PLANET_ID = "Planet_1"
+LocationGameServer.PLANET_ID = "Planet_2"
 
 --============================================================================--
 -- СТАН ЛОКАЦІЇ / LOCATION STATE
@@ -278,10 +277,8 @@ function LocationGameServer.Initialize(model)
 	end
 	
 	isInitialized = true
-	local scriptName = "LocationGameServer"
-	local scriptVersion = LocationGameServer.Version
-	print(string.format("[%s %s] ✅ Локація %s ініціалізована", scriptName, scriptVersion, LocationGameServer.LOCATION_NAME))
-
+	print("[LocationGameServer 2.0] ✅ Локація", LocationGameServer.LOCATION_NAME, "ініціалізована")
+	
 	return true
 end
 

@@ -1,10 +1,10 @@
 --[[
 ================================================================================
-KOSMICMAZER — Planet_1 Configuration
+KOSMICMAZER — Planet_2 Configuration
 ================================================================================
 
-Purpose: Конфігурація та правила гри для планети Zalizyaka (Planet_1)
-Version: 1.1
+Purpose: Конфігурація та правила гри для планети Zalizyaka (Planet_2)
+Version: 1.0
 
 Features:
 - Загальні налаштування планети
@@ -33,22 +33,18 @@ Dependencies:
 - GameConfig module
 
 ChangeLog:
-- Version 1.1 (2026-01-10): Додано LOCATIONS таблицю (міграція з GameConfig)
-  - Локації: Location_1 (Садочок), Location_2 (Гута), Location_3 (Канапка)
-  - Структура сумісна з TeleportationManager, DataStoreManager, PlanetSurfaceScanner
 - Version 1.0: Initial template for planet-specific configuration
 
 ================================================================================
 ]]
 
 local PlanetConfig = {}
-PlanetConfig.Version = "1.1"
 
 --============================================================================--
 -- КОНСТАНТИ ПЛАНЕТИ / PLANET CONSTANTS
 --============================================================================--
 
-PlanetConfig.PLANET_ID = "Planet_1"
+PlanetConfig.PLANET_ID = "Planet_2"
 PlanetConfig.PLANET_NAME = "Zalizyaka"
 PlanetConfig.DISPLAY_NAME = "Залізяка"
 
@@ -119,42 +115,6 @@ PlanetConfig.ECONOMY = {
 		Crystal = 50,
 		Artifact = 200,
 		Energy = 5
-	}
-}
-
---============================================================================--
--- ЛОКАЦІЇ ПЛАНЕТИ / PLANET LOCATIONS
---============================================================================--
-
--- Таблиця локацій планети (мігровано з GameConfig v4.1)
--- Використовується TeleportationManager, DataStoreManager, PlanetSurfaceScanner
-PlanetConfig.LOCATIONS = {
-	Location_1 = {
-		Name = "Location_1",
-		DisplayName = "Садочок",
-		SpawnPoint = "SpawnLocation",
-		TeleportPoint = "SpawnLocation",
-		Folder = "Planets/Planet_1/Locations/Location_1",
-		isDiscovered = true, -- Початкова локація, завжди відкрита
-		TeleportTo = true -- Доступна для телепортації
-	},
-	Location_2 = {
-		Name = "Location_2",
-		DisplayName = "Гута",
-		SpawnPoint = "SpawnLocation",
-		TeleportPoint = "SpawnLocation",
-		Folder = "Planets/Planet_1/Locations/Location_2",
-		isDiscovered = true, -- Відкривається після сканування
-		TeleportTo = true
-	},
-	Location_3 = {
-		Name = "Location_3",
-		DisplayName = "Канапка",
-		SpawnPoint = "SpawnLocation",
-		TeleportPoint = "SpawnLocation",
-		Folder = "Planets/Planet_1/Locations/Location_3",
-		isDiscovered = false, -- Буде відкрито пізніше
-		TeleportTo = true
 	}
 }
 
@@ -268,14 +228,11 @@ end
 ]]
 function PlanetConfig.ApplyPlanetPhysics()
 	local Workspace = game:GetService("Workspace")
-	local scriptName = "PlanetConfig"
-	local scriptVersion = PlanetConfig.Version
-
+	
 	-- Застосувати гравітацію
 	Workspace.Gravity = 196.2 * PlanetConfig.GRAVITY -- 196.2 - стандартна гравітація Roblox
-
-	print(string.format("[%s %s] ✅ Застосовано гравітацію: %s (%s)",
-		scriptName, scriptVersion, PlanetConfig.GRAVITY, Workspace.Gravity))
+	
+	print("[PlanetConfig 1.0] ✅ Застосовано гравітацію:", PlanetConfig.GRAVITY, "(" .. Workspace.Gravity .. ")")
 end
 
 return PlanetConfig

@@ -4,11 +4,11 @@ KOSMICMAZER — Configuration Validator
 ================================================================================
 
 Purpose: Validates GameConfig structure at startup to prevent runtime errors
-Version: 1.1
+Version: 1.3
 
 Features:
 - Validates required GameConfig fields
-- Checks planet and location configurations
+- Checks planet configurations from ServerStorage via PlanetConfigLoader
 - Validates ServerStorage model existence with LocationModel hierarchy support
 - Provides detailed error messages and warnings
 - Fail-fast on critical configuration issues
@@ -30,14 +30,28 @@ Called by:
 - GameInit.server.luau: During game initialization
 
 Dependencies:
+- PlanetConfigLoader module (v1.1+)
 - GameConfig module (validated)
 - ServerStorage service (checked)
+
+ChangeLog:
+- Version 1.3 (2026-01-10): Removed legacy GameConfig.Planets validators
+  - Removed validateLocation() function (old structure)
+  - Removed validatePlanet() function (old structure)
+  - validatePlanets() now exclusively uses PlanetConfigLoader
+  - Compatible with PlanetConfig.LOCATIONS structure
 
 ================================================================================
 ]]
 
+--============================================================================--
+-- MODULES
+--============================================================================--
+local ServerScriptService = game:GetService("ServerScriptService")
+local PlanetConfigLoader = require(ServerScriptService:FindFirstChild("PlanetConfigLoader"))
+
 local ConfigValidator = {}
-ConfigValidator.Version = "1.1"
+ConfigValidator.Version = "1.3"
 
 -- Validation results storage
 local validationReport = {
@@ -165,16 +179,14 @@ local function validateRequiredFields(config)
 	if not config.Spawn then
 		addWarning("RequiredFields", "Spawn table is missing")
 	end
-	
-	-- Check planets table
-	if not config.Planets then
-		addError("RequiredFields", "Planets table is missing")
-	elseif type(config.Planets) ~= "table" then
-		addError("RequiredFields", "Planets must be a table")
-	elseif next(config.Planets) == nil then
-		addError("RequiredFields", "Planets table is empty - at least one planet required")
+
+	-- Check DEFAULT_PLANET (v4.1: Planets migrated to ServerStorage)
+	if not config.DEFAULT_PLANET then
+		addError("RequiredFields", "DEFAULT_PLANET is missing")
+	elseif type(config.DEFAULT_PLANET) ~= "string" or config.DEFAULT_PLANET == "" then
+		addError("RequiredFields", "DEFAULT_PLANET must be a non-empty string")
 	end
-	
+
 	-- Check space station configuration
 	if not config.SpaceStation then
 		addError("RequiredFields", "SpaceStation table is missing")
@@ -194,139 +206,73 @@ end
 -- SECTION 3: PLANET CONFIGURATION VALIDATION
 --------------------------------------------------------------------------------
 
--- Validate a single location configuration
-local function validateLocation(planetId: string, locationId: string, location: any)
-	local category = string.format("Location:%s.%s", planetId, locationId)
-	
-	-- Check location name
-	if not location.Name or location.Name == "" then
-		addError(category, "Location.Name is missing or empty")
-	elseif location.Name ~= locationId then
-		addWarning(category, string.format("Location.Name '%s' doesn't match locationId '%s'", 
-			location.Name, locationId))
-	end
-	
-	-- Check display name
-	if not location.DisplayName or location.DisplayName == "" then
-		addWarning(category, "Location.DisplayName is missing (used for UI display)")
-	end
-	
-	-- Check folder
-	if not location.Folder or location.Folder == "" then
-		addError(category, "Location.Folder is missing or empty")
-	end
-	
-	-- Check spawn point
-	if not location.SpawnPoint or location.SpawnPoint == "" then
-		addError(category, "Location.SpawnPoint is missing or empty - players won't be able to spawn")
-	end
-	
-	-- Check teleport point
-	if not location.TeleportPoint or location.TeleportPoint == "" then
-		addWarning(category, "Location.TeleportPoint is missing (used for teleportation UI)")
-	end
-	
-	-- Check discovery flags
-	if location.isDiscovered == nil then
-		addWarning(category, "Location.isDiscovered not specified (defaults to false)")
-	end
-	if location.isVisited == nil then
-		addWarning(category, "Location.isVisited not specified (defaults to false)")
-	end
-	if location.TeleportTo == nil then
-		addWarning(category, "Location.TeleportTo not specified (defaults to false)")
-	end
-end
+-- REMOVED v4.6 (2026-01-10): validateLocation() and validatePlanet() functions
+-- These functions validated the old GameConfig.Planets.{PlanetId}.Locations structure
+-- Now replaced by validatePlanets() which uses PlanetConfigLoader from ServerStorage
+-- The new validator checks PlanetConfig.LOCATIONS from ServerStorage/Planets/{PlanetId}/Configuration/
 
--- Validate a single planet configuration
-local function validatePlanet(planetId: string, planet: any)
-	local category = "Planet:" .. planetId
-	
-	-- Check planet name
-	if not planet.Name or planet.Name == "" then
-		addError(category, "Planet.Name is missing or empty")
-	elseif planet.Name ~= planetId then
-		addWarning(category, string.format("Planet.Name '%s' doesn't match planetId '%s'", planet.Name, planetId))
-	end
-	
-	-- Check display name
-	if not planet.DisplayName or planet.DisplayName == "" then
-		addWarning(category, "Planet.DisplayName is missing (used for UI display)")
-	end
-	
-	-- Check folder
-	if not planet.Folder or planet.Folder == "" then
-		addError(category, "Planet.Folder is missing or empty")
-	end
-	
-	-- Check availability
-	if planet.IsAvailable == nil then
-		addWarning(category, "Planet.IsAvailable not specified (defaults to false)")
-	end
-	
-	-- Check locations
-	if not planet.Locations then
-		addError(category, "Planet.Locations table is missing")
-	elseif type(planet.Locations) ~= "table" then
-		addError(category, "Planet.Locations must be a table")
-	elseif next(planet.Locations) == nil then
-		addWarning(category, "Planet has no locations defined")
-	else
-		-- Validate each location
-		local discoveredCount = 0
-		for locationId, location in pairs(planet.Locations) do
-			validateLocation(planetId, locationId, location)
-			if location.isDiscovered then
-				discoveredCount = discoveredCount + 1
-			end
-		end
-		
-		-- Check if at least one location is discovered
-		if discoveredCount == 0 then
-			addWarning(category, "No locations are marked as discovered - players won't be able to spawn here")
-		end
-		
-		addInfo(category, string.format("Planet has %d locations, %d discovered", 
-			#planet.Locations, discoveredCount))
-	end
-end
+-- REMOVED v4.6 (2026-01-10): validatePlanet() function (legacy GameConfig.Planets validator)
+-- This function was used to validate the old GameConfig.Planets structure
+-- Now replaced by validatePlanets() which uses PlanetConfigLoader from ServerStorage
 
--- Validate all planets
+-- Validate all planets (Updated v4.6: Uses PlanetConfigLoader exclusively)
 local function validatePlanets(config)
-	addInfo("Planets", "Validating planet configurations...")
-	
-	if not config.Planets then
-		return -- Already reported in required fields
+	addInfo("Planets", "Validating PlanetConfig from ServerStorage...")
+
+	-- Check DEFAULT_PLANET is set
+	if not config.DEFAULT_PLANET then
+		addError("Planets", "GameConfig.DEFAULT_PLANET is not set")
+		return
 	end
-	
-	local planetCount = 0
-	local availablePlanets = 0
-	
-	for planetId, planet in pairs(config.Planets) do
-		validatePlanet(planetId, planet)
-		planetCount = planetCount + 1
-		if planet.IsAvailable then
-			availablePlanets = availablePlanets + 1
+
+	-- Try to load DEFAULT_PLANET config from ServerStorage
+	local success, planetConfig = pcall(function()
+		return PlanetConfigLoader.LoadPlanetConfig(config.DEFAULT_PLANET)
+	end)
+
+	if not success then
+		addError("Planets", string.format("Failed to load DEFAULT_PLANET '%s': %s",
+			config.DEFAULT_PLANET, tostring(planetConfig)))
+		return
+	end
+
+	-- Validate LOCATIONS structure
+	if not planetConfig.LOCATIONS or type(planetConfig.LOCATIONS) ~= "table" then
+		addError("Planets", "PlanetConfig.LOCATIONS missing or invalid")
+		return
+	end
+
+	-- Count locations and check for discovered
+	local locationCount = 0
+	local discoveredCount = 0
+
+	for locationId, location in pairs(planetConfig.LOCATIONS) do
+		locationCount = locationCount + 1
+
+		if location.isDiscovered then
+			discoveredCount = discoveredCount + 1
+		end
+
+		-- Validate location structure
+		if not location.DisplayName then
+			addWarning("Planets", string.format("Location '%s' missing DisplayName", locationId))
+		end
+		if not location.SpawnPoint then
+			addWarning("Planets", string.format("Location '%s' missing SpawnPoint", locationId))
 		end
 	end
-	
-	-- Check if default planet exists
-	if config.DEFAULT_PLANET then
-		if not config.Planets[config.DEFAULT_PLANET] then
-			addError("Planets", string.format("DEFAULT_PLANET '%s' not found in Planets table", 
-				config.DEFAULT_PLANET))
-		elseif not config.Planets[config.DEFAULT_PLANET].IsAvailable then
-			addWarning("Planets", string.format("DEFAULT_PLANET '%s' is not marked as available", 
-				config.DEFAULT_PLANET))
-		end
+
+	-- Check if at least one location is discovered
+	if discoveredCount == 0 then
+		addWarning("Planets", string.format("Planet '%s' has 0 discovered locations - players won't be able to spawn",
+			config.DEFAULT_PLANET))
 	end
-	
-	-- Check if at least one planet is available
-	if availablePlanets == 0 then
-		addError("Planets", "No planets are marked as available - players won't be able to play")
-	end
-	
-	addInfo("Planets", string.format("Validated %d planets, %d available", planetCount, availablePlanets))
+
+	addInfo("Planets", string.format("✅ PlanetConfig validated for %s (%s) - %d locations, %d discovered",
+		planetConfig.PLANET_ID or "Unknown",
+		planetConfig.DISPLAY_NAME or "Unknown",
+		locationCount,
+		discoveredCount))
 end
 
 --------------------------------------------------------------------------------

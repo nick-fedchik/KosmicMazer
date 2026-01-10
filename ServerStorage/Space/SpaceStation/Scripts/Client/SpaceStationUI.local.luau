@@ -81,19 +81,16 @@ local WIN95_COLORS = {
 local DEFAULT_PLANET_ID = "Planet_1"
 
 -- @const string Назва космічної станції
-local STATION_DISPLAY_NAME = "Космічна Станція"
+local STATION_DISPLAY_NAME = nil -- буде встановлено динамічно
 
 -- @const table Назви планет (отримуються від сервера або хардкодяться)
-local PLANET_NAMES = {
-	["Planet_1"] = "Планета 1",
-	["Planet_2"] = "Планета 2",
-}
+local PLANET_NAMES = {} -- буде встановлено динамічно
 
 -- @var string ID поточної планети
 local currentPlanetId = DEFAULT_PLANET_ID
 
 -- @var string Назва поточної планети
-local currentPlanetName = PLANET_NAMES[DEFAULT_PLANET_ID] or "Невідома планета"
+local currentPlanetName = nil -- буде встановлено динамічно
 
 --============================================================================--
 -- ГЛОБАЛЬНІ ЗМІННІ / GLOBAL VARIABLES
@@ -272,7 +269,7 @@ local function createExitDialog()
 
 	yesBtn.MouseButton1Click:Connect(function()
 		-- TODO: Реалізувати вихід з гри зі збереженням
-		print("[SpaceStationUI] 🚪 Player confirmed exit - implementing save and quit...")
+		print("[SpaceStationUI 1.5] 🚪 Player confirmed exit - implementing save and quit...")
 		Players.LocalPlayer:Kick("Дякуємо за гру!")
 	end)
 
@@ -307,12 +304,33 @@ local function createExitDialog()
 end
 
 -- Створює горизонтальний статус бар
+local function getLocationModel()
+	local workspace = game:GetService("Workspace")
+	local locationModel = workspace:FindFirstChild("LocationModel")
+	return locationModel
+end
+
+local function getStationDisplayName()
+	local locationModel = getLocationModel()
+	if locationModel and locationModel:GetAttribute("LocationType") == "Space" then
+		return locationModel:GetAttribute("DisplayName") or require(game:GetService("ServerStorage").Space.SpaceStation.Configuration.SpaceConfig).GetDisplayName()
+	end
+	return require(game:GetService("ServerStorage").Space.SpaceStation.Configuration.SpaceConfig).GetDisplayName()
+end
+
+local function getPlanetDisplayName()
+	local locationModel = getLocationModel()
+	if locationModel and locationModel:GetAttribute("LocationType") == "Planet" then
+		return locationModel:GetAttribute("DisplayName") or "Невідома планета"
+	end
+	return "Невідома планета"
+end
+
 local function createStatusBar()
 	if statusBarGui then
 		statusBarGui:Destroy()
 	end
 
-	-- Створюємо ScreenGui
 	statusBarGui = Instance.new("ScreenGui")
 	statusBarGui.Name = "StationStatusBar"
 	statusBarGui.ResetOnSpawn = false
@@ -320,7 +338,6 @@ local function createStatusBar()
 	statusBarGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	statusBarGui.Parent = player:WaitForChild("PlayerGui")
 
-	-- Головний статус бар
 	local statusBar = Instance.new("Frame")
 	statusBar.Name = "StatusBar"
 	statusBar.Size = UDim2.new(0, 500, 0, 40)
@@ -330,7 +347,6 @@ local function createStatusBar()
 	statusBar.BorderColor3 = WIN95_COLORS.ButtonShadow
 	statusBar.Parent = statusBarGui
 
-	-- Створюємо 3D ефект для статус бару
 	local lightBorder = Instance.new("Frame")
 	lightBorder.Name = "LightBorder"
 	lightBorder.Size = UDim2.new(1, 2, 1, 2)
@@ -349,7 +365,6 @@ local function createStatusBar()
 	darkBorder.ZIndex = statusBar.ZIndex + 1
 	darkBorder.Parent = statusBar
 
-	-- Секція назви станції
 	local stationSection = Instance.new("Frame")
 	stationSection.Name = "StationSection"
 	stationSection.Size = UDim2.new(0, 180, 1, 0)
@@ -357,7 +372,6 @@ local function createStatusBar()
 	stationSection.BackgroundTransparency = 1
 	stationSection.Parent = statusBar
 
-	-- Іконка станції
 	local stationIcon = Instance.new("TextLabel")
 	stationIcon.Name = "StationIcon"
 	stationIcon.Size = UDim2.new(0, 30, 1, 0)
@@ -371,13 +385,12 @@ local function createStatusBar()
 	stationIcon.TextXAlignment = Enum.TextXAlignment.Center
 	stationIcon.Parent = stationSection
 
-	-- Назва станції
 	stationNameLabel = Instance.new("TextLabel")
 	stationNameLabel.Name = "StationNameLabel"
 	stationNameLabel.Size = UDim2.new(1, -35, 1, 0)
 	stationNameLabel.Position = UDim2.new(0, 35, 0, 0)
 	stationNameLabel.BackgroundTransparency = 1
-	stationNameLabel.Text = STATION_DISPLAY_NAME
+	stationNameLabel.Text = getStationDisplayName()
 	stationNameLabel.TextColor3 = WIN95_COLORS.WindowText
 	stationNameLabel.TextScaled = false
 	stationNameLabel.Font = Enum.Font.SourceSansBold
@@ -385,7 +398,6 @@ local function createStatusBar()
 	stationNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	stationNameLabel.Parent = stationSection
 
-	-- Секція назви планети
 	local planetSection = Instance.new("Frame")
 	planetSection.Name = "PlanetSection"
 	planetSection.Size = UDim2.new(0, 180, 1, 0)
@@ -393,7 +405,6 @@ local function createStatusBar()
 	planetSection.BackgroundTransparency = 1
 	planetSection.Parent = statusBar
 
-	-- Іконка планети
 	local planetIcon = Instance.new("TextLabel")
 	planetIcon.Name = "PlanetIcon"
 	planetIcon.Size = UDim2.new(0, 30, 1, 0)
@@ -407,13 +418,12 @@ local function createStatusBar()
 	planetIcon.TextXAlignment = Enum.TextXAlignment.Center
 	planetIcon.Parent = planetSection
 
-	-- Назва планети
 	planetNameLabel = Instance.new("TextLabel")
 	planetNameLabel.Name = "PlanetNameLabel"
 	planetNameLabel.Size = UDim2.new(1, -35, 1, 0)
 	planetNameLabel.Position = UDim2.new(0, 35, 0, 0)
 	planetNameLabel.BackgroundTransparency = 1
-	planetNameLabel.Text = currentPlanetName
+	planetNameLabel.Text = getPlanetDisplayName()
 	planetNameLabel.TextColor3 = WIN95_COLORS.WindowText
 	planetNameLabel.TextScaled = false
 	planetNameLabel.Font = Enum.Font.SourceSansBold
@@ -421,7 +431,6 @@ local function createStatusBar()
 	planetNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	planetNameLabel.Parent = planetSection
 
-	-- Секція кнопки виходу
 	local exitSection = Instance.new("Frame")
 	exitSection.Name = "ExitSection"
 	exitSection.Size = UDim2.new(0, 120, 1, 0)
@@ -429,7 +438,6 @@ local function createStatusBar()
 	exitSection.BackgroundTransparency = 1
 	exitSection.Parent = statusBar
 
-	-- Кнопка виходу
 	exitButton = Instance.new("TextButton")
 	exitButton.Name = "ExitButton"
 	exitButton.Size = UDim2.new(1, -10, 1, -6)
@@ -444,16 +452,13 @@ local function createStatusBar()
 	exitButton.TextSize = 12
 	exitButton.Parent = exitSection
 
-	-- Створюємо 3D ефект для кнопки виходу
 	create3DEffect(exitButton, true)
 
-	-- Обробник натискання кнопки виходу
 	exitButton.MouseButton1Click:Connect(function()
-		print("[SpaceStationUI] 🚪 Exit button clicked!")
+		print("[SpaceStationUI 1.5] 🚪 Exit button clicked!")
 		createExitDialog()
 	end)
 
-	-- Ефекти наведення для кнопки виходу
 	exitButton.MouseEnter:Connect(function()
 		create3DEffect(exitButton, false)
 	end)
@@ -467,7 +472,7 @@ local function createStatusBar()
 		create3DEffect(exitButton, true)
 	end)
 
-	print("[SpaceStationUI] ✅ Status bar created successfully")
+	print("[SpaceStationUI] ✅ Status bar created successfully (dynamic names)")
 end
 
 --============================================================================--
@@ -483,7 +488,7 @@ local SpaceStationUI = {}
 @return nil
 ]]
 function SpaceStationUI.Initialize(): nil
-	print("[SpaceStationUI] 🚀 Initializing Station UI...")
+	print("[SpaceStationUI 1.5] 🚀 Initializing Station UI...")
 	createStatusBar()
 	return
 end
@@ -500,9 +505,9 @@ function SpaceStationUI.UpdatePlanetName(planetId: string): nil
 		currentPlanetId = planetId
 		currentPlanetName = PLANET_NAMES[planetId] or "Невідома планета"
 		planetNameLabel.Text = currentPlanetName
-		print("[SpaceStationUI] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
+		print("[SpaceStationUI 1.5] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
 	else
-		warn("[SpaceStationUI] ⚠️ Planet label not initialized")
+		warn("[SpaceStationUI 1.5] ⚠️ Planet label not initialized")
 	end
 end
 

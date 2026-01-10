@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.8
+Version: 4.9
 
 Features:
 - Manages teleportation activation state
@@ -43,6 +43,9 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 4.9: MIGRATION - Use PlanetConfigLoader instead of GameConfig.Planets (2026-01-10)
+- Version 4.9: Filter locations ONLY from current planet (DEFAULT_PLANET)
+- Version 4.9: Enhanced logging for planet/location filtering
 - Version 4.8: Fixed planet template path from ServerStorage/Planet_1 to ServerStorage/Planets/Planet_1
 - Version 4.7: GAME RULES FIX - SpawnLocation hidden until first planet scan (2026-01-08)
 - Version 4.7: Added hasBeenActivatedOnce flag to track first activation
@@ -72,6 +75,7 @@ local DebrisService = game:GetService("Debris")
 
 -- Load dependencies with error handling
 local GameConfig = require(game.ServerScriptService.GameConfig)
+local PlanetConfigLoader = require(game.ServerScriptService.PlanetConfigLoader)
 
 -- Safe loading of DataStoreManager with fallback
 local DataStoreManager
@@ -388,33 +392,43 @@ local function getDiscoveredLocations(player)
     if not playerData then
         return discoveredLocations
     end
-    
-    -- Check each planet for discovered locations
-    for planetId, planet in pairs(GameConfig.Planets) do
-        if planet.Locations then
-            for locationId, location in pairs(planet.Locations) do
-                -- Check if location is discovered in GameConfig or player data
-                local isDiscovered = location.isDiscovered
-                
-                -- Also check player's discovered locations
-                if playerData.DiscoveredLocations and playerData.DiscoveredLocations[locationId] then
-                    isDiscovered = true
-                end
-                
-                if isDiscovered then
-                    table.insert(discoveredLocations, {
-                        PlanetId = planetId,
-                        LocationId = locationId,
-                        DisplayName = location.DisplayName,
-                        PlanetName = planet.DisplayName,
-                        SpawnPoint = location.SpawnPoint,
-                        TeleportPoint = location.TeleportPoint
-                    })
-                end
+
+    -- Get current planet configuration from ServerStorage
+    local currentPlanet = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+    print(string.format("[TeleportationManager] 📡 Loading locations from planet: %s (%s)",
+        currentPlanet.PLANET_ID or "Unknown", currentPlanet.DISPLAY_NAME or "Unknown"))
+
+    -- Check ONLY current planet's locations
+    if currentPlanet.LOCATIONS then
+        for locationId, location in pairs(currentPlanet.LOCATIONS) do
+            -- Check if location is discovered in PlanetConfig or player data
+            local isDiscovered = location.isDiscovered
+
+            -- Also check player's discovered locations
+            if playerData.DiscoveredLocations and playerData.DiscoveredLocations[locationId] then
+                isDiscovered = true
+            end
+
+            if isDiscovered and location.TeleportTo then
+                table.insert(discoveredLocations, {
+                    PlanetId = currentPlanet.PLANET_ID,
+                    LocationId = locationId,
+                    DisplayName = location.DisplayName,
+                    PlanetName = currentPlanet.DISPLAY_NAME,
+                    SpawnPoint = location.SpawnPoint,
+                    TeleportPoint = location.TeleportPoint or location.SpawnPoint
+                })
+
+                print(string.format("[TeleportationManager] ✅ Location added: %s (%s)",
+                    location.DisplayName, locationId))
             end
         end
     end
-    
+
+    print(string.format("[TeleportationManager] 📊 Total discovered locations from %s: %d",
+        currentPlanet.PLANET_ID or "Unknown", #discoveredLocations))
+
     return discoveredLocations
 end
 
@@ -714,7 +728,8 @@ local function onTouched(otherPart)
 			
 			-- CRITICAL FIX: Check if location template exists in ServerStorage
 			local planetsFolder = game.ServerStorage:FindFirstChild("Planets")
-			local locationTemplate = planetsFolder and planetsFolder:FindFirstChild("Planet_1")
+			local planetId = location.PlanetId or GameConfig.DEFAULT_PLANET
+			local locationTemplate = planetsFolder and planetsFolder:FindFirstChild(planetId)
 			if locationTemplate then
 				local locationFolder = locationTemplate:FindFirstChild("Locations")
 				if locationFolder then
@@ -731,16 +746,16 @@ local function onTouched(otherPart)
 						end
 					else
 						warn("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId)
-						warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1/Locations/" .. location.LocationId)
+						warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId) .. "/Locations/" .. location.LocationId)
 						warn("  └─ Телепортацію заблоковано")
 					end
 				else
 					warn("[TeleportationManager] ❌ Locations folder not found")
-					warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1/Locations")
+					warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId) .. "/Locations")
 				end
 			else
-				warn("[TeleportationManager] ❌ Planet_1 template not found")
-				warn("  └─ Очікуваний шлях: ServerStorage/Planets/Planet_1")
+				warn("[TeleportationManager] ❌ Planet template not found: " .. tostring(planetId))
+				warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId))
 			end
 		end
 
@@ -916,7 +931,9 @@ local function onTeleportRequest(player, action, data)
         print("[TeleportationManager] 📋 Checking location for teleport: " .. location.DisplayName .. " (" .. location.LocationId .. ")")
         
         -- CRITICAL FIX: Check if location template exists in ServerStorage
-        local locationTemplate = game.ServerStorage:FindFirstChild("Planet_1")
+        local planetsFolder = game.ServerStorage:FindFirstChild("Planets")
+        local planetId = location.PlanetId or GameConfig.DEFAULT_PLANET
+        local locationTemplate = planetsFolder and planetsFolder:FindFirstChild(planetId)
         if locationTemplate then
             local locationFolder = locationTemplate:FindFirstChild("Locations")
             if locationFolder then
@@ -932,16 +949,16 @@ local function onTeleportRequest(player, action, data)
                     end
                 else
                     warn("[TeleportationManager] ❌ Location template NOT found: " .. location.LocationId)
-                    warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations/" .. location.LocationId)
+                    warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId) .. "/Locations/" .. location.LocationId)
                     warn("  └─ Телепортацію заблоковано")
                 end
             else
                 warn("[TeleportationManager] ❌ Locations folder not found")
-                warn("  └─ Очікуваний шлях: ServerStorage/Planet_1/Locations")
+                warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId) .. "/Locations")
             end
         else
-            warn("[TeleportationManager] ❌ Planet_1 template not found")
-            warn("  └─ Очікуваний шлях: ServerStorage/Planet_1")
+            warn("[TeleportationManager] ❌ Planet template not found: " .. tostring(planetId))
+            warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. tostring(planetId))
         end
     end
     

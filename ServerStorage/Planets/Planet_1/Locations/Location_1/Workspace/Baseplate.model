@@ -1,0 +1,5 @@
+-- This represents a Roblox Part object named "Baseplate"
+-- In Roblox Studio, this should be a large flat Part that serves as the ground/terrain
+-- Size: 512x512x2, Position: 0,0,0, Anchored: true, CanCollide: true
+-- Material: Grass or appropriate terrain material
+BASEPLATE_PLACEHOLDER

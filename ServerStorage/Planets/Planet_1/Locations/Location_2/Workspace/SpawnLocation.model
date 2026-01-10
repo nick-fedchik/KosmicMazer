@@ -1,0 +1,6 @@
+-- This represents a Roblox SpawnLocation object for Location_2 (Садочок)
+-- In Roblox Studio, this should be a SpawnLocation part where players appear
+-- Position: Appropriate spawn position on the Baseplate
+-- Size: Standard spawn size, TeamColor: Neutral
+-- This is critical for teleportation to work
+SPAWNLOCATION_PLACEHOLDER_LOCATION_2

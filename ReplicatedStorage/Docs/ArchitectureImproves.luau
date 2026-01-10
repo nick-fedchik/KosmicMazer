@@ -30,7 +30,252 @@ Last Updated: 2026-01-07
 ⏬ PENDING IMPLEMENTATION:
 
 ================================================================================
-1) ЄДИНЕ ДЖЕРЕЛО ІСТИНИ ДЛЯ REMOTEEVENTS
+1) МІГРАЦІЯ PLANETCONFIG З GAMECONFIG ДО SERVERSTORAGE
+================================================================================
+Статус: 🔴 КРИТИЧНА АРХІТЕКТУРНА ПРОБЛЕМА
+Пріоритет: ВИСОКИЙ
+Час виконання: 2-3 години
+Дата виявлення: 2026-01-10 (LogOutput аналіз)
+
+Проблема:
+Поточна архітектура зберігає ВСЮ інформацію про планети в GameConfig.Planets = {},
+але це суперечить новій архітектурі v4.0, де кожна планета має власний
+ServerStorage/Planets/Planet_N/Configuration/PlanetConfig
+
+Наслідки поточної реалізації:
+❌ GameConfig.Planets містить дані про ВСІ планети одночасно
+❌ PlanetSurfaceScanner сканує і показує локації з УСІХ планет
+❌ TeleportationManager показує локації Planet_1 ТА Planet_2 одночасно
+❌ Немає концепції "поточної орбіти" космічної станції
+❌ Неможливо симулювати міжпланетний переліт через зміну DEFAULT_PLANET
+❌ PlanetConfig файли існують, але НЕ використовуються системою
+
+Приклад дефекту з LogOutput (lines 250-264):
+```
+[TeleportationManager] 📋 Checking location: Манівці (Location_1)     // Planet_2
+[TeleportationManager] 📋 Checking location: Садочок (Location_1)     // Planet_1
+[TeleportationManager] 📋 Checking location: Канапка (Location_3)     // Planet_1
+[TeleportationManager] 📡 Sending ShowTeleportUI with 3 locations    // ПОМИЛКА: змішані планети!
+```
+
+Правильна поведінка:
+✅ Космічна станція має CurrentOrbit = "Planet_1" (або Planet_2)
+✅ PlanetSurfaceScanner сканує ЛИШЕ локації поточної планети
+✅ TeleportationManager показує ЛИШЕ локації поточної планети
+✅ При зміні DEFAULT_PLANET система перечитує новий PlanetConfig
+✅ GameConfig.Planets = {} видаляється повністю
+
+Архітектурне рішення:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ НОВА СТРУКТУРА GAMECONFIG (МІНІМАЛЬНА)                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ServerScriptService/GameConfig.luau тепер містить ЛИШЕ:                    │
+│                                                                             │
+│ GameConfig = {                                                              │
+│     GameName = "KOSMICMAZER",                                               │
+│     GameVersion = "4.1",                                                    │
+│     DATA_SCHEMA_VERSION = 2,                                                │
+│     DEBUG_MODE = false,                                                     │
+│                                                                             │
+│     -- ЄДИНА ГЛОБАЛЬНА ЗМІННА ПРО ПОТОЧНУ ПЛАНЕТУ                          │
+│     DEFAULT_PLANET = "Planet_1",  -- Орбіта космічної станції              │
+│     DEFAULT_PLANET_NAME = "Залізяка",  -- Display name                     │
+│                                                                             │
+│     -- SpaceStation config (БЕЗ ЗМІН)                                       │
+│     SpaceStation = { ... },                                                 │
+│                                                                             │
+│     -- Teleportation settings (БЕЗ ЗМІН)                                    │
+│     Teleportation = { ... },                                                │
+│                                                                             │
+│     -- Spawn settings (БЕЗ ЗМІН)                                            │
+│     Spawn = { ... },                                                        │
+│                                                                             │
+│     -- ❌ ВИДАЛИТИ GameConfig.Planets = {} ПОВНІСТЮ                         │
+│ }                                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PLANETCONFIG - ДЖЕРЕЛО ІСТИНИ ПРО ПЛАНЕТУ                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Файл: ServerStorage/Planets/{PlanetId}/Configuration/PlanetConfig.luau     │
+│                                                                             │
+│ PlanetConfig = {                                                            │
+│     PLANET_ID = "Planet_1",                                                 │
+│     PLANET_NAME = "Zalizyaka",                                              │
+│     DISPLAY_NAME = "Залізяка",                                              │
+│                                                                             │
+│     -- Фізичні властивості                                                 │
+│     GRAVITY = 1.0,                                                          │
+│     ATMOSPHERE = { HasOxygen = true, Density = 1.0, Color = ... },          │
+│     LIGHTING = { ClockTime = 14, Brightness = 2, ... },                     │
+│                                                                             │
+│     -- Локації планети (перенесено з GameConfig)                           │
+│     LOCATIONS = {                                                           │
+│         Location_1 = {                                                      │
+│             Name = "Location_1",                                            │
+│             DisplayName = "Садочок",                                        │
+│             Folder = "Location_1",                                          │
+│             SpawnPoint = "SpawnLocation",                                   │
+│             isDiscovered = true,                                            │
+│             isVisited = false,                                              │
+│             TeleportTo = true,                                              │
+│         },                                                                  │
+│         Location_2 = { ... },                                               │
+│         Location_3 = { ... },                                               │
+│     },                                                                      │
+│                                                                             │
+│     -- Правила гри планети                                                 │
+│     GAME_RULES = { ... },                                                   │
+│     RESOURCE_RATES = { ... },                                               │
+│     LOCATION_UNLOCK_CONDITIONS = { ... },                                   │
+│ }                                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Імплементація:
+
+КРОК 1: Створити PlanetConfigLoader (новий модуль)
+────────────────────────────────────────────────────
+Файл: ServerScriptService/PlanetConfigLoader.luau
+
+```lua
+local PlanetConfigLoader = {}
+local loadedConfigs = {}  -- Cache
+
+function PlanetConfigLoader.LoadPlanetConfig(planetId: string)
+    if loadedConfigs[planetId] then
+        return loadedConfigs[planetId]
+    end
+
+    local planetPath = game.ServerStorage:FindFirstChild("Planets")
+        :FindFirstChild(planetId)
+        :FindFirstChild("Configuration")
+        :FindFirstChild("PlanetConfig")
+
+    if not planetPath then
+        error("[PlanetConfigLoader] PlanetConfig not found: " .. planetId)
+    end
+
+    local config = require(planetPath)
+    loadedConfigs[planetId] = config
+    return config
+end
+
+function PlanetConfigLoader.GetCurrentPlanetConfig()
+    local GameConfig = require(script.Parent.GameConfig)
+    return PlanetConfigLoader.LoadPlanetConfig(GameConfig.DEFAULT_PLANET)
+end
+
+return PlanetConfigLoader
+```
+
+КРОК 2: Оновити GameConfig (видалити Planets)
+────────────────────────────────────────────────
+Файл: ServerScriptService/GameConfig.luau
+
+1. Видалити ВЕСЬ блок GameConfig.Planets = { ... }
+2. Залишити тільки DEFAULT_PLANET та DEFAULT_PLANET_NAME
+3. Оновити версію до v4.1
+
+КРОК 3: Оновити PlanetSurfaceScanner
+────────────────────────────────────────────────
+Файл: ServerStorage/Space/SpaceStation/Scripts/Server/PlanetSurfaceScanner.luau
+
+Замінити:
+```lua
+-- СТАРЕ (line ~250):
+local planets = GameConfig.Planets
+for planetId, planet in pairs(planets) do
+    for locationId, location in pairs(planet.Locations) do
+        -- Сканує ВСІ планети
+    end
+end
+```
+
+На:
+```lua
+-- НОВЕ:
+local PlanetConfigLoader = require(ServerScriptService.PlanetConfigLoader)
+local currentPlanet = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+for locationId, location in pairs(currentPlanet.LOCATIONS) do
+    -- Сканує ЛИШЕ поточну планету
+end
+```
+
+КРОК 4: Оновити TeleportationManager
+────────────────────────────────────────────────
+Файл: ServerScriptService/TeleportationManager.luau
+
+1. Замінити звернення до GameConfig.Planets на PlanetConfigLoader
+2. Фільтрувати локації тільки з поточної планети
+3. Видалити логіку яка додає локації з інших планет
+
+КРОК 5: Оновити DataStoreManager
+────────────────────────────────────────────────
+Файл: ServerScriptService/DataStoreManager.luau
+
+```lua
+-- Замінити (lines 108-115):
+local function addDefaultDiscoveries(playerData)
+    local PlanetConfigLoader = require(script.Parent.PlanetConfigLoader)
+    local defaultPlanet = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+    for locationId, location in pairs(defaultPlanet.LOCATIONS) do
+        if location.isDiscovered then
+            playerData.DiscoveredLocations[locationId] = true
+        end
+    end
+end
+```
+
+КРОК 6: Оновити ConfigValidator
+────────────────────────────────────────────────
+Файл: ServerScriptService/ConfigValidator.luau
+
+1. Видалити валідацію GameConfig.Planets
+2. Додати валідацію ServerStorage PlanetConfig файлів:
+   - Перевірити що PlanetConfig існує для DEFAULT_PLANET
+   - Валідувати структуру LOCATIONS
+   - Перевірити що є хоча б 1 discovered location
+
+КРОК 7: Створити PlanetConfig для Planet_2
+────────────────────────────────────────────────
+Файл: ServerStorage/Planets/Planet_2/Configuration/PlanetConfig.luau
+
+Створити аналогічний Planet_1, з власними локаціями та правилами
+
+КРОК 8: Тестування міжпланетного переходу
+────────────────────────────────────────────────
+1. Запустити гру з DEFAULT_PLANET = "Planet_1"
+2. Сканер показує ЛИШЕ локації Planet_1 ✅
+3. Телепорт показує ЛИШЕ локації Planet_1 ✅
+4. Змінити GameConfig.DEFAULT_PLANET = "Planet_2"
+5. Перезапустити гру
+6. Сканер показує ЛИШЕ локації Planet_2 ✅
+7. Телепорт показує ЛИШЕ локації Planet_2 ✅
+
+Переваги нової архітектури:
+✅ Кожна планета має власний конфіг (модульність)
+✅ GameConfig мінімальний (тільки глобальні змінні)
+✅ Легко додавати нові планети (просто додати папку)
+✅ Можна симулювати міжпланетний переліт (змінити DEFAULT_PLANET)
+✅ PlanetConfig можна hot-reload без перезавантаження гри
+✅ Чітке розділення: глобальне (GameConfig) vs планетне (PlanetConfig)
+
+Залежності:
+- PlanetConfig v1.0 вже існує для Planet_1 ✅
+- Треба створити PlanetConfig для Planet_2
+- Всі системи що використовують GameConfig.Planets
+
+Примітки:
+- Це breaking change, потребує оновлення багатьох модулів
+- Після міграції ВИДАЛИТИ GameConfig.Planets повністю
+- Оновити документацію (TDD, GDD)
+- Занести в Backlog конкретні кроки виконання
+
+================================================================================
+2) ЄДИНЕ ДЖЕРЕЛО ІСТИНИ ДЛЯ REMOTEEVENTS
 ================================================================================
 Статус: 🎯 ГОТОВЕ ДО ВПРОВАДЖЕННЯ
 Пріоритет: ВИСОКИЙ

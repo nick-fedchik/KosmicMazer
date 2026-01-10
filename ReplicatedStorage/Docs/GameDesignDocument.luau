@@ -6,8 +6,8 @@ GAME DESIGN DOCUMENT (GDD)
 Жанр: Exploration / Adventure
 Платформа: Roblox
 Статус: Active Development
-Версія: 4.1
-Last Updated: 2026-01-08
+Версія: 4.2
+Last Updated: 2026-01-10
 
 ==================================================
 1. ВИСОКА КОНЦЕПЦІЯ

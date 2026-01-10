@@ -1,6 +1,6 @@
 --[[
 KOSMICMAZER — Game Configuration
-Version: 3.5
+Version: 4.1
 Purpose: Central configuration settings for the game
 
 API:
@@ -37,7 +37,7 @@ Changes: Updated to version 3.2 with optimized architecture and unified teleport
 
 local GameConfig = {}
 GameConfig.GameName = "KosmicMazer"
-GameConfig.GameVersion = "3.5"
+GameConfig.GameVersion = "4.1"
 
 -- Data Schema Version
 GameConfig.DATA_SCHEMA_VERSION = 2 -- Current schema version for player data
@@ -67,9 +67,11 @@ GameConfig.TELEPORT_ANIMATION_DURATION = 1 -- seconds
 GameConfig.STARTING_DISCOVERED_LOCATIONS = {"SpaceStation"}
 GameConfig.AUTO_DISCOVER_FIRST_PLANET = true
 
--- Default planet for new players
-GameConfig.DEFAULT_PLANET = "Planet_1" -- First planet available to new players
-GameConfig.DEFAULT_PLANET_NAME = "Pershia Planeta" -- Display name for UI
+-- Default planet for new players (orbit of Space Station)
+-- ⚠️ Planet data now loaded from ServerStorage/Planets/{PlanetId}/Configuration/PlanetConfig
+-- Change this value to simulate inter-planetary flight between orbits
+GameConfig.DEFAULT_PLANET = "Planet_1" -- Current orbit: Planet_1
+GameConfig.DEFAULT_PLANET_NAME = "Залізяка" -- Display name for UI
 
 -- Teleportation settings
 GameConfig.Teleportation = {
@@ -91,218 +93,36 @@ GameConfig.SpaceStation = {
 		TeleportPoint = "SpawnLocation"
 }
 
--- Planets system (scalable for multiple planets)
---[[(будуть назви «Вирій», «Манівці», «Обабіч», «Видноколо» Нівроку Вибалок Вишгород Бровари
-Теребовля
-Конотоп
-Прилуки
-Жовті Води
-Миргород
-Гайсин
-Ужгород
-Чернігів
-Бахмач
-Поділ
-Звенигород
-Тлумач
-Бориспіль
-Васильків
-Обухів
-Гайворон )
+--============================================================================--
+-- PLANET CONFIGURATION (DEPRECATED - MIGRATED TO SERVERSTORAGE)
+--============================================================================--
+
+--[[
+⚠️ ARCHITECTURE CHANGE v4.1 (2026-01-10)
+
+Planet data was REMOVED from GameConfig and migrated to ServerStorage:
+  ServerStorage/Planets/{PlanetId}/Configuration/PlanetConfig.luau
+
+Use PlanetConfigLoader module to access planet configurations:
+  local PlanetConfigLoader = require(ServerScriptService.PlanetConfigLoader)
+  local config = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+This allows:
+  ✅ Each planet has its own configuration file (modular)
+  ✅ Hot-reload of planet configs without restarting game
+  ✅ Simulate inter-planetary flight by changing DEFAULT_PLANET
+  ✅ Scanner and Teleport show ONLY current planet's locations
+  ✅ Easy to add new planets (just add folder + config)
+
+Migration notes:
+  - GameConfig.Planets table REMOVED
+  - GameConfig.PlanetHelpers REMOVED
+  - Use PlanetConfigLoader instead
+  - Planet data structure preserved in PlanetConfig files
+
+See: ReplicatedStorage/Docs/ArchitectureImproves.luau, Problem #1
+See: ReplicatedStorage/Docs/Backlog.luau, Task 0
 ]]
-
-GameConfig.Planets = {
-    Planet_1 = {
-        Name = "Planet_1",
-        DisplayName = "Zalizyaka",
-        Folder = "Planet",
-        IsAvailable = true, -- Available for new players
-        Sky = "Sky",
-        Atmosphere = "Atmosphere",
-        Surface = "Surface",
-        CloudLayers = {"CloudLayer0", "CloudLayer1"},
-        Locations = {
-            Location_1 = {
-                Name = "Location_1",
-                DisplayName = "Садочок",
-                Folder = "Location_1",
-                SpawnPoint = "SpawnLocation",
-                TeleportPoint = "SpawnLocation",
-                isDiscovered = true,
-                isVisited = false,
-                TeleportTo = false,
-                Lighting = {
-                    Sky = "Sky"
-                },
-                Environment = {
-                    Baseplate = "Baseplate"
-                }
-            },
-            Location_2 = {
-                Name = "Location_2",
-                DisplayName = "Гута",
-                Folder = "Location_2",
-                SpawnPoint = "SpawnLocation",
-                TeleportPoint = "SpawnLocation",
-                isDiscovered = false,
-                isVisited = false,
-                TeleportTo = false,
-                Lighting = {
-                    Sky = "Sky"
-                },
-                Environment = {
-                    Baseplate = "Baseplate"
-                }
-			},
-			Location_3 = {
-				Name = "Location_3",
-				DisplayName = "Канапка",
-				Folder = "Location_3",
-				SpawnPoint = "SpawnLocation",
-				TeleportPoint = "SpawnLocation",
-				isDiscovered = true,
-				isVisited = false,
-				TeleportTo = false,
-				Lighting = {
-					Sky = "Sky"
-				},
-				Environment = {
-					Baseplate = "Baseplate"
-				}
-			}
-        }
-    },
-    
-    Planet_2 = {
-        Name = "Planet_2",
-        DisplayName = "Вирій",
-        Folder = "Planet",
-        IsAvailable = true, -- Available for exploration
-        Sky = "Sky",
-        Atmosphere = "Atmosphere",
-        Surface = "Surface",
-        CloudLayers = {"CloudLayer0", "CloudLayer1"},
-        Locations = {
-            Location_1 = {
-                Name = "Location_1",
-                DisplayName = "Манівці",
-                Folder = "Location_1",
-                SpawnPoint = "SpawnLocation",
-                TeleportPoint = "SpawnLocation",
-                isDiscovered = false,
-                isVisited = false,
-                TeleportTo = false,
-                Lighting = {
-                    Sky = "Sky"
-                },
-                Environment = {
-                    Baseplate = "Baseplate"
-                }
-            },
-            Location_2 = {
-                Name = "Location_2",
-                DisplayName = "Обабіч",
-                Folder = "Location_2",
-                SpawnPoint = "SpawnLocation",
-                TeleportPoint = "SpawnLocation",
-                isDiscovered = false,
-                isVisited = false,
-                TeleportTo = false,
-                Lighting = {
-                    Sky = "Sky"
-                },
-                Environment = {
-                    Baseplate = "Baseplate"
-                }
-            },
-            Location_3 = {
-                Name = "Location_3",
-                DisplayName = "Видноколо",
-                Folder = "Location_3",
-                SpawnPoint = "SpawnLocation",
-                TeleportPoint = "SpawnLocation",
-                isDiscovered = false,
-                isVisited = false,
-                TeleportTo = false,
-                Lighting = {
-                    Sky = "Sky"
-                },
-                Environment = {
-                    Baseplate = "Baseplate"
-                }
-            }
-        }
-    }
-    -- Future planets can be added here:
-    -- Planet_3 = { ... },
-    -- Planet_4 = { ... }
-}
-
--- Helper functions for planet management
-GameConfig.PlanetHelpers = {
-    GetAvailablePlanets = function()
-        local available = {}
-        for planetId, planet in pairs(GameConfig.Planets) do
-            if planet.IsAvailable then
-                table.insert(available, planetId)
-            end
-        end
-        return available
-    end,
-    
-    GetPlanetLocations = function(planetId)
-        local planet = GameConfig.Planets[planetId]
-        return planet and planet.Locations or {}
-    end,
-    
-    GetLocation = function(planetId, locationId)
-        local planet = GameConfig.Planets[planetId]
-        return planet and planet.Locations[locationId]
-    end,
-    
-    GetDiscoveredLocations = function(planetId)
-        local discovered = {}
-        local locations = GameConfig.PlanetHelpers.GetPlanetLocations(planetId)
-        for locationId, location in pairs(locations) do
-            if location.isDiscovered then
-                table.insert(discovered, locationId)
-            end
-        end
-        return discovered
-    end,
-    
-    GetDefaultPlanet = function()
-        return GameConfig.DEFAULT_PLANET
-    end,
-    
-    GetDefaultPlanetName = function()
-        return GameConfig.DEFAULT_PLANET_NAME
-    end,
-    
-    IsDefaultPlanet = function(planetId)
-        return planetId == GameConfig.DEFAULT_PLANET
-    end,
-    
-    GetPlayerStartLocation = function()
-        -- Returns the starting location for new players
-        local defaultPlanet = GameConfig.DEFAULT_PLANET
-        local planet = GameConfig.Planets[defaultPlanet]
-        if planet then
-            -- Return first discovered location on default planet
-            for locationId, location in pairs(planet.Locations) do
-                if location.isDiscovered then
-                    return {
-                        PlanetId = defaultPlanet,
-                        LocationId = locationId,
-                        LocationName = location.DisplayName,
-                        SpawnPoint = location.SpawnPoint
-                    }
-                end
-            end
-        end
-        return nil
-    end
-}
 
 
 -- Planet Surface Scanner settings

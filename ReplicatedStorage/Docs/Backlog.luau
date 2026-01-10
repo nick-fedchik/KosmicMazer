@@ -1,10 +1,10 @@
 --[[
 ================================================================================
-KOSMICMAZER — BACKLOG v5.0
+KOSMICMAZER — BACKLOG v5.1
 ================================================================================
-Version: 5.0
+Version: 5.1
 Status: Active Development
-Last Updated: 2026-01-08
+Last Updated: 2026-01-10
 
 Цей документ містить список завдань для завершення версії 5.0 та планування
 наступних версій на основі оновленої архітектури гри.
@@ -619,6 +619,61 @@ end
     - Leaderboards
     - Achievements showcase
 
+──────────────────────────────────────────────────────────────────────────────
+14. ВЕРСІЇ У ЛОГАХ SERVERSTORAGE СКРИПТІВ
+──────────────────────────────────────────────────────────────────────────────
+Статус: 🔴 НЕ РОЗПОЧАТО
+Пріоритет: СЕРЕДНІЙ
+Час виконання: 1-2 години
+
+Проблема:
+- Argon НЕ синхронізує ServerStorage автоматично
+- Оновлення скриптів у ServerStorage виконуються ВРУЧНУ в Roblox Studio
+- Складно виявити, чи був скрипт оновлений після змін в коді
+- Відсутність версій у логах ускладнює дебагінг
+
+Рішення:
+Додати номери версій до всіх лог-повідомлень від скриптів у ServerStorage.
+
+14.1. Формат логів:
+```lua
+-- Замість:
+print("[PlanetSurfaceScanner] 🔍 Скануємо поверхню...")
+
+-- Використовувати:
+print("[PlanetSurfaceScanner 1.8] 🔍 Скануємо поверхню...")
+```
+
+14.2. Скрипти для оновлення:
+ServerStorage/Planets/{PlanetId}/Scripts/:
+- SpaceStationManager.luau
+- LocationController.luau (шаблон для кожної локації)
+- PlanetSurfaceScanner.luau
+- Інші планетні/локаційні скрипти
+
+14.3. Імплементація:
+```lua
+-- В кожному скрипті:
+local module = {}
+module.Version = "1.8"
+
+-- В логах використовувати:
+local SCRIPT_NAME = "PlanetSurfaceScanner"
+print(string.format("[%s %s] ✅ Initialized", SCRIPT_NAME, module.Version))
+```
+
+14.4. Оновлення документації:
+✅ CodeConvention.luau v3.6 - додано секцію 5.3.2 "ВЕРСІЇ У ЛОГАХ SERVERSTORAGE СКРИПТІВ"
+
+14.5. Переваги:
+- Швидке виявлення застарілих скриптів у ServerStorage
+- Полегшення дебагінгу (видно яка версія працює)
+- Аудит після оновлень коду
+- Попередження про пропущені мануальні оновлення
+
+Примітка:
+Це технічне завдання для підтримки розробки, не впливає на функціональність гри.
+
 ================================================================================
 🔮 ДОВГОСТРОКОВІ ЦІЛІ (ВЕРСІЯ 5.0+)
 ================================================================================
@@ -626,32 +681,32 @@ end
 Пріоритет: ДУЖЕ НИЗЬКИЙ
 Мета: Expansion та нові можливості
 
-14. Combat System:
+15. Combat System:
     - Player combat mechanics
     - Enemy AI
     - Weapons/abilities
     - Health/damage system
     - PvE encounters
 
-15. Skill Progression:
+16. Skill Progression:
     - Skill trees (Exploration, Combat, Crafting)
     - Experience and leveling
     - Unlockable abilities
     - Passive bonuses
 
-16. Procedural Generation:
+17. Procedural Generation:
     - Procedural локації
     - Random encounters
     - Dynamic events
     - Endless exploration
 
-17. Cross-Server Features:
+18. Cross-Server Features:
     - Teleport between servers
     - Global events
     - Server leaderboards
     - Persistent world state
 
-18. Economy System:
+19. Economy System:
     - Currency system
     - NPC merchants
     - Player trading

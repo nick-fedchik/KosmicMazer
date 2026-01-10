@@ -4,7 +4,7 @@ KOSMICMAZER — DataStore Manager
 ================================================================================
 
 Purpose: Simple and reliable data storage using DataStoreService
-Version: 2.0
+Version: 2.1
 
 Features:
 - Automatic data loading and saving
@@ -44,6 +44,7 @@ Dependencies:
 - GameConfig (for default values)
 
 ChangeLog:
+- Version 2.1: MIGRATION - Use PlanetConfigLoader for discovered locations (2026-01-10)
 - Version 2.0: Added schema versioning and automatic migration system
 - Version 1.2: Updated header format to comply with CODE CONVENTION section 14
 - Version 1.1: Fixed Studio compatibility and JSON serialization
@@ -57,6 +58,7 @@ local Players = game:GetService("Players")
 
 -- Load GameConfig for default values
 local GameConfig = require(script.Parent:FindFirstChild("GameConfig"))
+local PlanetConfigLoader = require(script.Parent:FindFirstChild("PlanetConfigLoader"))
 
 local DataStoreManager = {}
 
@@ -104,12 +106,16 @@ local function getDefaultPlayerData(player)
 end
 
 -- Add discovered locations from default planet
+-- Updated v4.9 to use PlanetConfigLoader instead of GameConfig.Planets
 local function addDefaultDiscoveries(playerData)
-    local defaultPlanet = GameConfig.Planets[GameConfig.DEFAULT_PLANET]
-    if defaultPlanet then
-        for locationId, location in pairs(defaultPlanet.Locations) do
+    local defaultPlanet = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+    if defaultPlanet and defaultPlanet.LOCATIONS then
+        for locationId, location in pairs(defaultPlanet.LOCATIONS) do
             if location.isDiscovered then
                 playerData.DiscoveredLocations[locationId] = true
+                print(string.format("[DataStore] ✅ Default discovered location added: %s (%s)",
+                    location.DisplayName or locationId, locationId))
             end
         end
     end

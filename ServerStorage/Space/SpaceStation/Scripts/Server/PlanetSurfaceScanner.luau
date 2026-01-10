@@ -3,11 +3,11 @@
 KOSMICMAZER — PlanetSurfaceScanner Module
 ================================================================================
 
-Purpose: Manages planet scanning functionality with GameConfig integration
-Version: 4.4 (ModuleScript version)
+Purpose: Manages planet scanning functionality with PlanetConfig integration
+Version: 4.6 (ModuleScript version)
 
 Features:
-- Reads planet location data from GameConfig structure
+- Reads planet location data from ServerStorage/Planets/{PlanetId}/Configuration/PlanetConfig
 - Activates when player stands on ScannerBaseplate
 - Shows visual scanning effects with particles and animations
 - Activates teleportation system when discovered locations exist
@@ -23,7 +23,8 @@ API:
 - activateScanner()/deactivateScanner(): Controls visual state
 
 Calls to:
-- GameConfig: Reads planet and location configuration
+- PlanetConfigLoader: Loads planet configuration from ServerStorage
+- GameConfig: Reads basic configuration (DEFAULT_PLANET, scanner settings)
 - DataStoreManager: GetPlayerData() for player data
 - RemoteEventsRegistry: Get() for PlanetSurfaceScanner_Results RemoteEvent
 - TweenService: Creates scanning animations
@@ -31,6 +32,7 @@ Calls to:
 - SoundService: Handles scanning sound effects
 
 Dependencies:
+- PlanetConfigLoader module (v1.1+)
 - GameConfig module
 - DataStoreManager module
 - TeleportationManager module
@@ -41,6 +43,14 @@ Dependencies:
 - SoundService
 
 ChangeLog:
+- Version 4.6 (2026-01-10): MIGRATED to PlanetConfigLoader (GameConfig → ServerStorage)
+  - getDiscoveredLocations() now uses PlanetConfigLoader.GetCurrentPlanetConfig()
+  - resolvePlanetNameForPlayer() now uses PlanetConfigLoader.LoadPlanetConfig()
+  - Removed dependency on GameConfig.Planets (deprecated in v4.1)
+  - Compatible with PlanetConfig.LOCATIONS structure
+  - Scanner now shows ONLY current planet's locations (inter-planetary flight ready)
+- Version 4.5: Planet name now set at scan activation using runtime planet info (2026-01-08)
+- Version 4.5: ScanResults planetName used for display instead of DEFAULT_PLANET_NAME
 - Version 4.4: Made ScannerScreen optional - only ScannerBaseplate required (2026-01-08)
 - Version 4.4: Visual effects disabled gracefully when ScannerScreen missing
 - Version 4.4: Added player monitoring diagnostics (distance logging every 3s)
@@ -61,6 +71,7 @@ ChangeLog:
 ]]
 
 local PlanetSurfaceScanner = {}
+PlanetSurfaceScanner.Version = "4.6"
 
 -- Services
 local Players = game:GetService("Players")
@@ -74,6 +85,7 @@ local GameConfig = nil
 local DataStoreManager = nil
 local TeleportationManager = nil
 local RemoteEventsRegistry = nil
+local PlanetConfigLoader = nil
 
 -- Scanner components (will be set during initialization)
 local scannerModel = nil
@@ -108,10 +120,13 @@ local teleportationInitialized = false
 
 -- Initialize dependencies
 local function initializeDependencies()
-    GameConfig = game:GetService("ServerScriptService"):FindFirstChild("GameConfig")
-    DataStoreManager = game:GetService("ServerScriptService"):FindFirstChild("DataStoreManager")
-    TeleportationManager = game:GetService("ServerScriptService"):FindFirstChild("TeleportationManager")
-    
+    local ServerScriptService = game:GetService("ServerScriptService")
+
+    GameConfig = ServerScriptService:FindFirstChild("GameConfig")
+    DataStoreManager = ServerScriptService:FindFirstChild("DataStoreManager")
+    TeleportationManager = ServerScriptService:FindFirstChild("TeleportationManager")
+    PlanetConfigLoader = ServerScriptService:FindFirstChild("PlanetConfigLoader")
+
     if not GameConfig then
         error("GameConfig not found in ServerScriptService!")
     end
@@ -121,12 +136,16 @@ local function initializeDependencies()
     if not TeleportationManager then
         error("TeleportationManager not found in ServerScriptService!")
     end
-    
+    if not PlanetConfigLoader then
+        error("PlanetConfigLoader not found in ServerScriptService!")
+    end
+
     GameConfig = require(GameConfig)
     DataStoreManager = require(DataStoreManager)
     TeleportationManager = require(TeleportationManager)
+    PlanetConfigLoader = require(PlanetConfigLoader)
     RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
-    
+
     -- Load configuration
     SCAN_DURATION = GameConfig.PlanetSurfaceScanner.ScanDuration
     INTERACTION_DISTANCE = GameConfig.PlanetSurfaceScanner.InteractionDistance
@@ -149,49 +168,101 @@ local function isPlayerOnBaseplate(player)
     return distance <= INTERACTION_DISTANCE
 end
 
--- Get discovered locations from GameConfig and player data
+-- Get discovered locations from current planet configuration and player data
+-- MIGRATED v4.6: Uses PlanetConfigLoader instead of GameConfig.Planets
 local function getDiscoveredLocations(player)
     local discoveredLocations = {}
     local playerData = DataStoreManager.GetPlayerData(player)
-    
+
     if not playerData then
         return discoveredLocations
     end
-    
-    -- Check each planet for discovered locations
-    for planetId, planet in pairs(GameConfig.Planets) do
-        if planet.Locations then
-            for locationId, location in pairs(planet.Locations) do
-                -- Check if location is discovered in GameConfig or player data
-                local isDiscovered = location.isDiscovered
-                
-                -- Also check player's discovered locations
-                if playerData.DiscoveredLocations and playerData.DiscoveredLocations[locationId] then
-                    isDiscovered = true
+
+    -- Get current planet configuration from ServerStorage
+    local currentPlanet = PlanetConfigLoader.GetCurrentPlanetConfig()
+
+    print(string.format("[PlanetSurfaceScanner] 📡 Loading locations from planet: %s (%s)",
+        currentPlanet.PLANET_ID or "Unknown", currentPlanet.DISPLAY_NAME or "Unknown"))
+
+    -- Check ONLY current planet's locations
+    if currentPlanet.LOCATIONS then
+        for locationId, location in pairs(currentPlanet.LOCATIONS) do
+            -- Check if location is discovered in PlanetConfig or player data
+            local isDiscovered = location.isDiscovered
+
+            -- Also check player's discovered locations
+            if playerData.DiscoveredLocations and playerData.DiscoveredLocations[locationId] then
+                isDiscovered = true
+            end
+
+            if isDiscovered then
+                -- Check if location is visited
+                local isVisited = false
+                if playerData.VisitedLocations and playerData.VisitedLocations[locationId] then
+                    isVisited = true
                 end
-                
-                if isDiscovered then
-                    -- Check if location is visited
-                    local isVisited = false
-                    if playerData.VisitedLocations and playerData.VisitedLocations[locationId] then
-                        isVisited = true
-                    end
-                    
-                    table.insert(discoveredLocations, {
-                        PlanetId = planetId,
-                        LocationId = locationId,
-                        DisplayName = location.DisplayName,
-                        PlanetName = planet.DisplayName,
-                        SpawnPoint = location.SpawnPoint,
-                        TeleportPoint = location.TeleportPoint,
-                        IsVisited = isVisited
-                    })
-                end
+
+                table.insert(discoveredLocations, {
+                    PlanetId = currentPlanet.PLANET_ID,
+                    LocationId = locationId,
+                    DisplayName = location.DisplayName,
+                    PlanetName = currentPlanet.DISPLAY_NAME,
+                    SpawnPoint = location.SpawnPoint,
+                    TeleportPoint = location.TeleportPoint or location.SpawnPoint,
+                    IsVisited = isVisited
+                })
+
+                print(string.format("[PlanetSurfaceScanner] ✅ Location added: %s (%s)",
+                    location.DisplayName, locationId))
             end
         end
     end
-    
+
+    print(string.format("[PlanetSurfaceScanner] 📊 Total discovered locations: %d", #discoveredLocations))
+
     return discoveredLocations
+end
+
+-- Resolve planet name for a player using current runtime data
+-- MIGRATED v4.6: Uses PlanetConfigLoader instead of GameConfig.Planets
+local function resolvePlanetNameForPlayer(player)
+    local planetId = GameConfig.DEFAULT_PLANET
+    local playerData = DataStoreManager.GetPlayerData(player)
+    if playerData and playerData.CurrentPlanet then
+        planetId = playerData.CurrentPlanet
+    end
+
+    -- Load planet config from ServerStorage
+    local success, planetConfig = pcall(function()
+        return PlanetConfigLoader.LoadPlanetConfig(planetId)
+    end)
+
+    if success and planetConfig and planetConfig.DISPLAY_NAME then
+        return planetConfig.DISPLAY_NAME
+    end
+
+    -- Fallback to GameConfig default name
+    return GameConfig.DEFAULT_PLANET_NAME or planetId or "Unknown Planet"
+end
+
+-- Update ScannerScreen label with resolved planet name
+local function updatePlanetNameLabel(planetName)
+    if not scannerScreen then return end
+
+    local scanIndicator = scannerScreen:FindFirstChild("ScanIndicator")
+    if not scanIndicator then return end
+
+    local indicatorFrame = scanIndicator:FindFirstChild("IndicatorFrame")
+    if not indicatorFrame then return end
+
+    local scanLabel = indicatorFrame:FindFirstChild("ScanLabel")
+    if not scanLabel then return end
+
+    scanLabel.Text = "?? " .. planetName
+    scanLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
+    scanLabel.BackgroundTransparency = 0.5
+    scanIndicator.Enabled = true
+    print("[PlanetSurfaceScanner] ? Set planet name: " .. planetName)
 end
 
 -- Check if teleportation should be activated
@@ -531,7 +602,10 @@ local function startScanEffect(player)
     
     scannerState.isScanning = true
     scannerState.scanProgress = 0
-    
+
+    local planetName = resolvePlanetNameForPlayer(player)
+    updatePlanetNameLabel(planetName)
+
     -- Mark that this player has used the scanner
     scannerState.playerHasUsedScanner[player.UserId] = true
     print("[PlanetSurfaceScanner] 🔍 Starting scan for " .. player.Name .. " (first time scanner use: " .. tostring(not scannerState.playerHasUsedScanner[player.UserId]) .. ")")
@@ -576,21 +650,12 @@ local function startScanEffect(player)
             scannerState.isScanning = false
             print("[PlanetSurfaceScanner] ✅ Scan completed for " .. player.Name)
             
-            -- Get current planet name
-            local currentPlanetName = GameConfig.DEFAULT_PLANET_NAME
-            for planetId, planet in pairs(GameConfig.Planets) do
-                if planetId == GameConfig.DEFAULT_PLANET then
-                    currentPlanetName = planet.DisplayName or GameConfig.DEFAULT_PLANET_NAME
-                    break
-                end
-            end
-            
             -- Send results to player
             if scanResultsEvent then
                 scanResultsEvent:FireClient(player, "ScanResults", {
                     locations = discoveredLocations,
                     player = player.Name,
-                    planetName = currentPlanetName,
+                    planetName = planetName,
                     scanTime = os.time()
                 })
             end
@@ -746,92 +811,67 @@ end
 
 -- Public API
 function PlanetSurfaceScanner.Initialize(scannerModelRef)
+    local scriptName = "PlanetSurfaceScanner"
+    local scriptVersion = PlanetSurfaceScanner.Version
+
     if scannerState.isInitialized then
-        print("[PlanetSurfaceScanner] ⚠️ Scanner already initialized")
+        print(string.format("[%s %s] ⚠️ Scanner already initialized", scriptName, scriptVersion))
         return true
     end
-    
-    print("[PlanetSurfaceScanner] 🚀 Initializing PlanetSurfaceScanner...")
-    print("[PlanetSurfaceScanner] 📦 Scanner model reference received:", scannerModelRef and scannerModelRef.Name or "nil")
+
+    print(string.format("[%s %s] 🚀 Initializing...", scriptName, scriptVersion))
+    print(string.format("[%s %s] 📦 Scanner model reference received: %s", scriptName, scriptVersion, scannerModelRef and scannerModelRef.Name or "nil"))
     
     -- Initialize dependencies first
     initializeDependencies()
-    
-    print("[PlanetSurfaceScanner] 📋 Configuration loaded:")
+
+    print(string.format("[%s %s] 📋 Configuration loaded:", scriptName, scriptVersion))
     print("  └─ SCAN_DURATION:", SCAN_DURATION)
     print("  └─ INTERACTION_DISTANCE:", INTERACTION_DISTANCE)
     print("  └─ PULSE_SPEED:", PULSE_SPEED)
-    
+
     -- Set scanner components
     scannerModel = scannerModelRef
     baseplate = scannerModel:FindFirstChild("ScannerBaseplate")
     display = scannerModel:FindFirstChild("ScannerDisplay")
     scannerScreen = display and display:FindFirstChild("ScannerScreen")
-    
-    print("[PlanetSurfaceScanner] 🔍 Looking for scanner components:")
+
+    print(string.format("[%s %s] 🔍 Looking for scanner components:", scriptName, scriptVersion))
     print("  └─ ScannerBaseplate:", baseplate and "✅ FOUND" or "❌ NOT FOUND")
     print("  └─ ScannerDisplay:", display and "✅ FOUND" or "❌ NOT FOUND")
     print("  └─ ScannerScreen:", scannerScreen and "✅ FOUND" or "⚠️ NOT FOUND (visual effects disabled)")
-    
+
     if not baseplate then
-        warn("[PlanetSurfaceScanner] ⚠️ Scanner model children:")
+        warn(string.format("[%s %s] ⚠️ Scanner model children:", scriptName, scriptVersion))
         for _, child in ipairs(scannerModel:GetChildren()) do
             warn("  └─", child.Name, "-", child.ClassName)
         end
-        error("[PlanetSurfaceScanner] ❌ Required component ScannerBaseplate not found!")
+        error(string.format("[%s %s] ❌ Required component ScannerBaseplate not found!", scriptName, scriptVersion))
     end
     
     if not scannerScreen then
-        warn("[PlanetSurfaceScanner] ⚠️ ScannerScreen not found - visual effects will be disabled")
+        warn(string.format("[%s %s] ⚠️ ScannerScreen not found - visual effects will be disabled", scriptName, scriptVersion))
     end
-    
-    -- Get RemoteEvent for scan results from registry
-	scanResultsEvent = RemoteEventsRegistry.Get("PlanetSurfaceScanner_Results")
-	
-	if not scanResultsEvent then
-		error("[PlanetSurfaceScanner] ❌ RemoteEvent 'PlanetSurfaceScanner_Results' не знайдено в реєстрі!")
-	end
-	
-	print("[PlanetSurfaceScanner] ✅ RemoteEvent отримано з реєстру: PlanetSurfaceScanner_Results")
 
-	
-    -- Add planet name label to ScannerScreen
-    if scannerScreen then
-        local scanIndicator = scannerScreen:FindFirstChild("ScanIndicator")
-        if scanIndicator then
-            local indicatorFrame = scanIndicator:FindFirstChild("IndicatorFrame")
-            if indicatorFrame then
-                local scanLabel = indicatorFrame:FindFirstChild("ScanLabel")
-                if scanLabel then
-                    -- Get current planet name from GameConfig
-                    local currentPlanetName = GameConfig.DEFAULT_PLANET_NAME -- "Pershia Planeta"
-                    for planetId, planet in pairs(GameConfig.Planets) do
-                        if planetId == GameConfig.DEFAULT_PLANET then
-                            currentPlanetName = planet.DisplayName or GameConfig.DEFAULT_PLANET_NAME
-                            break
-                        end
-                    end
-                    
-                    -- Set initial planet name
-                    scanLabel.Text = "🪐 " .. currentPlanetName
-                    scanLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
-                    scanLabel.BackgroundTransparency = 0.5
-                    scanIndicator.Enabled = true -- Show label even when scanner is inactive
-                    print("[PlanetSurfaceScanner] ✅ Set planet name: " .. currentPlanetName)
-                end
-            end
-        end
+    -- Get RemoteEvent for scan results from registry
+    scanResultsEvent = RemoteEventsRegistry.Get("PlanetSurfaceScanner_Results")
+
+    if not scanResultsEvent then
+        error(string.format("[%s %s] ❌ RemoteEvent 'PlanetSurfaceScanner_Results' не знайдено в реєстрі!", scriptName, scriptVersion))
     end
-    
+
+    print(string.format("[%s %s] ✅ RemoteEvent отримано з реєстру: PlanetSurfaceScanner_Results", scriptName, scriptVersion))
+
+
     -- Initialize visual state
     deactivateScanner()
-    
+
     -- Start monitoring
     task.spawn(monitorPlayers)
     task.spawn(idleAnimation)
-    
+
     scannerState.isInitialized = true
-    print("[PlanetSurfaceScanner] ✅ PlanetSurfaceScanner initialized successfully")
+    print(string.format("[%s %s] ✅ Initialized successfully", scriptName, scriptVersion))
     return true
 end
 
