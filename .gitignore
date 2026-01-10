@@ -22,8 +22,11 @@ Thumbs.db
 *.log
 logs/
 tmp/
+Output.log
 
 # VS Code (за потреби)
 .vscode/settings.json
 *.code-workspace
 ReplicatedStorage/ServerStorage
+
+

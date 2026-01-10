@@ -518,8 +518,38 @@ local function switchLocation(player, targetLocation)
             print("[TeleportationManager] Updating spawn location reference...")
             updateSpawnLocation()
             if spawnLocation then
-                targetCFrame = spawnLocation.CFrame * CFrame.new(0, 3, 0)
-                print("[TeleportationManager] 📍 Target CFrame set for planet location: " .. tostring(targetCFrame))
+                -- Debug: Print SpawnLocation details
+                print("[TeleportationManager] 🔍 SpawnLocation found: " .. spawnLocation:GetFullName())
+                print("[TeleportationManager] 🔍 SpawnLocation.CFrame: " .. tostring(spawnLocation.CFrame))
+                print("[TeleportationManager] 🔍 SpawnLocation.Position: " .. tostring(spawnLocation.Position))
+
+                -- CRITICAL FIX: Wait a frame to ensure SpawnLocation has updated position after being cloned
+                task.wait()
+
+                -- Re-check position after wait
+                print("[TeleportationManager] 🔍 After wait - SpawnLocation.Position: " .. tostring(spawnLocation.Position))
+
+                -- Verify the position is not at origin (0, 0, 0) which indicates a problem
+                local spawnPos = spawnLocation.Position
+                if spawnPos.X == 0 and spawnPos.Y == 0 and spawnPos.Z == 0 then
+                    warn("[TeleportationManager] ⚠️ SpawnLocation is at origin! Trying to find LocationModel...")
+                    -- Fallback: Use LocationModel position
+                    local locationModel = workspace:FindFirstChild("LocationModel")
+                    if locationModel then
+                        local gameplay = locationModel:FindFirstChild("Gameplay")
+                        if gameplay then
+                            local spawnLoc = gameplay:FindFirstChild("SpawnLocation")
+                            if spawnLoc then
+                                spawnLocation = spawnLoc
+                                print("[TeleportationManager] ✅ Found SpawnLocation via LocationModel: " .. tostring(spawnLocation.Position))
+                            end
+                        end
+                    end
+                end
+
+                targetCFrame = spawnLocation.CFrame * CFrame.new(0, 5, 0)  -- Increased height from 3 to 5 for safety
+                print("[TeleportationManager] 📍 Target CFrame calculated: " .. tostring(targetCFrame))
+                print("[TeleportationManager] 📍 Target Position: " .. tostring(targetCFrame.Position))
             else
                 print("[TeleportationManager] ❌ ERROR: spawnLocation is nil after updateSpawnLocation()")
                 return false, "SpawnLocation not found after location switch"

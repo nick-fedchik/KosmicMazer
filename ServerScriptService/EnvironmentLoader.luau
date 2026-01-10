@@ -276,8 +276,33 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
     -- Copy planet workspace (visual model on orbit)
     local planetWorkspace = planetFolder:FindFirstChild("Workspace")
     if planetWorkspace then
-        copyFolderContents(planetWorkspace, Workspace)
-        print("[EnvironmentLoader] ✅ Planet workspace loaded")
+        local planetModel = planetWorkspace:FindFirstChild("Planet")
+        if planetModel and planetModel:IsA("Model") then
+            -- Clone the Planet model directly to Workspace
+            local clonedPlanet = planetModel:Clone()
+            clonedPlanet.Parent = Workspace
+
+            -- Load PlanetConfig to get DisplayName
+            local planetConfigFolder = planetFolder:FindFirstChild("Configuration")
+            if planetConfigFolder then
+                local planetConfigModule = planetConfigFolder:FindFirstChild("PlanetConfig")
+                if planetConfigModule and planetConfigModule:IsA("ModuleScript") then
+                    local success, planetConfig = pcall(require, planetConfigModule)
+                    if success and planetConfig.DISPLAY_NAME then
+                        clonedPlanet:SetAttribute("DisplayName", planetConfig.DISPLAY_NAME)
+                        clonedPlanet:SetAttribute("PlanetId", planetId)
+                        print("[EnvironmentLoader] ✅ Planet model copied with DisplayName:", planetConfig.DISPLAY_NAME)
+                    else
+                        warn("[EnvironmentLoader] ⚠️ Failed to load PlanetConfig or missing DISPLAY_NAME")
+                    end
+                end
+            end
+
+            print("[EnvironmentLoader] 🔍 Planet model:", clonedPlanet.Name, "at position:", clonedPlanet:GetPivot().Position)
+        else
+            warn("[EnvironmentLoader] ⚠️ Planet model not found in Workspace folder")
+            warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Workspace/Planet")
+        end
     else
         warn("[EnvironmentLoader] ⚠️ Planet Workspace folder not found")
         warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Workspace")

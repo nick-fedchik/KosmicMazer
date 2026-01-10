@@ -117,6 +117,7 @@ local playerLocations = {} -- [player.UserId] = { PlanetId = "Planet_1", Locatio
 
 -- RemoteEvent for location sync
 local playerLocationEvent = nil
+local playerLocationRequestEvent = nil
 
 -- State transition function
 local function transitionTo(newState, context)
@@ -631,6 +632,27 @@ local function switchToPlanetLocation(planetId, locationId)
 	return true
 end
 
+local function getPlanetDisplayName(planetId)
+	local planetDisplayName = "Unknown Planet"
+	local planetsFolder = game.ServerStorage:FindFirstChild("Planets")
+	if planetsFolder then
+		local planetFolder = planetsFolder:FindFirstChild(planetId)
+		if planetFolder then
+			local configFolder = planetFolder:FindFirstChild("Configuration")
+			if configFolder then
+				local planetConfigModule = configFolder:FindFirstChild("PlanetConfig")
+				if planetConfigModule and planetConfigModule:IsA("ModuleScript") then
+					local success, planetConfig = pcall(require, planetConfigModule)
+					if success and planetConfig.DISPLAY_NAME then
+						planetDisplayName = planetConfig.DISPLAY_NAME
+					end
+				end
+			end
+		end
+	end
+	return planetDisplayName
+end
+
 -- Set player location (Single Source of Truth)
 local function setPlayerLocation(player, planetId, locationId)
 	if not player or not player:IsA("Player") then
@@ -654,13 +676,18 @@ local function setPlayerLocation(player, planetId, locationId)
 		warn("[Location] ⚠️ Failed to update player planet in DataStore:", player.Name)
 	end
 
-	-- Sync to client
+	-- Load planet DisplayName from PlanetConfig
+	local planetDisplayName = getPlanetDisplayName(planetId)
+
+	-- Sync to client with full planet info
 	if playerLocationEvent then
 		playerLocationEvent:FireClient(player, {
 			PlanetId = planetId,
-			LocationId = locationId
+			LocationId = locationId,
+			PlanetDisplayName = planetDisplayName
 		})
-		print(string.format("[Location] 📡 Synced location to client: %s -> %s/%s", player.Name, planetId, locationId))
+		print(string.format("[Location] 📡 Synced location to client: %s -> %s (%s) / %s",
+			player.Name, planetId, planetDisplayName, locationId))
 	end
 
 	print(string.format("[Location] ✅ Player location updated: %s -> %s/%s", player.Name, planetId, locationId))
@@ -714,6 +741,20 @@ local LocationManager = {
 		playerLocationEvent = RemoteEventsRegistry.Get("PlayerLocationChanged")
 		if not playerLocationEvent then
 			warn("[Location] ⚠️ PlayerLocationChanged RemoteEvent not found!")
+		end
+		playerLocationRequestEvent = RemoteEventsRegistry.Get("PlayerLocationRequest")
+		if playerLocationRequestEvent then
+			playerLocationRequestEvent.OnServerEvent:Connect(function(player)
+				local planetId, locationId = getPlayerLocation(player)
+				local planetDisplayName = getPlanetDisplayName(planetId)
+				playerLocationEvent:FireClient(player, {
+					PlanetId = planetId,
+					LocationId = locationId,
+					PlanetDisplayName = planetDisplayName
+				})
+			end)
+		else
+			warn("[Location] WARN: PlayerLocationRequest RemoteEvent not found!")
 		end
 
 		-- Connect player cleanup

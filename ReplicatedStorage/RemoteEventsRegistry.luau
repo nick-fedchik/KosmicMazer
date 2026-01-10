@@ -38,6 +38,7 @@ local REMOTE_EVENTS_LIST = {
 	"PlanetSurfaceScanner_Results", -- Результати сканування планети
 	"PlayerDataReady",              -- Сигнал готовності даних гравця
 	"PlayerLocationChanged",        -- Оновлення поточної локації гравця для клієнта
+	"PlayerLocationRequest",        -- Client requests current location/planet data
 }
 
 -- Список всіх RemoteFunctions (якщо потрібні в майбутньому)

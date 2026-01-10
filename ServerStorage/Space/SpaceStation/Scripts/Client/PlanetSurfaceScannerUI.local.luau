@@ -135,9 +135,6 @@ local resultsWindow = nil
 -- @var Frame? Вікно анімації сканування
 local scanningWindow = nil
 
--- @var Model? Модель сканера
-local scannerModel = nil
-
 -- @var ProximityPrompt? Промпт активації сканера
 local proximityPrompt = nil
 
@@ -159,7 +156,10 @@ local PlanetSurfaceScannerUI = {}
 --============================================================================--
 
 local function updateScannerDisplayPlanetName(planetName: string)
-	local scannerScreen = scannerModel and scannerModel:FindFirstChild("ScannerScreen")
+	local currentScannerModel = PlanetSurfaceScannerUI.scannerModel
+	if not currentScannerModel then return end
+
+	local scannerScreen = currentScannerModel:FindFirstChild("ScannerScreen")
 	if not scannerScreen then return end
 
 	local scanIndicator = scannerScreen:FindFirstChild("ScanIndicator")
@@ -172,7 +172,8 @@ local function updateScannerDisplayPlanetName(planetName: string)
 	if not scanLabel then return end
 
 	local displayName = planetName or "..."
-	scanLabel.Text = "Planet: " .. displayName
+	-- Use simple text format without emoji (emoji may show as ?? on some systems)
+	scanLabel.Text = displayName
 	scanLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
 	scanLabel.BackgroundTransparency = 0.5
 	scanIndicator.Enabled = true
@@ -553,6 +554,9 @@ end
 function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 	print("[PlanetSurfaceScannerUI 2.1] 📡 Initializing Scanner UI for model:", scannerModel.Name)
 
+	-- Store scanner model reference for updateScannerDisplayPlanetName
+	PlanetSurfaceScannerUI.scannerModel = scannerModel
+
 	-- Створюємо головний GUI
 	scannerGui = Instance.new("ScreenGui")
 	scannerGui.Name = "PlanetSurfaceScannerUI"
@@ -560,6 +564,25 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 	scannerGui.IgnoreGuiInset = true
 	scannerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	scannerGui.Parent = player:WaitForChild("PlayerGui")
+
+	-- Set default title on scanner screen
+	local scannerScreen = scannerModel:FindFirstChild("ScannerScreen")
+	if scannerScreen then
+		local scanIndicator = scannerScreen:FindFirstChild("ScanIndicator")
+		if scanIndicator then
+			local indicatorFrame = scanIndicator:FindFirstChild("IndicatorFrame")
+			if indicatorFrame then
+				local scanLabel = indicatorFrame:FindFirstChild("ScanLabel")
+				if scanLabel then
+					scanLabel.Text = "Planet Surface Scanner"
+					scanLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
+					scanLabel.BackgroundTransparency = 0.5
+					scanIndicator.Enabled = true
+					print("[PlanetSurfaceScannerUI 2.1] ✅ Set default title on scanner screen")
+				end
+			end
+		end
+	end
 
 	-- Знаходимо ScannerBaseplate
 	local scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate")

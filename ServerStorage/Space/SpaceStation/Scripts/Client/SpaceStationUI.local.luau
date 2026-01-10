@@ -4,7 +4,7 @@ KOSMICMAZER — Space Station UI Client
 ================================================================================
 
 Purpose: Створює та керує статус баром космічної станції згідно GuiConvention
-Version: 1.7
+Version: 1.9
 
 Features:
 - Горизонтальний статус бар вгорі праворуч екрану (Windows 95 стиль)
@@ -36,6 +36,8 @@ Dependencies:
 - TweenService: Анімації
 
 ChangeLog:
+- Version 1.9 (2026-01-10): FIXED Exit dialog button text visibility
+- Version 1.8 (2026-01-10): FIXED Exit button text visibility
 - Version 1.7 (2026-01-10): CRITICAL FIX - Fixed Win95 3D border covering text
   - Changed borders from full-size overlays to proper 2px edge lines
   - Borders now only on edges (top, left, bottom, right) instead of covering whole UI
@@ -64,6 +66,11 @@ local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+--============================================================================--
+-- MODULES
+--============================================================================--
+local RemoteEventsRegistry = require(ReplicatedStorage.RemoteEventsRegistry)
 
 --============================================================================--
 -- MODULES
@@ -98,8 +105,8 @@ local PLANET_NAMES = {} -- буде встановлено динамічно
 -- @var string ID поточної планети
 local currentPlanetId = DEFAULT_PLANET_ID
 
--- @var string Назва поточної планети
-local currentPlanetName = nil -- буде встановлено динамічно
+-- @var string Назва поточної планети (DisplayName)
+local currentPlanetDisplayName = nil -- буде отримано з сервера через RemoteEvent
 
 --============================================================================--
 -- ГЛОБАЛЬНІ ЗМІННІ / GLOBAL VARIABLES
@@ -129,6 +136,7 @@ local exitButton = nil
 -- @param raised boolean - Чи кнопка "піднята"
 local function create3DEffect(button: TextButton, raised: boolean)
 	if raised then
+		local borderZIndex = math.max(1, button.ZIndex - 1)
 		button.BorderSizePixel = 2
 		button.BorderColor3 = WIN95_COLORS.ButtonHighlight
 		-- Створюємо світлу рамку зверху/зліва
@@ -138,7 +146,7 @@ local function create3DEffect(button: TextButton, raised: boolean)
 		lightBorder.Position = UDim2.new(0, -1, 0, -1)
 		lightBorder.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
 		lightBorder.BorderSizePixel = 0
-		lightBorder.ZIndex = button.ZIndex + 1
+		lightBorder.ZIndex = borderZIndex
 		lightBorder.Parent = button
 
 		-- Створюємо темну рамку знизу/справа
@@ -148,7 +156,7 @@ local function create3DEffect(button: TextButton, raised: boolean)
 		darkBorder.Position = UDim2.new(0, 1, 0, 1)
 		darkBorder.BackgroundColor3 = WIN95_COLORS.ButtonShadow
 		darkBorder.BorderSizePixel = 0
-		darkBorder.ZIndex = button.ZIndex + 1
+		darkBorder.ZIndex = borderZIndex
 		darkBorder.Parent = button
 	else
 		button.BorderSizePixel = 2
@@ -169,6 +177,8 @@ local function createExitDialog()
 	dialog.Position = UDim2.new(0.5, -160, 0.5, -80)
 	dialog.BackgroundColor3 = WIN95_COLORS.WindowBackground
 	dialog.BorderSizePixel = 0
+	local dialogZIndex = 10
+	dialog.ZIndex = dialogZIndex
 	dialog.Parent = statusBarGui
 
 	-- Title bar
@@ -178,6 +188,7 @@ local function createExitDialog()
 	titleBar.Position = UDim2.new(0, 0, 0, 0)
 	titleBar.BackgroundColor3 = WIN95_COLORS.TitleBarActive
 	titleBar.BorderSizePixel = 0
+	titleBar.ZIndex = dialogZIndex + 1
 	titleBar.Parent = dialog
 
 	-- Title text
@@ -190,6 +201,7 @@ local function createExitDialog()
 	titleLabel.TextColor3 = WIN95_COLORS.TitleText
 	titleLabel.Font = Enum.Font.SourceSansBold
 	titleLabel.TextSize = 12
+	titleLabel.ZIndex = dialogZIndex + 2
 	titleLabel.Parent = titleBar
 
 	-- Close button
@@ -202,6 +214,7 @@ local function createExitDialog()
 	closeBtn.Text = "X"
 	closeBtn.Font = Enum.Font.SourceSans
 	closeBtn.TextSize = 10
+	closeBtn.ZIndex = dialogZIndex + 2
 	closeBtn.Parent = titleBar
 
 	-- Content area
@@ -210,6 +223,7 @@ local function createExitDialog()
 	content.Size = UDim2.new(1, -4, 1, -44)
 	content.Position = UDim2.new(0, 2, 0, 22)
 	content.BackgroundTransparency = 1
+	content.ZIndex = dialogZIndex + 1
 	content.Parent = dialog
 
 	-- Message text
@@ -223,6 +237,7 @@ local function createExitDialog()
 	messageLabel.Font = Enum.Font.SourceSans
 	messageLabel.TextSize = 12
 	messageLabel.TextWrapped = true
+	messageLabel.ZIndex = dialogZIndex + 2
 	messageLabel.Parent = content
 
 	-- Button container
@@ -231,6 +246,7 @@ local function createExitDialog()
 	buttonContainer.Size = UDim2.new(1, -20, 0, 30)
 	buttonContainer.Position = UDim2.new(0, 10, 1, -40)
 	buttonContainer.BackgroundTransparency = 1
+	buttonContainer.ZIndex = dialogZIndex + 1
 	buttonContainer.Parent = content
 
 	-- Yes button
@@ -243,6 +259,7 @@ local function createExitDialog()
 	yesBtn.Text = "Так"
 	yesBtn.Font = Enum.Font.SourceSans
 	yesBtn.TextSize = 12
+	yesBtn.ZIndex = dialogZIndex + 2
 	yesBtn.Parent = buttonContainer
 	create3DEffect(yesBtn, true)
 
@@ -256,6 +273,7 @@ local function createExitDialog()
 	noBtn.Text = "Ні"
 	noBtn.Font = Enum.Font.SourceSans
 	noBtn.TextSize = 12
+	noBtn.ZIndex = dialogZIndex + 2
 	noBtn.Parent = buttonContainer
 	create3DEffect(noBtn, true)
 
@@ -278,7 +296,7 @@ local function createExitDialog()
 
 	yesBtn.MouseButton1Click:Connect(function()
 		-- TODO: Реалізувати вихід з гри зі збереженням
-		print("[SpaceStationUI 1.7] 🚪 Player confirmed exit - implementing save and quit...")
+		print("[SpaceStationUI 1.9] 🚪 Player confirmed exit - implementing save and quit...")
 		Players.LocalPlayer:Kick("Дякуємо за гру!")
 	end)
 
@@ -328,10 +346,24 @@ local function getStationDisplayName()
 end
 
 local function getPlanetDisplayName()
-	local locationModel = getLocationModel()
-	if locationModel and locationModel:GetAttribute("LocationType") == "Planet" then
-		return locationModel:GetAttribute("DisplayName") or "Невідома планета"
+	local attributeDisplayName = player:GetAttribute("CurrentPlanetDisplayName")
+	if type(attributeDisplayName) == "string" and attributeDisplayName ~= "" then
+		return attributeDisplayName
 	end
+
+	-- Use DisplayName received from server via RemoteEvent
+	if currentPlanetDisplayName then
+		return currentPlanetDisplayName
+	end
+
+	-- Fallback: try to construct display name from planetId
+	if currentPlanetId and currentPlanetId ~= DEFAULT_PLANET_ID then
+		local planetNumber = string.match(currentPlanetId, "Planet_(%d+)")
+		if planetNumber then
+			return "Планета " .. planetNumber
+		end
+	end
+
 	return "Невідома планета"
 end
 
@@ -488,7 +520,7 @@ local function createStatusBar()
 	create3DEffect(exitButton, true)
 
 	exitButton.MouseButton1Click:Connect(function()
-		print("[SpaceStationUI 1.7] 🚪 Exit button clicked!")
+		print("[SpaceStationUI 1.9] 🚪 Exit button clicked!")
 		createExitDialog()
 	end)
 
@@ -521,8 +553,17 @@ local SpaceStationUI = {}
 @return nil
 ]]
 function SpaceStationUI.Initialize(): nil
+	local attributePlanetId = player:GetAttribute("CurrentPlanet")
+	if type(attributePlanetId) == "string" and attributePlanetId ~= "" then
+		currentPlanetId = attributePlanetId
+	end
+
+	local attributeDisplayName = player:GetAttribute("CurrentPlanetDisplayName")
+	if type(attributeDisplayName) == "string" and attributeDisplayName ~= "" then
+		currentPlanetDisplayName = attributeDisplayName
+	end
 	local scriptName = "SpaceStationUI"
-	local scriptVersion = "1.7"
+	local scriptVersion = "1.9"
 
 	print(string.format("[%s %s] 🚀 Initializing Station UI...", scriptName, scriptVersion))
 
@@ -543,16 +584,19 @@ end
 Оновлює назву поточної планети в статус барі
 
 @param planetId string - ID планети для відображення
+@param displayName string - DisplayName планети (опціонально)
 @return nil
 ]]
-function SpaceStationUI.UpdatePlanetName(planetId: string): nil
+function SpaceStationUI.UpdatePlanetName(planetId: string, displayName: string?): nil
 	if planetNameLabel then
 		currentPlanetId = planetId
-		currentPlanetName = PLANET_NAMES[planetId] or "Невідома планета"
-		planetNameLabel.Text = currentPlanetName
-		print("[SpaceStationUI 1.7] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
+		if type(displayName) == "string" and displayName ~= "" then
+			currentPlanetDisplayName = displayName
+		end
+		planetNameLabel.Text = getPlanetDisplayName()
+		print("[SpaceStationUI 1.9] 🪐 Planet updated to:", planetId, "-", planetNameLabel.Text)
 	else
-		warn("[SpaceStationUI 1.7] ⚠️ Planet label not initialized")
+		warn("[SpaceStationUI 1.9] ⚠️ Planet label not initialized")
 	end
 end
 
@@ -574,7 +618,7 @@ end
 @return string - Назва поточної планети
 ]]
 function SpaceStationUI.GetCurrentPlanetName(): string
-	return currentPlanetName
+	return getPlanetDisplayName()
 end
 
 --[[
@@ -591,7 +635,28 @@ end
 -- ІНІЦІАЛІЗАЦІЯ / INITIALIZATION
 --============================================================================--
 
+-- Subscribe to PlayerLocationChanged event
+local playerLocationEvent = RemoteEventsRegistry.WaitFor("PlayerLocationChanged", 10)
+if playerLocationEvent then
+	playerLocationEvent.OnClientEvent:Connect(function(locationData)
+		if locationData then
+			print("[SpaceStationUI 1.9] 📍 Location update received:", locationData.PlanetId, locationData.PlanetDisplayName)
+			SpaceStationUI.UpdatePlanetName(locationData.PlanetId, locationData.PlanetDisplayName)
+		end
+	end)
+	print("[SpaceStationUI 1.9] ✅ Subscribed to PlayerLocationChanged event")
+else
+	warn("[SpaceStationUI 1.9] ⚠️ Failed to get PlayerLocationChanged event")
+end
+
 -- Автоматична ініціалізація при завантаженні скрипта
 SpaceStationUI.Initialize()
+
+local playerLocationRequestEvent = RemoteEventsRegistry.WaitFor("PlayerLocationRequest", 10)
+if playerLocationRequestEvent then
+	playerLocationRequestEvent:FireServer()
+else
+	warn("[SpaceStationUI 1.9] WARN: Failed to get PlayerLocationRequest event")
+end
 
 return SpaceStationUI
