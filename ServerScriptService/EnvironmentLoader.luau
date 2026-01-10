@@ -184,31 +184,50 @@ local function copyFolderContents(sourceFolder, targetParent, loadOrder)
 end
 
 -- Helper function to verify objects loaded
+local function findObjectByPath(path)
+	local object = Workspace
+	for _, part in ipairs(string.split(path, ".")) do
+		object = object:FindFirstChild(part)
+		if not object then
+			return nil
+		end
+	end
+	return object
+end
+
 local function verifyObjectsLoaded(expectedObjects)
     local loadedCount = 0
     local totalCount = #expectedObjects
-    
+
     for _, objectPath in ipairs(expectedObjects) do
-        local object = Workspace
-        for _, part in ipairs(string.split(objectPath, ".")) do
-            object = object:FindFirstChild(part)
-            if not object then
-                break
-            end
-        end
-        
-        if object then
-            loadedCount = loadedCount + 1
-        else
-            warn("[EnvironmentLoader] ⚠️ Object not found:")
-            warn("  └─ Шлях: " .. objectPath)
-            warn("  └─ Перевірте що об'єкт існує в Workspace")
-        end
+		local object = nil
+		local expectedLabel = ""
+
+		if type(objectPath) == "table" then
+			expectedLabel = table.concat(objectPath, " OR " )
+			for _, option in ipairs(objectPath) do
+				object = findObjectByPath(option)
+				if object then
+					break
+				end
+			end
+		else
+			expectedLabel = objectPath
+			object = findObjectByPath(objectPath)
+		end
+
+		if object then
+			loadedCount = loadedCount + 1
+		else
+			warn("[EnvironmentLoader] Object not found:")
+			warn("  - Path: " .. expectedLabel)
+			warn("  - Expected in Workspace")
+		end
     end
-    
+
     local success = loadedCount == totalCount
-    print(string.format("[EnvironmentLoader] 📊 Verification: %d/%d objects loaded", loadedCount, totalCount))
-    
+    print(string.format("[EnvironmentLoader] Verification: %d/%d objects loaded", loadedCount, totalCount))
+
     return success
 end
 
@@ -544,154 +563,151 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
         "Planet",        -- From Planet/Workspace/
         "LocationModel"  -- From SpaceStation/Workspace/LocationModel (hierarchical structure)
     }
-    
+
     local success = verifyObjectsLoaded(expectedObjects)
     
     if success then
-        print("[EnvironmentLoader] ✅ Space Environment loaded successfully")
-        
-        -- Initialize client scripts after environment is ready
-        ClientScriptInitializer.InitializeAllClientScripts("SpaceStation", planetId, nil)
+        print("[EnvironmentLoader] ✅ Planet Environment loaded successfully")
     else
-        warn("[EnvironmentLoader] ❌ Space Environment loading incomplete")
+        warn("[EnvironmentLoader] ❌ Planet Environment loading incomplete")
     end
     
     return success
 end
 
+
 -- Load Planet Environment (Location only)
 function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder)
-    print("[EnvironmentLoader] 🪐 Loading Planet Environment:", planetId, "location:", locationId)
-    
+    print("[EnvironmentLoader] Loading Planet Environment:", planetId, "location:", locationId)
+
     -- Validate location structure first
     local locationErrors = ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
     if #locationErrors > 0 then
-        warn("[EnvironmentLoader] ❌ Location structure validation failed, attempting to fix...")
+        warn("[EnvironmentLoader] Location structure validation failed, attempting to fix...")
         ObjectTypeValidator.FixLocationStructure(planetId, locationId)
-        
+
         -- Re-validate after fixing
         locationErrors = ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
         if #locationErrors > 0 then
-            error("[EnvironmentLoader] ❌ Cannot load environment - location structure is invalid: " .. table.concat(locationErrors, ", "))
+            error("[EnvironmentLoader] Cannot load environment - location structure is invalid: " .. table.concat(locationErrors, ", "))
         end
     end
-    
+
     -- Clear workspace first
     clearWorkspace()
-    
+
     -- Get planet and location folders
     local planetsFolder = ServerStorage:FindFirstChild("Planets")
     if not planetsFolder then
-        warn("[EnvironmentLoader] ❌ Planets folder not found")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets")
+        warn("[EnvironmentLoader] Planets folder not found")
+        warn("  - Expected path: ServerStorage/Planets")
         return false
     end
-    
+
     local planetFolder = planetsFolder:FindFirstChild(planetId)
     if not planetFolder then
-        warn("[EnvironmentLoader] ❌ Planet folder not found")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId)
+        warn("[EnvironmentLoader] Planet folder not found")
+        warn("  - Expected path: ServerStorage/Planets/" .. planetId)
         return false
     end
-    
--- Process Planet Scripts first with LoadOrder (common for all locations)
-	local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
-	if planetScriptsFolder then
-		-- Load Planet LoadOrder configuration
-		local planetConfigFolder = planetFolder:FindFirstChild("Configuration")
-		local planetLoadOrderConfig = if planetConfigFolder then LoadOrderProcessor.LoadConfig(planetConfigFolder) else nil
-		
-		-- Process Server scripts with LoadOrder
-		local serverFolder = planetScriptsFolder:FindFirstChild("Server")
-		if serverFolder then
-			local serverScripts = serverFolder:GetChildren()
-			
-			if planetLoadOrderConfig then
-				serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, planetLoadOrderConfig)
-			end
-			
-			for index, script in ipairs(serverScripts) do
-				local action = "none"
-				if planetLoadOrderConfig then
-					action = LoadOrderProcessor.GetScriptAction(script.Name, planetLoadOrderConfig)
-				end
-				
-				if action == "require" and script:IsA("ModuleScript") then
-					local success = pcall(require, script)
-					if success then
-						print(string.format("[EnvironmentLoader] ? [%d/%d] Planet Server: Required %s", 
-							index, #serverScripts, script.Name))
-					else
-						print(string.format("[EnvironmentLoader] ?? [%d/%d] Planet Server: %s unavailable", 
-							index, #serverScripts, script.Name))
-					end
-				else
-					print(string.format("[EnvironmentLoader] ?? [%d/%d] Planet Server: %s available (%s)", 
-						index, #serverScripts, script.Name, script.ClassName))
-				end
-			end
-		end
-		
-		-- Process Client scripts (copy to PlayerGui of all current players)
-		local clientFolder = planetScriptsFolder:FindFirstChild("Client")
-		if clientFolder then
-			local Players = game:GetService("Players")
-			local clientScripts = clientFolder:GetChildren()
-			
-			if planetLoadOrderConfig then
-				clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, planetLoadOrderConfig)
-			end
-			
-			for index, script in ipairs(clientScripts) do
-				if script:IsA("LocalScript") then
-					for _, player in ipairs(Players:GetPlayers()) do
-						local playerGui = player:WaitForChild("PlayerGui", 5)
-						if playerGui then
-							local oldScript = playerGui:FindFirstChild(script.Name)
-							if oldScript then
-								oldScript:Destroy()
-								print(string.format("[EnvironmentLoader] ??? Removed old: %s/PlayerGui/%s", player.Name, script.Name))
-							end
-							
-							local clone = script:Clone()
-							clone.Parent = playerGui
-							print(string.format("[EnvironmentLoader] ? [%d/%d] Copied: %s -> %s/PlayerGui/%s", 
-								index, #clientScripts, script:GetFullName(), player.Name, script.Name))
-						else
-							warn(string.format("[EnvironmentLoader] ? PlayerGui not found for %s", player.Name))
-						end
-					end
-				end
-			end
-		end
-	end
-    
+
+    -- Process Planet Scripts first with LoadOrder (common for all locations)
+    local planetScriptsFolder = planetFolder:FindFirstChild("Scripts")
+    if planetScriptsFolder then
+        -- Load Planet LoadOrder configuration
+        local planetConfigFolder = planetFolder:FindFirstChild("Configuration")
+        local planetLoadOrderConfig = if planetConfigFolder then LoadOrderProcessor.LoadConfig(planetConfigFolder) else nil
+
+        -- Process Server scripts with LoadOrder
+        local serverFolder = planetScriptsFolder:FindFirstChild("Server")
+        if serverFolder then
+            local serverScripts = serverFolder:GetChildren()
+
+            if planetLoadOrderConfig then
+                serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, planetLoadOrderConfig)
+            end
+
+            for index, script in ipairs(serverScripts) do
+                local action = "none"
+                if planetLoadOrderConfig then
+                    action = LoadOrderProcessor.GetScriptAction(script.Name, planetLoadOrderConfig)
+                end
+
+                if action == "require" and script:IsA("ModuleScript") then
+                    local success = pcall(require, script)
+                    if success then
+                        print(string.format("[EnvironmentLoader] [%d/%d] Planet Server: Required %s", 
+                            index, #serverScripts, script.Name))
+                    else
+                        print(string.format("[EnvironmentLoader] [%d/%d] Planet Server: %s unavailable", 
+                            index, #serverScripts, script.Name))
+                    end
+                else
+                    print(string.format("[EnvironmentLoader] [%d/%d] Planet Server: %s available (%s)", 
+                        index, #serverScripts, script.Name, script.ClassName))
+                end
+            end
+        end
+
+        -- Process Client scripts (copy to PlayerGui of all current players)
+        local clientFolder = planetScriptsFolder:FindFirstChild("Client")
+        if clientFolder then
+            local Players = game:GetService("Players")
+            local clientScripts = clientFolder:GetChildren()
+
+            if planetLoadOrderConfig then
+                clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, planetLoadOrderConfig)
+            end
+
+            for index, script in ipairs(clientScripts) do
+                if script:IsA("LocalScript") then
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        local playerGui = player:WaitForChild("PlayerGui", 5)
+                        if playerGui then
+                            local oldScript = playerGui:FindFirstChild(script.Name)
+                            if oldScript then
+                                oldScript:Destroy()
+                                print(string.format("[EnvironmentLoader] Removed old: %s/PlayerGui/%s", player.Name, script.Name))
+                            end
+
+                            local clone = script:Clone()
+                            clone.Parent = playerGui
+                            print(string.format("[EnvironmentLoader] [%d/%d] Copied: %s -> %s/PlayerGui/%s", 
+                                index, #clientScripts, script:GetFullName(), player.Name, script.Name))
+                        else
+                            warn(string.format("[EnvironmentLoader] PlayerGui not found for %s", player.Name))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- Get location folder
     local locationsFolder = planetFolder:FindFirstChild("Locations")
     if not locationsFolder then
-        warn("[EnvironmentLoader] ❌ Locations folder not found")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations")
+        warn("[EnvironmentLoader] Locations folder not found")
+        warn("  - Expected path: ServerStorage/Planets/" .. planetId .. "/Locations")
         return false
     end
-    
+
     local locationFolder = locationsFolder:FindFirstChild(locationId)
     if not locationFolder then
-        warn("[EnvironmentLoader] ❌ Location folder not found")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId)
-        warn("  └─ Доступні локації: " .. #locationsFolder:GetChildren())
+        warn("[EnvironmentLoader] Location folder not found")
+        warn("  - Expected path: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId)
         return false
     end
-    
+
     -- Copy location workspace objects with load order
     local workspaceFolder = locationFolder:FindFirstChild("Workspace")
     if workspaceFolder then
-        print("[EnvironmentLoader] 📋 Location Workspace contains:", #workspaceFolder:GetChildren(), "objects")
+        print("[EnvironmentLoader] Location Workspace contains:", #workspaceFolder:GetChildren(), "objects")
         for _, child in ipairs(workspaceFolder:GetChildren()) do
             print("[EnvironmentLoader]   - " .. child.Name .. " (" .. child.ClassName .. ")")
         end
-        
+
         copyFolderContents(workspaceFolder, Workspace, loadOrder)
-        print("[EnvironmentLoader] ✅ Location workspace loaded")
+        print("[EnvironmentLoader] Location workspace loaded")
         -- Diagnostic: List all children of PlanetSurfaceScanner after copy
         local locationModel = Workspace:FindFirstChild("LocationModel")
         if locationModel then
@@ -713,109 +729,110 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
             print("[EnvironmentLoader][DIAG] LocationModel not found in Workspace after copy")
         end
     else
-        warn("[EnvironmentLoader] ⚠️ Workspace folder not found in location")
-        warn("  └─ Очікуваний шлях: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Workspace")
+        warn("[EnvironmentLoader] Workspace folder not found in location")
+        warn("  - Expected path: ServerStorage/Planets/" .. planetId .. "/Locations/" .. locationId .. "/Workspace")
     end
-    
+
     -- Copy location lighting
     local locationLighting = locationFolder:FindFirstChild("Lighting")
     if locationLighting then
         copyFolderContents(locationLighting, game.Lighting)
-        print("[EnvironmentLoader] ✅ Location lighting loaded")
+        print("[EnvironmentLoader] Location lighting loaded")
     else
-        warn("[EnvironmentLoader] ⚠️ Lighting folder not found in location")
+        warn("[EnvironmentLoader] Lighting folder not found in location")
     end
-    
+
     -- Process Location Scripts with LoadOrder
     local scriptsFolder = locationFolder:FindFirstChild("Scripts")
     if scriptsFolder then
         -- Load Location LoadOrder configuration
         local locationConfigFolder = locationFolder:FindFirstChild("Configuration")
         local locationLoadOrderConfig = if locationConfigFolder then LoadOrderProcessor.LoadConfig(locationConfigFolder) else nil
-        
+
         -- Process Server scripts with LoadOrder
         local serverFolder = scriptsFolder:FindFirstChild("Server")
         if serverFolder then
             local serverScripts = serverFolder:GetChildren()
-            
+
             if locationLoadOrderConfig then
                 serverScripts = LoadOrderProcessor.SortServerScripts(serverScripts, locationLoadOrderConfig)
             end
-            
-			for index, script in ipairs(serverScripts) do
-				local action = "none"
-				if locationLoadOrderConfig then
-					action = LoadOrderProcessor.GetScriptAction(script.Name, locationLoadOrderConfig)
-				end
-				
-				if action == "require" and script:IsA("ModuleScript") then
-					local success = pcall(require, script)
-					if success then
-						print(string.format("[EnvironmentLoader] ? [%d/%d] Location Server: Required %s", 
-							index, #serverScripts, script.Name))
-					else
-						print(string.format("[EnvironmentLoader] ?? [%d/%d] Location Server: %s unavailable", 
-							index, #serverScripts, script.Name))
-					end
-				else
-					print(string.format("[EnvironmentLoader] ?? [%d/%d] Location Server: %s available (%s)", 
-						index, #serverScripts, script.Name, script.ClassName))
-				end
-			end
-		end
-		
-		-- Process Client scripts with LoadOrder (copy to PlayerGui of all current players)
-		local clientFolder = scriptsFolder:FindFirstChild("Client")
-		if clientFolder then
-			local Players = game:GetService("Players")
-			local clientScripts = clientFolder:GetChildren()
-			
-			if locationLoadOrderConfig then
-				clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, locationLoadOrderConfig)
-			end
-			
-			for index, script in ipairs(clientScripts) do
-				if script:IsA("LocalScript") then
-					for _, player in ipairs(Players:GetPlayers()) do
-						local playerGui = player:WaitForChild("PlayerGui", 5)
-						if playerGui then
-							local oldScript = playerGui:FindFirstChild(script.Name)
-							if oldScript then
-								oldScript:Destroy()
-								print(string.format("[EnvironmentLoader] ??? Removed old: %s/PlayerGui/%s", player.Name, script.Name))
-							end
-							
-							local clone = script:Clone()
-							clone.Parent = playerGui
-							print(string.format("[EnvironmentLoader] ? [%d/%d] Copied: %s -> %s/PlayerGui/%s", 
-								index, #clientScripts, script:GetFullName(), player.Name, script.Name))
-						else
-							warn(string.format("[EnvironmentLoader] ? PlayerGui not found for %s", player.Name))
-						end
-					end
-				end
-			end
-		end
-	else
-		print("[EnvironmentLoader] ?? Scripts folder not found in location (optional)")
-	end
-    
-    print("[EnvironmentLoader] ✅ Location contents loaded")
-    
+
+            for index, script in ipairs(serverScripts) do
+                local action = "none"
+                if locationLoadOrderConfig then
+                    action = LoadOrderProcessor.GetScriptAction(script.Name, locationLoadOrderConfig)
+                end
+
+                if action == "require" and script:IsA("ModuleScript") then
+                    local success = pcall(require, script)
+                    if success then
+                        print(string.format("[EnvironmentLoader] [%d/%d] Location Server: Required %s", 
+                            index, #serverScripts, script.Name))
+                    else
+                        print(string.format("[EnvironmentLoader] [%d/%d] Location Server: %s unavailable", 
+                            index, #serverScripts, script.Name))
+                    end
+                else
+                    print(string.format("[EnvironmentLoader] [%d/%d] Location Server: %s available (%s)", 
+                        index, #serverScripts, script.Name, script.ClassName))
+                end
+            end
+        end
+
+        -- Process Client scripts with LoadOrder (copy to PlayerGui of all current players)
+        local clientFolder = scriptsFolder:FindFirstChild("Client")
+        if clientFolder then
+            local Players = game:GetService("Players")
+            local clientScripts = clientFolder:GetChildren()
+
+            if locationLoadOrderConfig then
+                clientScripts = LoadOrderProcessor.SortClientScripts(clientScripts, locationLoadOrderConfig)
+            end
+
+            for index, script in ipairs(clientScripts) do
+                if script:IsA("LocalScript") then
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        local playerGui = player:WaitForChild("PlayerGui", 5)
+                        if playerGui then
+                            local oldScript = playerGui:FindFirstChild(script.Name)
+                            if oldScript then
+                                oldScript:Destroy()
+                                print(string.format("[EnvironmentLoader] Removed old: %s/PlayerGui/%s", player.Name, script.Name))
+                            end
+
+                            local clone = script:Clone()
+                            clone.Parent = playerGui
+                            print(string.format("[EnvironmentLoader] [%d/%d] Copied: %s -> %s/PlayerGui/%s", 
+                                index, #clientScripts, script:GetFullName(), player.Name, script.Name))
+                        else
+                            warn(string.format("[EnvironmentLoader] PlayerGui not found for %s", player.Name))
+                        end
+                    end
+                end
+            end
+        end
+    else
+        print("[EnvironmentLoader] Scripts folder not found in location (optional)")
+    end
+
+    print("[EnvironmentLoader] Location contents loaded")
+
     -- Verify loading
     local expectedObjects = {
-        "SpawnLocation",
-        "Baseplate"
+        "LocationModel",
+        {"LocationModel.Gameplay.SpawnLocation", "SpawnLocation"},
+        {"LocationModel.Environment.Baseplate", "Baseplate"}
     }
-    
+
     local success = verifyObjectsLoaded(expectedObjects)
-    
+
     if success then
-        print("[EnvironmentLoader] ✅ Planet Environment loaded successfully")
+        print("[EnvironmentLoader] Planet Environment loaded successfully")
     else
-        warn("[EnvironmentLoader] ❌ Planet Environment loading incomplete")
+        warn("[EnvironmentLoader] Planet Environment loading incomplete")
     end
-    
+
     return success
 end
 

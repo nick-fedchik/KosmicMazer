@@ -4,7 +4,7 @@ KOSMICMAZER — Planet Surface Scanner UI Client
 ================================================================================
 
 Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
-Version: 2.0
+Version: 2.1
 
 Features:
 - Відображення результатів сканування планетної поверхні (Windows 95 стиль)
@@ -41,13 +41,18 @@ Dependencies:
 - PlanetSurfaceScanner: Модель сканера
 
 ChangeLog:
-- Version 2.0 (2026-01-10): IMPROVED Scanner UI - simplified location list
+- Version 2.1 (2026-01-10): CRITICAL FIX - Fixed Win95 3D border covering button text
+  - Changed create3DEffect() borders from full-size overlays to proper 2px edge lines
+  - Borders now only on edges (top, left, bottom, right) instead of covering whole button
+  - Fixed ZIndex: borders at -1, button text at default (text now always visible)
+  - Button text no longer hidden until mouse hover
+- Version 2.1 (2026-01-10): IMPROVED Scanner UI - simplified location list
   - Removed teleport button, type, and difficulty fields
   - Now uses DisplayName from server (fixed "Невідома локація" bug)
   - Added "НОВА" status badge for unvisited locations (green badge)
   - Reduced frame height from 60px to 40px for compact display
   - Location list is now read-only (no click interactions)
-- Version 2.0: Use ScanResults planetName for UI display (2026-01-10)
+- Version 1.9: Use ScanResults planetName for UI display (2026-01-10)
 - Version 1.7: Removed GuiConvention dependency, colors defined locally
 - Version 1.6: Renamed from ScannerUI to PlanetSurfaceScannerUI for clarity
 - Version 1.5: Simplified Initialize() - removed mock results simulation
@@ -63,7 +68,7 @@ ChangeLog:
 ================================================================================
 ]]
 
-local scriptVersion = "2.0"
+local scriptVersion = "2.1"
 
 --============================================================================--
 --============================================================================--
@@ -171,11 +176,11 @@ local function updateScannerDisplayPlanetName(planetName: string)
 	scanLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
 	scanLabel.BackgroundTransparency = 0.5
 	scanIndicator.Enabled = true
-	print("[PlanetSurfaceScannerUI 2.0] Set planet name on scan: " .. displayName)
+	print("[PlanetSurfaceScannerUI 2.1] Set planet name on scan: " .. displayName)
 end
 
 --============================================================================--
--- REMOTEEVENT SUBSCRIPTION (v2.0)
+-- REMOTEEVENT SUBSCRIPTION (v2.1)
 --============================================================================--
 
 local scanResultsEvent = ReplicatedStorage:FindFirstChild("PlanetSurfaceScanner_Results")
@@ -184,12 +189,12 @@ if scanResultsEvent and scanResultsEvent:IsA("RemoteEvent") then
 		if eventType == "ScanResults" and type(data) == "table" then
 			lastPlanetName = data.planetName or "Unknown planet"
 			updateScannerDisplayPlanetName(lastPlanetName)
-			print("[PlanetSurfaceScannerUI 2.0] ScanResults received from server: ", lastPlanetName)
+			print("[PlanetSurfaceScannerUI 2.1] ScanResults received from server: ", lastPlanetName)
 			PlanetSurfaceScannerUI.ShowScanResults(data.locations or {})
 		end
 	end)
 else
-	warn("[PlanetSurfaceScannerUI 2.0] RemoteEvent PlanetSurfaceScanner_Results not found in ReplicatedStorage")
+	warn("[PlanetSurfaceScannerUI 2.1] RemoteEvent PlanetSurfaceScanner_Results not found in ReplicatedStorage")
 end
 
 
@@ -197,36 +202,57 @@ end
 -- @param button TextButton - Кнопка для стилізації
 -- @param raised boolean - Чи кнопка "піднята"
 local function create3DEffect(button: TextButton, raised: boolean)
+	-- Видаляємо старі бордери
+	for _, child in ipairs(button:GetChildren()) do
+		if child.Name:match("Border") then
+			child:Destroy()
+		end
+	end
+
 	if raised then
-		button.BorderSizePixel = 2
-		button.BorderColor3 = WIN95_COLORS.ButtonHighlight
-		-- Створюємо світлу рамку зверху/зліва
+		button.BorderSizePixel = 0
+		-- Світла рамка зверху
 		local lightBorder = Instance.new("Frame")
-		lightBorder.Name = "LightBorder"
-		lightBorder.Size = UDim2.new(1, 2, 1, 2)
-		lightBorder.Position = UDim2.new(0, -1, 0, -1)
+		lightBorder.Name = "LightBorderTop"
+		lightBorder.Size = UDim2.new(1, 0, 0, 2)
+		lightBorder.Position = UDim2.new(0, 0, 0, 0)
 		lightBorder.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
 		lightBorder.BorderSizePixel = 0
-		lightBorder.ZIndex = button.ZIndex + 1
+		lightBorder.ZIndex = button.ZIndex - 1
 		lightBorder.Parent = button
 
-		-- Створюємо темну рамку знизу/справа
+		-- Світла рамка зліва
+		local lightBorderLeft = Instance.new("Frame")
+		lightBorderLeft.Name = "LightBorderLeft"
+		lightBorderLeft.Size = UDim2.new(0, 2, 1, 0)
+		lightBorderLeft.Position = UDim2.new(0, 0, 0, 0)
+		lightBorderLeft.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
+		lightBorderLeft.BorderSizePixel = 0
+		lightBorderLeft.ZIndex = button.ZIndex - 1
+		lightBorderLeft.Parent = button
+
+		-- Темна рамка знизу
 		local darkBorder = Instance.new("Frame")
-		darkBorder.Name = "DarkBorder"
-		darkBorder.Size = UDim2.new(1, 2, 1, 2)
-		darkBorder.Position = UDim2.new(0, 1, 0, 1)
+		darkBorder.Name = "DarkBorderBottom"
+		darkBorder.Size = UDim2.new(1, 0, 0, 2)
+		darkBorder.Position = UDim2.new(0, 0, 1, -2)
 		darkBorder.BackgroundColor3 = WIN95_COLORS.ButtonShadow
 		darkBorder.BorderSizePixel = 0
-		darkBorder.ZIndex = button.ZIndex + 1
+		darkBorder.ZIndex = button.ZIndex - 1
 		darkBorder.Parent = button
+
+		-- Темна рамка справа
+		local darkBorderRight = Instance.new("Frame")
+		darkBorderRight.Name = "DarkBorderRight"
+		darkBorderRight.Size = UDim2.new(0, 2, 1, 0)
+		darkBorderRight.Position = UDim2.new(1, -2, 0, 0)
+		darkBorderRight.BackgroundColor3 = WIN95_COLORS.ButtonShadow
+		darkBorderRight.BorderSizePixel = 0
+		darkBorderRight.ZIndex = button.ZIndex - 1
+		darkBorderRight.Parent = button
 	else
 		button.BorderSizePixel = 2
 		button.BorderColor3 = WIN95_COLORS.ButtonDarkShadow
-		-- Видаляємо 3D ефекти
-		local lightBorder = button:FindFirstChild("LightBorder")
-		if lightBorder then lightBorder:Destroy() end
-		local darkBorder = button:FindFirstChild("DarkBorder")
-		if darkBorder then darkBorder:Destroy() end
 	end
 end
 
@@ -367,7 +393,7 @@ local function createResultsWindow()
 		PlanetSurfaceScannerUI.ShowScanningAnimation()
 		task.delay(SCAN_DURATION, function()
 			PlanetSurfaceScannerUI.HideScanningAnimation()
-			print("[PlanetSurfaceScannerUI 2.0] Rescan completed, waiting for server results")
+			print("[PlanetSurfaceScannerUI 2.1] Rescan completed, waiting for server results")
 		end)
 	end)
 
@@ -525,7 +551,7 @@ end
 @return nil
 ]]
 function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
-	print("[PlanetSurfaceScannerUI 2.0] 📡 Initializing Scanner UI for model:", scannerModel.Name)
+	print("[PlanetSurfaceScannerUI 2.1] 📡 Initializing Scanner UI for model:", scannerModel.Name)
 
 	-- Створюємо головний GUI
 	scannerGui = Instance.new("ScreenGui")
@@ -544,7 +570,7 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 		scannerBaseplate = scannerModel:FindFirstChild("ScannerBaseplate", true)
 	end
 	if not scannerBaseplate then
-		warn("[PlanetSurfaceScannerUI 2.0] ⚠️ ScannerBaseplate not found in scanner model")
+		warn("[PlanetSurfaceScannerUI 2.1] ⚠️ ScannerBaseplate not found in scanner model")
 		return
 	end
 
@@ -557,7 +583,7 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 		proximityPrompt = scannerBaseplate:FindFirstChildWhichIsA("ProximityPrompt", true)
 	end
 	if not proximityPrompt then
-		warn("[PlanetSurfaceScannerUI 2.0] ⚠️ ProximityPrompt not found in ScannerBaseplate")
+		warn("[PlanetSurfaceScannerUI 2.1] ⚠️ ProximityPrompt not found in ScannerBaseplate")
 		return
 	end
 
@@ -568,7 +594,7 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 		if playerWhoTriggered ~= player then return end
 		if isScanning then return end
 
-		print("[PlanetSurfaceScannerUI 2.0] 📡 ProximityPrompt TRIGGERED by player:", playerWhoTriggered.Name)
+		print("[PlanetSurfaceScannerUI 2.1] 📡 ProximityPrompt TRIGGERED by player:", playerWhoTriggered.Name)
 		PlanetSurfaceScannerUI.ShowScanningAnimation()
 
 		-- Оновлюємо ScanLabel на дисплеї сканера
@@ -576,11 +602,11 @@ function PlanetSurfaceScannerUI.Initialize(scannerModel: Model): nil
 
 		task.delay(SCAN_DURATION, function()
 			PlanetSurfaceScannerUI.HideScanningAnimation()
-			print("[PlanetSurfaceScannerUI 2.0] ✅ Scan completed, waiting for server results")
+			print("[PlanetSurfaceScannerUI 2.1] ✅ Scan completed, waiting for server results")
 		end)
 	end)
 
-	print("[PlanetSurfaceScannerUI 2.0] 🎯 ProximityPrompt configured - Enabled:", proximityPrompt.Enabled, "MaxActivationDistance:", proximityPrompt.MaxActivationDistance)
+	print("[PlanetSurfaceScannerUI 2.1] 🎯 ProximityPrompt configured - Enabled:", proximityPrompt.Enabled, "MaxActivationDistance:", proximityPrompt.MaxActivationDistance)
 
 	local scriptName = "PlanetSurfaceScannerUI"
 	print(string.format("[%s %s] ✅ Scanner UI initialized successfully", scriptName, scriptVersion))
@@ -594,7 +620,7 @@ end
 @return nil
 ]]
 function PlanetSurfaceScannerUI.ShowScanResults(results: {any}): nil
-	print("[PlanetSurfaceScannerUI 2.0] 📊 Showing scan results:", #results, "locations found")
+	print("[PlanetSurfaceScannerUI 2.1] 📊 Showing scan results:", #results, "locations found")
 
 	local resultsList = createResultsWindow()
 	if not resultsList then return end
@@ -666,7 +692,7 @@ function PlanetSurfaceScannerUI.ShowScanningAnimation(): nil
 	if isScanning then return end
 
 	isScanning = true
-	print("[PlanetSurfaceScannerUI 2.0] 📡 Starting scanning animation...")
+	print("[PlanetSurfaceScannerUI 2.1] 📡 Starting scanning animation...")
 	createScanningWindow()
 end
 
@@ -680,7 +706,7 @@ function PlanetSurfaceScannerUI.HideScanningAnimation(): nil
 	if not isScanning then return end
 
 	isScanning = false
-	print("[PlanetSurfaceScannerUI 2.0] ✅ Hiding scanning animation...")
+	print("[PlanetSurfaceScannerUI 2.1] ✅ Hiding scanning animation...")
 
 	if scanningWindow then
 		local tweenOut = TweenService:Create(scanningWindow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -716,18 +742,18 @@ task.spawn(function()
 					local scriptName = "PlanetSurfaceScannerUI"
 					print(string.format("[%s %s] ✅ Ініціалізовано для LocationModel.Equipment.PlanetSurfaceScanner", scriptName, scriptVersion))
 				else
-					warn("[PlanetSurfaceScannerUI 2.0] ⚠️ PlanetSurfaceScanner не знайдено в LocationModel/Equipment")
+					warn("[PlanetSurfaceScannerUI 2.1] ⚠️ PlanetSurfaceScanner не знайдено в LocationModel/Equipment")
 				end
 			else
-				warn("[PlanetSurfaceScannerUI 2.0] ⚠️ Equipment папка не знайдена в LocationModel")
+				warn("[PlanetSurfaceScannerUI 2.1] ⚠️ Equipment папка не знайдена в LocationModel")
 			end
 		else
-			warn("[PlanetSurfaceScannerUI 2.0] ⚠️ LocationModel має невірні attributes:")
+			warn("[PlanetSurfaceScannerUI 2.1] ⚠️ LocationModel має невірні attributes:")
 			warn("  └─ LocationId: " .. tostring(locationId) .. " (expected: SpaceStation)")
 			warn("  └─ LocationType: " .. tostring(locationType) .. " (expected: Space)")
 		end
 	else
-		warn("[PlanetSurfaceScannerUI 2.0] ⚠️ LocationModel не знайдено в Workspace")
+		warn("[PlanetSurfaceScannerUI 2.1] ⚠️ LocationModel не знайдено в Workspace")
 		warn("  └─ Перевірте що SpaceStation завантажено через EnvironmentLoader")
 	end
 end)

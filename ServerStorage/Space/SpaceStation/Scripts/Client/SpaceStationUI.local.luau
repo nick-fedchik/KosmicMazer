@@ -4,7 +4,7 @@ KOSMICMAZER — Space Station UI Client
 ================================================================================
 
 Purpose: Створює та керує статус баром космічної станції згідно GuiConvention
-Version: 1.6
+Version: 1.7
 
 Features:
 - Горизонтальний статус бар вгорі праворуч екрану (Windows 95 стиль)
@@ -36,12 +36,16 @@ Dependencies:
 - TweenService: Анімації
 
 ChangeLog:
-- Version 1.6 (2026-01-10): FIXED UI visibility and timing issues
+- Version 1.7 (2026-01-10): CRITICAL FIX - Fixed Win95 3D border covering text
+  - Changed borders from full-size overlays to proper 2px edge lines
+  - Borders now only on edges (top, left, bottom, right) instead of covering whole UI
+  - Fixed ZIndex: borders at +1, text at +2 (text now always visible)
+  - Text and buttons no longer hidden until mouse hover
+- Version 1.7 (2026-01-10): FIXED UI visibility and timing issues
   - Added 2 second delay after character load to avoid appearing over loading screen
-  - Fixed text visibility by adding ZIndex (+2) to all labels and buttons
   - Status bar now appears only when player is fully loaded
   - Added version tracking to Initialize() logs
-- Version 1.6: Removed GuiConvention dependency, colors defined locally
+- Version 1.5: Removed GuiConvention dependency, colors defined locally
 - Version 1.4: Renamed from StationUI to SpaceStationUI for clarity
 - Version 1.3: Updated for LocationModel hierarchical structure compatibility (ETAP 3)
 - Version 1.3: Tested and verified compatibility with new space station structure
@@ -274,7 +278,7 @@ local function createExitDialog()
 
 	yesBtn.MouseButton1Click:Connect(function()
 		-- TODO: Реалізувати вихід з гри зі збереженням
-		print("[SpaceStationUI 1.6] 🚪 Player confirmed exit - implementing save and quit...")
+		print("[SpaceStationUI 1.7] 🚪 Player confirmed exit - implementing save and quit...")
 		Players.LocalPlayer:Kick("Дякуємо за гру!")
 	end)
 
@@ -352,23 +356,42 @@ local function createStatusBar()
 	statusBar.BorderColor3 = WIN95_COLORS.ButtonShadow
 	statusBar.Parent = statusBarGui
 
+	-- 3D border effect (top-left light, bottom-right dark)
 	local lightBorder = Instance.new("Frame")
 	lightBorder.Name = "LightBorder"
-	lightBorder.Size = UDim2.new(1, 2, 1, 2)
-	lightBorder.Position = UDim2.new(0, -1, 0, -1)
+	lightBorder.Size = UDim2.new(1, 0, 0, 2)
+	lightBorder.Position = UDim2.new(0, 0, 0, 0)
 	lightBorder.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
 	lightBorder.BorderSizePixel = 0
 	lightBorder.ZIndex = statusBar.ZIndex + 1
 	lightBorder.Parent = statusBar
 
+	local lightBorderLeft = Instance.new("Frame")
+	lightBorderLeft.Name = "LightBorderLeft"
+	lightBorderLeft.Size = UDim2.new(0, 2, 1, 0)
+	lightBorderLeft.Position = UDim2.new(0, 0, 0, 0)
+	lightBorderLeft.BackgroundColor3 = WIN95_COLORS.ButtonHighlight
+	lightBorderLeft.BorderSizePixel = 0
+	lightBorderLeft.ZIndex = statusBar.ZIndex + 1
+	lightBorderLeft.Parent = statusBar
+
 	local darkBorder = Instance.new("Frame")
 	darkBorder.Name = "DarkBorder"
-	darkBorder.Size = UDim2.new(1, 2, 1, 2)
-	darkBorder.Position = UDim2.new(0, 1, 0, 1)
+	darkBorder.Size = UDim2.new(1, 0, 0, 2)
+	darkBorder.Position = UDim2.new(0, 0, 1, -2)
 	darkBorder.BackgroundColor3 = WIN95_COLORS.ButtonShadow
 	darkBorder.BorderSizePixel = 0
 	darkBorder.ZIndex = statusBar.ZIndex + 1
 	darkBorder.Parent = statusBar
+
+	local darkBorderRight = Instance.new("Frame")
+	darkBorderRight.Name = "DarkBorderRight"
+	darkBorderRight.Size = UDim2.new(0, 2, 1, 0)
+	darkBorderRight.Position = UDim2.new(1, -2, 0, 0)
+	darkBorderRight.BackgroundColor3 = WIN95_COLORS.ButtonShadow
+	darkBorderRight.BorderSizePixel = 0
+	darkBorderRight.ZIndex = statusBar.ZIndex + 1
+	darkBorderRight.Parent = statusBar
 
 	local stationSection = Instance.new("Frame")
 	stationSection.Name = "StationSection"
@@ -465,7 +488,7 @@ local function createStatusBar()
 	create3DEffect(exitButton, true)
 
 	exitButton.MouseButton1Click:Connect(function()
-		print("[SpaceStationUI 1.6] 🚪 Exit button clicked!")
+		print("[SpaceStationUI 1.7] 🚪 Exit button clicked!")
 		createExitDialog()
 	end)
 
@@ -499,7 +522,7 @@ local SpaceStationUI = {}
 ]]
 function SpaceStationUI.Initialize(): nil
 	local scriptName = "SpaceStationUI"
-	local scriptVersion = "1.6"
+	local scriptVersion = "1.7"
 
 	print(string.format("[%s %s] 🚀 Initializing Station UI...", scriptName, scriptVersion))
 
@@ -527,9 +550,9 @@ function SpaceStationUI.UpdatePlanetName(planetId: string): nil
 		currentPlanetId = planetId
 		currentPlanetName = PLANET_NAMES[planetId] or "Невідома планета"
 		planetNameLabel.Text = currentPlanetName
-		print("[SpaceStationUI 1.6] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
+		print("[SpaceStationUI 1.7] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
 	else
-		warn("[SpaceStationUI 1.6] ⚠️ Planet label not initialized")
+		warn("[SpaceStationUI 1.7] ⚠️ Planet label not initialized")
 	end
 end
 
