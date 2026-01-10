@@ -37,7 +37,7 @@ Changes: Updated to version 3.2 with optimized architecture and unified teleport
 
 local GameConfig = {}
 GameConfig.GameName = "KosmicMazer"
-GameConfig.GameVersion = "4.1"
+GameConfig.GameVersion = "5.0-RC1"
 
 -- Data Schema Version
 GameConfig.DATA_SCHEMA_VERSION = 2 -- Current schema version for player data

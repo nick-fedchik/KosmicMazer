@@ -97,6 +97,9 @@ local gameState = {
 	loadingPlayers = {} -- Track players currently loading
 }
 
+-- Module references (loaded during initialization)
+local LocationManager = nil
+
 -- Create Player Login Screen programmatically (2.1)
 local function createBootScreen(player)
 	print("[GameInit] 🖼️ Створення екрану завантаження для:", player.Name)
@@ -396,8 +399,12 @@ local function spawnPlayer(player, playerProfile)
 	end
 
 	if spawnLocation and spawnLocation:IsA("SpawnLocation") then
-		humanoidRootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 2, 0)
-		player:SetAttribute("CurrentLocation", "SpaceStation")
+		-- Spawn player with safe height above SpawnLocation
+		local spawnCFrame = spawnLocation.CFrame * CFrame.new(0, 5, 0)
+		humanoidRootPart.CFrame = spawnCFrame
+
+		-- Set player location using LocationManager (Single Source of Truth)
+		LocationManager.SetPlayerLocation(player, playerProfile.CurrentPlanet, "SpaceStation")
 
 		if playerProfile then
 			playerProfile.LastSpawnLocation = {
@@ -432,8 +439,12 @@ local function spawnPlayer(player, playerProfile)
 		warn("  └─ Використовується позиція за замовчуванням (0, 10, 0)")
 		-- Fallback to default position (higher up to avoid falling)
 		humanoidRootPart.CFrame = CFrame.new(0, 10, 0)
-		-- Set current location attribute even for fallback
-		player:SetAttribute("CurrentLocation", "SpaceStation")
+		-- Set current location via LocationManager even for fallback
+		if LocationManager then
+			LocationManager.SetPlayerLocation(player, playerProfile.CurrentPlanet, "SpaceStation")
+		else
+			player:SetAttribute("CurrentLocation", "SpaceStation")
+		end
 	end
 
 	-- Wait a bit to ensure character is fully loaded
@@ -524,11 +535,10 @@ local function onPlayerAdded(player)
 
 	-- Update player profile with loaded planet
 	if not playerProfile.CurrentPlanet then
-		playerProfile.CurrentPlanet=GameConfig.DEFAULT_PLANET
+		playerProfile.CurrentPlanet = GameConfig.DEFAULT_PLANET
 	end
 
-	-- Load LocationManager with fallback
-	local LocationManager
+	-- Load LocationManager with fallback (will be used throughout the game)
 	local locationManagerModule = script.Parent:FindFirstChild("LocationManager")
 
 	if locationManagerModule then

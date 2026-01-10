@@ -73,9 +73,13 @@ local Workspace = game:GetService("Workspace")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 local DebrisService = game:GetService("Debris")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Load dependencies
 local GameConfig = require(game.ServerScriptService.GameConfig)
+local RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
+local PlayerDataManager = require(game.ServerScriptService.PlayerDataManager)
 
 -- FSM States
 local LocationState = {
@@ -107,6 +111,12 @@ local stateStartTime = 0
 -- Active location modules
 local currentLocationGameServer = nil
 local currentPlanetConfig = nil
+
+-- Player location tracking (Single Source of Truth)
+local playerLocations = {} -- [player.UserId] = { PlanetId = "Planet_1", LocationId = "SpaceStation" }
+
+-- RemoteEvent for location sync
+local playerLocationEvent = nil
 
 -- State transition function
 local function transitionTo(newState, context)
@@ -153,10 +163,10 @@ local function validateModel(path)
 end
 
 -- Helper function to get current planet based on loaded location
+-- DEPRECATED: This is now obsolete - use GetPlayerPlanet(player) instead
 local function getCurrentPlanet()
-	-- For now, default to Planet_1
-	-- In future, this could be determined by player data or current location
-	return "Planet_1"
+	warn("[LocationManager] ⚠️ getCurrentPlanet() is deprecated - returning default planet")
+	return GameConfig.DEFAULT_PLANET
 end
 
 -- Helper function to clean workspace
@@ -621,35 +631,124 @@ local function switchToPlanetLocation(planetId, locationId)
 	return true
 end
 
+-- Set player location (Single Source of Truth)
+local function setPlayerLocation(player, planetId, locationId)
+	if not player or not player:IsA("Player") then
+		warn("[Location] ❌ Invalid player object")
+		return false
+	end
+
+	-- Update internal tracking
+	playerLocations[player.UserId] = {
+		PlanetId = planetId,
+		LocationId = locationId
+	}
+
+	-- Update player attribute for backward compatibility
+	player:SetAttribute("CurrentLocation", locationId)
+	player:SetAttribute("CurrentPlanet", planetId)
+
+	-- Update DataStore
+	local success = PlayerDataManager.UpdatePlayerPlanet(player, planetId)
+	if not success then
+		warn("[Location] ⚠️ Failed to update player planet in DataStore:", player.Name)
+	end
+
+	-- Sync to client
+	if playerLocationEvent then
+		playerLocationEvent:FireClient(player, {
+			PlanetId = planetId,
+			LocationId = locationId
+		})
+		print(string.format("[Location] 📡 Synced location to client: %s -> %s/%s", player.Name, planetId, locationId))
+	end
+
+	print(string.format("[Location] ✅ Player location updated: %s -> %s/%s", player.Name, planetId, locationId))
+	return true
+end
+
+-- Get player location (Single Source of Truth)
+local function getPlayerLocation(player)
+	if not player or not player:IsA("Player") then
+		warn("[Location] ❌ Invalid player object")
+		return nil
+	end
+
+	-- Try internal tracking first
+	local location = playerLocations[player.UserId]
+	if location then
+		return location.PlanetId, location.LocationId
+	end
+
+	-- Fallback to player attributes
+	local planetId = player:GetAttribute("CurrentPlanet") or GameConfig.DEFAULT_PLANET
+	local locationId = player:GetAttribute("CurrentLocation") or "SpaceStation"
+
+	-- Cache it for next time
+	playerLocations[player.UserId] = {
+		PlanetId = planetId,
+		LocationId = locationId
+	}
+
+	return planetId, locationId
+end
+
+-- Get player's current planet (used by EnvironmentLoader)
+local function getPlayerPlanet(player)
+	local planetId, _ = getPlayerLocation(player)
+	return planetId or GameConfig.DEFAULT_PLANET
+end
+
+-- Cleanup player location on leave
+local function onPlayerRemoving(player)
+	playerLocations[player.UserId] = nil
+	print(string.format("[Location] 🧹 Cleaned up location data for: %s", player.Name))
+end
+
 -- Public API
 local LocationManager = {
 	Initialize = function()
 		transitionTo(LocationState.IDLE, "Ініціалізація")
+
+		-- Get RemoteEvent for location sync
+		playerLocationEvent = RemoteEventsRegistry.Get("PlayerLocationChanged")
+		if not playerLocationEvent then
+			warn("[Location] ⚠️ PlayerLocationChanged RemoteEvent not found!")
+		end
+
+		-- Connect player cleanup
+		Players.PlayerRemoving:Connect(onPlayerRemoving)
+
 		print("[Location] ✅ Менеджер локацій ініціалізовано")
 	end,
 	SwitchToSpaceStation = switchToSpaceStation,
 	SwitchToPlanetLocation = switchToPlanetLocation,
-	GetCurrentLocation = function() 
+	GetCurrentLocation = function()
 		return currentLocation
 	end,
 	GetState = function()
 		return currentState
 	end,
-	IsTransitioning = function() 
+	IsTransitioning = function()
 		return isTransitioning
 	end,
 	CleanupWorkspace = cleanupWorkspace,
-	
+
 	-- FSM States (exported for external use)
 	LocationState = LocationState,
-	
+
 	-- New API for location modules
 	GetCurrentPlanetConfig = function()
 		return currentPlanetConfig
 	end,
 	GetCurrentLocationGameServer = function()
 		return currentLocationGameServer
-	end
+	end,
+
+	-- Player location tracking (Single Source of Truth)
+	SetPlayerLocation = setPlayerLocation,
+	GetPlayerLocation = getPlayerLocation,
+	GetPlayerPlanet = getPlayerPlanet,
 }
 
 return LocationManager

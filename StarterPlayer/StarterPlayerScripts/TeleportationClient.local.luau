@@ -73,8 +73,9 @@ local scriptVersion = "2.2"
 print(string.format("[TeleportClient %s] Очікування RemoteEvents...", scriptVersion))
 local teleportEvent = RemoteEventsRegistry.WaitFor("TeleportationEvent", 30)
 local teleportStateEvent = RemoteEventsRegistry.WaitFor("TeleportationStateEvent", 30)
+local playerLocationEvent = RemoteEventsRegistry.WaitFor("PlayerLocationChanged", 30)
 
-if not teleportEvent or not teleportStateEvent then
+if not teleportEvent or not teleportStateEvent or not playerLocationEvent then
 	error(string.format("[TeleportClient %s] ❌ Не вдалося отримати RemoteEvents! Гра не може працювати.", scriptVersion))
 end
 
@@ -85,6 +86,12 @@ local teleportGui = nil
 local isTeleporting = false
 local uiDebounce = false
 local lastUIAction = 0 -- Track last UI action time
+
+-- Current player location (synced from server)
+local currentPlayerLocation = {
+	PlanetId = "Unknown",
+	LocationId = "Unknown"
+}
 
 -- Hide teleportation GUI
 local function hideTeleportGui()
@@ -217,7 +224,11 @@ local function createTeleportGui()
 	statusLabel.Size = UDim2.new(1, -10, 1, 0)
 	statusLabel.Position = UDim2.new(0, 5, 0, 0)
 	statusLabel.BackgroundTransparency = 1
-	statusLabel.Text = "Оберіть локацію для телепортації"
+	-- Show current location in status
+	local locationText = currentPlayerLocation.LocationId ~= "Unknown"
+		and string.format("Поточна локація: %s | Оберіть пункт призначення", currentPlayerLocation.LocationId)
+		or "Оберіть локацію для телепортації"
+	statusLabel.Text = locationText
 	statusLabel.TextColor3 = Color3.new(0, 0, 0)
 	statusLabel.TextScaled = false
 	statusLabel.Font = Enum.Font.SourceSans
@@ -531,8 +542,19 @@ local function onTeleportationStateChange(isActive)
 	end
 end
 
+-- Handle player location updates from server
+local function onPlayerLocationChanged(locationData)
+	if locationData then
+		currentPlayerLocation.PlanetId = locationData.PlanetId
+		currentPlayerLocation.LocationId = locationData.LocationId
+		print(string.format("[TeleportClient] 📍 Location updated: %s/%s",
+			locationData.PlanetId, locationData.LocationId))
+	end
+end
+
 -- Connect to events
 teleportEvent.OnClientEvent:Connect(onTeleportEvent)
 teleportStateEvent.OnClientEvent:Connect(onTeleportationStateChange)
+playerLocationEvent.OnClientEvent:Connect(onPlayerLocationChanged)
 
 print(string.format("[TeleportClient %s] 🚀 Клієнт телепортації завантажено", scriptVersion))

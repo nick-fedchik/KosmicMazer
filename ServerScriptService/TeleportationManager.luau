@@ -543,10 +543,11 @@ local function switchLocation(player, targetLocation)
     humanoidRootPart.CFrame = targetCFrame
     
     print("[TeleportationManager] New position: " .. tostring(humanoidRootPart.CFrame))
-    
-    -- Update player's current location
-    player:SetAttribute("CurrentLocation", targetLocation.LocationId)
-    print("[TeleportationManager] ✅ Updated player CurrentLocation to: " .. targetLocation.LocationId)
+
+    -- Update player's current location using LocationManager (Single Source of Truth)
+    local planetId = targetLocation.PlanetId or GameConfig.DEFAULT_PLANET
+    LocationManager.SetPlayerLocation(player, planetId, targetLocation.LocationId)
+    print("[TeleportationManager] ✅ Updated player location via LocationManager: " .. planetId .. "/" .. targetLocation.LocationId)
     
     -- Create arrival effect with TeleportParticle
     local arrivalEffect = Instance.new("Part")

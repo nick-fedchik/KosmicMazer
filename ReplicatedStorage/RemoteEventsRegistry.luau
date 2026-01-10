@@ -37,6 +37,7 @@ local REMOTE_EVENTS_LIST = {
 	"TeleportationStateEvent",      -- Оновлення стану телепортації для клієнта
 	"PlanetSurfaceScanner_Results", -- Результати сканування планети
 	"PlayerDataReady",              -- Сигнал готовності даних гравця
+	"PlayerLocationChanged",        -- Оновлення поточної локації гравця для клієнта
 }
 
 -- Список всіх RemoteFunctions (якщо потрібні в майбутньому)
