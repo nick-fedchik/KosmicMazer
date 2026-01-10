@@ -219,9 +219,7 @@ local function verifyObjectsLoaded(expectedObjects)
 		if object then
 			loadedCount = loadedCount + 1
 		else
-			warn("[EnvironmentLoader] Object not found:")
-			warn("  - Path: " .. expectedLabel)
-			warn("  - Expected in Workspace")
+			warn("[EnvironmentLoader] Object is expected in Workspace but not found: - Path: " .. expectedLabel)
 		end
     end
 
@@ -713,6 +711,7 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
         if locationModel then
             local equipment = locationModel:FindFirstChild("Equipment")
             if equipment then
+                --[[ TODO remove it is obsolete
                 local scanner = equipment:FindFirstChild("PlanetSurfaceScanner")
                 if scanner then
                     print("[EnvironmentLoader][DIAG] PlanetSurfaceScanner children after copy:")
@@ -721,7 +720,8 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
                     end
                 else
                     print("[EnvironmentLoader][DIAG] PlanetSurfaceScanner not found in Equipment after copy")
-                end
+				end
+				]]
             else
                 print("[EnvironmentLoader][DIAG] Equipment not found in LocationModel after copy")
             end
@@ -822,7 +822,7 @@ function EnvironmentLoader.LoadPlanetEnvironment(planetId, locationId, loadOrder
     local expectedObjects = {
         "LocationModel",
         {"LocationModel.Gameplay.SpawnLocation", "SpawnLocation"},
-        {"LocationModel.Environment.Baseplate", "Baseplate"}
+        {"LocationModel.Architecture.Baseplate", "Baseplate"}
     }
 
     local success = verifyObjectsLoaded(expectedObjects)

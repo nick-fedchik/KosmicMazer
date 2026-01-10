@@ -56,7 +56,6 @@ ChangeLog:
 ]]
 
 local LocationGameServer = {}
-LocationGameServer.Version = "2.0"
 
 --============================================================================--
 -- SERVICES
@@ -117,7 +116,7 @@ LocationGameServer.LOCATION_RULES = {
 	-- Назва та опис
 	DisplayName = "Кам'янисте плато",
 	Description = "Стартова локація для знайомства з грою",
-	
+
 	-- Особливості локації
 	Features = {
 		HasResources = true,
@@ -126,14 +125,14 @@ LocationGameServer.LOCATION_RULES = {
 		HasMinigames = false,
 		HasShop = true
 	},
-	
+
 	-- Ліміти
 	MaxPlayers = 10,
 	ResourceDensity = 1.2, -- Більше ресурсів ніж на інших локаціях
-	
+
 	-- Безпека
 	IsSafeZone = true, -- Не можна атакувати гравців
-	
+
 	-- Складність
 	DifficultyLevel = 1, -- Легка локація
 	RecommendedLevel = 1
@@ -147,13 +146,13 @@ LocationGameServer.LOCATION_RULES = {
 Завантажує ресурси локації
 ]]
 local function loadResources()
-	print("[LocationGameServer 2.0] 📦 Завантаження ресурсів для", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 📦 Завантаження ресурсів для", LocationGameServer.LOCATION_NAME)
+
 	if not locationModel then
-		warn("[LocationGameServer 2.0] ⚠️ LocationModel not set")
+		warn("[LocationGameServer] ⚠️ LocationModel not set")
 		return
 	end
-	
+
 	-- Шукаємо ресурси в Architecture та Equipment секціях
 	local resourceObjects = {}
 	if architectureFolder then
@@ -163,7 +162,7 @@ local function loadResources()
 			end
 		end
 	end
-	
+
 	for _, resourceObj in ipairs(resourceObjects) do
 		table.insert(resources, {
 			Object = resourceObj,
@@ -172,21 +171,21 @@ local function loadResources()
 			LastHarvested = 0
 		})
 	end
-	
-	print("[LocationGameServer 2.0] ✅ Завантажено ресурсів:", #resources)
+
+	print("[LocationGameServer] ✅ Завантажено ресурсів:", #resources)
 end
 
 --[[
 Ініціалізує NPC в локації
 ]]
 local function initializeNPCs()
-	print("[LocationGameServer 2.0] 👥 Ініціалізація NPC для", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 👥 Ініціалізація NPC для", LocationGameServer.LOCATION_NAME)
+
 	if not locationModel then
-		warn("[LocationGameServer 2.0] ⚠️ LocationModel not set")
+		warn("[LocationGameServer] ⚠️ LocationModel not set")
 		return
 	end
-	
+
 	-- Шукаємо NPC в Gameplay секції
 	if gameplayFolder then
 		local npcsFolder = gameplayFolder:FindFirstChild("NPCs")
@@ -194,11 +193,11 @@ local function initializeNPCs()
 			for _, npc in ipairs(npcsFolder:GetChildren()) do
 				if npc:IsA("Model") then
 					-- TODO: Ініціалізувати NPC логіку
-					print("[LocationGameServer 2.0] 👤 NPC знайдено:", npc.Name)
+					print("[LocationGameServer] 👤 NPC знайдено:", npc.Name)
 				end
 			end
 		else
-			print("[LocationGameServer 2.0] ℹ️ Немає NPC в цій локації")
+			print("[LocationGameServer] ℹ️ Немає NPC в цій локації")
 		end
 	end
 end
@@ -207,8 +206,8 @@ end
 Ініціалізує квести локації
 ]]
 local function initializeQuests()
-	print("[LocationGameServer 2.0] 📜 Ініціалізація квестів для", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 📜 Ініціалізація квестів для", LocationGameServer.LOCATION_NAME)
+
 	-- TODO: Завантажити квести з конфігу
 	-- TODO: Зареєструвати квести в QuestManager
 end
@@ -217,8 +216,8 @@ end
 Обробляє збір ресурсу гравцем
 ]]
 local function onResourceHarvested(player, resource)
-	print("[LocationGameServer 2.0] ⛏️ Гравець", player.Name, "зібрав ресурс:", resource.Type)
-	
+	print("[LocationGameServer] ⛏️ Гравець", player.Name, "зібрав ресурс:", resource.Type)
+
 	-- TODO: Додати ресурс в інвентар гравця
 	-- TODO: Запустити респавн ресурсу
 end
@@ -236,51 +235,49 @@ end
 ]]
 function LocationGameServer.Initialize(model)
 	if isInitialized then
-		warn("[LocationGameServer 2.0] ⚠️ Already initialized for", LocationGameServer.LOCATION_NAME)
+		warn("[LocationGameServer] ⚠️ Already initialized for", LocationGameServer.LOCATION_NAME)
 		return false
 	end
-	
-	print("[LocationGameServer 2.0] 🎮 Ініціалізація гри для локації:", LocationGameServer.LOCATION_NAME)
-	
+
+	print("[LocationGameServer] 🎮 Ініціалізація гри для локації:", LocationGameServer.LOCATION_NAME)
+
 	locationModel = model
-	
+
 	-- Ініціалізуємо структуру LocationModel
 	if locationModel then
 		architectureFolder = locationModel:FindFirstChild("Architecture")
 		equipmentFolder = locationModel:FindFirstChild("Equipment")
 		environmentFolder = locationModel:FindFirstChild("Environment") 
 		gameplayFolder = locationModel:FindFirstChild("Gameplay")
-		
+
 		-- Перевіряємо чи є необхідні секції
 		if not architectureFolder then
-			warn("[LocationGameServer 2.0] ⚠️ Architecture folder missing!")
+			warn("[LocationGameServer] ⚠️ Architecture folder missing!")
 		end
 		if not gameplayFolder then
-			warn("[LocationGameServer 2.0] ⚠️ Gameplay folder missing!")
+			warn("[LocationGameServer] ⚠️ Gameplay folder missing!")
 		end
-		
-		print("[LocationGameServer 2.0] ✅ LocationModel структура ініціалізована")
+
+		print("[LocationGameServer] ✅ LocationModel структура ініціалізована")
 		print("  Architecture:", architectureFolder and "✅" or "❌")
 		print("  Equipment:", equipmentFolder and "✅" or "❌") 
 		print("  Environment:", environmentFolder and "✅" or "❌")
 		print("  Gameplay:", gameplayFolder and "✅" or "❌")
 	end
-	
+
 	-- Завантажити компоненти локації
 	loadResources()
 	initializeNPCs()
 	initializeQuests()
-	
+
 	-- Застосувати планетарні правила
 	if PlanetConfig then
 		PlanetConfig.ApplyPlanetPhysics()
-		print("[LocationGameServer 2.0] ✅ Застосовано фізику планети")
+		print("[LocationGameServer] ✅ Застосовано фізику планети")
 	end
-	
+
 	isInitialized = true
-	local scriptName = "LocationGameServer"
-	local scriptVersion = LocationGameServer.Version
-	print(string.format("[%s %s] ✅ Локація %s ініціалізована", scriptName, scriptVersion, LocationGameServer.LOCATION_NAME))
+	print("[LocationGameServer] ✅ Локація", LocationGameServer.LOCATION_NAME, "ініціалізована")
 
 	return true
 end
@@ -292,20 +289,20 @@ end
 @return nil
 ]]
 function LocationGameServer.Cleanup()
-	print("[LocationGameServer 2.0] 🧹 Очищення локації:", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 🧹 Очищення локації:", LocationGameServer.LOCATION_NAME)
+
 	-- Відключити всі події
 	for _, connection in ipairs(connections) do
 		connection:Disconnect()
 	end
 	connections = {}
-	
+
 	-- Очистити активних гравців
 	activePlayers = {}
-	
+
 	-- Очистити ресурси
 	resources = {}
-	
+
 	-- Очистити посилання на LocationModel структуру
 	locationModel = nil
 	architectureFolder = nil
@@ -313,8 +310,8 @@ function LocationGameServer.Cleanup()
 	environmentFolder = nil
 	gameplayFolder = nil
 	isInitialized = false
-	
-	print("[LocationGameServer 2.0] ✅ Локацію очищено")
+
+	print("[LocationGameServer] ✅ Локацію очищено")
 end
 
 --[[
@@ -325,14 +322,14 @@ end
 @return nil
 ]]
 function LocationGameServer.OnPlayerEnter(player)
-	print("[LocationGameServer 2.0] 👋 Гравець", player.Name, "увійшов в", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 👋 Гравець", player.Name, "увійшов в", LocationGameServer.LOCATION_NAME)
+
 	activePlayers[player.UserId] = {
 		Player = player,
 		EnterTime = tick(),
 		ResourcesCollected = 0
 	}
-	
+
 	-- TODO: Показати повідомлення про локацію
 	-- TODO: Активувати квести
 	-- TODO: Завантажити стан локації для гравця
@@ -346,18 +343,18 @@ end
 @return nil
 ]]
 function LocationGameServer.OnPlayerLeave(player)
-	print("[LocationGameServer 2.0] 👋 Гравець", player.Name, "покинув", LocationGameServer.LOCATION_NAME)
-	
+	print("[LocationGameServer] 👋 Гравець", player.Name, "покинув", LocationGameServer.LOCATION_NAME)
+
 	local playerData = activePlayers[player.UserId]
 	if playerData then
 		-- TODO: Зберегти прогрес гравця
 		-- TODO: Оновити статистику
-		
+
 		local timeSpent = tick() - playerData.EnterTime
-		print("[LocationGameServer 2.0] ⏱️ Час в локації:", math.floor(timeSpent), "секунд")
-		print("[LocationGameServer 2.0] 📊 Зібрано ресурсів:", playerData.ResourcesCollected)
+		print("[LocationGameServer] ⏱️ Час в локації:", math.floor(timeSpent), "секунд")
+		print("[LocationGameServer] 📊 Зібрано ресурсів:", playerData.ResourcesCollected)
 	end
-	
+
 	activePlayers[player.UserId] = nil
 end
 

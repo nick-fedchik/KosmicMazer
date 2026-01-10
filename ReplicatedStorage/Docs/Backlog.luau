@@ -1,23 +1,23 @@
 --[[
 ================================================================================
-KOSMICMAZER — BACKLOG v5.1
+KOSMICMAZER — BACKLOG v5.0
 ================================================================================
-Version: 5.1
+Version: 5.0
 Status: Active Development
 Last Updated: 2026-01-10
 
 Цей документ містить список завдань для завершення версії 5.0 та планування
 наступних версій на основі оновленої архітектури гри.
 
-ДОДАНО ЗАВДАННЯ З REFACTORINGPLAN (2026-01-08):
-- Unified structure for game locations з RefactoringPlan.luau
-- Hierarchical Model Structure implementation
-- Client Script Initializer Framework
-- Extended LoadOrder System v3.0
 
+КРИТИЧНА МЕТА: коректний перехід Гравця з Космічної Станції на Планетну Локацію і повернення назад
+(через TeleportationManager, LocationManager, PlanetSurfaceScanner, SpawnLocation)
 
 OPEN ISSUES
-Нема єдиного джерела правди для CurrentLocation гравця
+Нема єдиного джерела правди для CurrentLocation гравця 
+Маємо завжди знати яка Локація і яка поточна планета - перебуваючи як на Космічній станції,
+так і на будь-якій планетній локації
+
 (TeleportationManager та LocationManager оновлюють його окремо).
 
 Нема єдиного джерела яка планета і локація є поточною для Гравця
@@ -27,54 +27,14 @@ OPEN ISSUES
 
 Треба почистити Backlog після завершення завдань v4.0 та v5.0
 
+Знову пропала модель планети з Workspace після старту гри (потрібен детальний лог завантаження)
 
+Встановити Studio Script Sync - done!
 
 ================================================================================
 📊 ПОТОЧНИЙ СТАН АРХІТЕКТУРИ v5.0
 ================================================================================
 
-✅ РЕАЛІЗОВАНО:
-
-Core Systems:
-✅ GameInit v3.7: ініціалізація + Config validation
-✅ ConfigValidator v1.0: повна валідація GameConfig
-✅ GameConfig v3.5: DATA_SCHEMA_VERSION=2, DEBUG_MODE
-✅ RemoteEventsRegistry v1.0: централізовані RemoteEvents
-
-Data Layer:
-✅ DataStoreManager v2.0: Schema versioning + міграції v1→v2
-✅ PlayerDataManager v1.0: управління станом гравців
-✅ Player Data Schema v2: SchemaVersion, Stats consolidation, Settings
-
-Location Management:
-✅ LocationManager v3.0: FSM з 8 станами (IDLE→VALIDATING→CLEANING→
-   LOADING_PLANET→LOADING_LOCATION→VERIFYING→READY→ERROR)
-✅ BaseLocationManager v1.0: OOP базовий клас (lifecycle, player tracking, events)
-✅ SpaceStationManager v1.0: управління космічною станцією
-✅ LocationController template v1.0: шаблон для планетних локацій
-✅ EnvironmentLoader v1.8: LoadOrder-based завантаження
-✅ LoadOrderProcessor v1.0: обробка пріоритетів об'єктів
-
-Systems:
-✅ TeleportationManager v4.5: повна система телепортації
-✅ TeleportationClient v2.0: клієнтський UI
-✅ ObjectTypeValidator v1.2: валідація структур
-
-Utilities:
-✅ SystemTest v1.1: моніторинг (DEBUG)
-✅ LoadingMonitor v1.0: відстеження завантаження (DEBUG)
-✅ DataStoreCleaner v1.1: утиліта очищення (DEBUG)
-
-Structure:
-✅ ServerStorage структура: Workspace/Lighting/Scripts/Configuration
-✅ 3-рівнева Scripts ієрархія: SpaceStation/Planet/Location
-✅ LoadOrder конфігурація для контролю завантаження
-
-Documentation:
-✅ TechnicalDesignDocument v4.0
-✅ GameDesignDocument v4.0
-✅ ArchitectureImproves v4.0
-✅ Config Validation документація (3 файли)
 
 ================================================================================
 🎯 КРИТИЧНІ ЗАВДАННЯ (ВЕРСІЯ 4.1)
@@ -211,69 +171,7 @@ State Transitions:
 - Any → ERROR (помилка в процесі)
 - ERROR → ACTIVE (recovery після помилки)
 
-Реалізація:
 
-3.1. Додати FSM структуру:
-```lua
-local FSM = {
-    currentState = TeleportState.INACTIVE,
-    stateStartTime = 0,
-    stateTimeouts = {
-        [TeleportState.TELEPORTING] = 30,  -- 30s max
-        [TeleportState.COOLDOWN] = 3,      -- 3s cooldown
-    }
-}
-```
-
-3.2. Додати state management:
-```lua
-local function setState(newState, reason)
-    local oldState = FSM.currentState
-    FSM.currentState = newState
-    FSM.stateStartTime = tick()
-    
-    print(string.format("[TeleportFSM] %s → %s (%s)", 
-        oldState, newState, reason or ""))
-    
-    -- State-specific actions
-    if newState == TeleportState.ACTIVE then
-        updateSpawnLocationVisuals("active")
-    elseif newState == TeleportState.INACTIVE then
-        updateSpawnLocationVisuals("inactive")
-    end
-end
-```
-
-3.3. Connection management:
-```lua
-local connections = {}
-
-local function connectToSpawn(spawn)
-    -- Disconnect старі підключення
-    for _, conn in ipairs(connections) do
-        conn:Disconnect()
-    end
-    connections = {}
-    
-    -- Нові підключення
-    table.insert(connections, spawn.Touched:Connect(onTouched))
-    table.insert(connections, spawn.TouchEnded:Connect(onTouchEnded))
-end
-```
-
-3.4. Timeout перевірка:
-```lua
-local function checkStateTimeout()
-    local currentTime = tick()
-    local elapsed = currentTime - FSM.stateStartTime
-    local timeout = FSM.stateTimeouts[FSM.currentState]
-    
-    if timeout and elapsed > timeout then
-        warn("[TeleportFSM] State timeout: " .. FSM.currentState)
-        setState(TeleportState.ERROR, "timeout")
-    end
-end
-```
 
 ──────────────────────────────────────────────────────────────────────────────
 4. КОМПЛЕКСНЕ E2E ТЕСТУВАННЯ
@@ -286,51 +184,10 @@ end
 Протестувати повний цикл гри від початку до кінця.
 
 Тестові сценарії:
+TODO: Записати детальні сценарії для ручного та автоматизованого тестування
 
-4.1. Новий гравець (happy path):
-   ✓ Вхід в гру
-   ✓ Створення default профілю
-   ✓ Spawn на SpaceStation
-   ✓ Використання PlanetSurfaceScanner
-   ✓ Активація телепортації
-   ✓ Телепортація на Planet_1/Location_1
-   ✓ Дослідження локації
-   ✓ Повернення на SpaceStation
-   ✓ Телепортація на іншу локацію
-   ✓ Вихід з гри та збереження даних
 
-4.2. Існуючий гравець:
-   ✓ Вхід в гру з існуючими даними
-   ✓ Валідація завантаження даних
-   ✓ Spawn на збереженій локації
-   ✓ Перевірка DiscoveredLocations
-   ✓ Телепортація між локаціями
-   ✓ Оновлення статистики
 
-4.3. Error scenarios:
-   ✓ Відсутній SpawnLocation (повинен fallback)
-   ✓ Недоступний DataStore (session-only режим)
-   ✓ Пошкоджена локація в ServerStorage
-   ✓ Timeout при завантаженні
-   ✓ Network disconnect під час телепортації
-
-4.4. Multiple players:
-   ✓ Одночасний вхід 2-3 гравців
-   ✓ Телепортація в різні локації
-   ✓ Повернення на SpaceStation
-   ✓ Перевірка ізоляції даних між гравцями
-
-4.5. Performance:
-   ✓ Час завантаження локацій (< 5s)
-   ✓ Memory usage (в межах норми)
-   ✓ Відсутність memory leaks
-   ✓ Proper cleanup після disconnect
-
-Інструменти:
-- SystemTest.server.luau для моніторингу
-- LoadingMonitor.server.luau для performance
-- Manual testing в Roblox Studio
-- Test Server з кількома гравцями
 
 ────────────────────────────────────────────────────────────────────────────── 
 5. ДОКУМЕНТАЦІЯ ТА CODE CLEANUP
@@ -776,6 +633,7 @@ print(string.format("[%s %s] ✅ Initialized", SCRIPT_NAME, module.Version))
 ================================================================================
 📊 МЕТРИКИ ПРОГРЕСУ
 ================================================================================
+TODO: Переміряти прогрес після завершення завдань 
 
 Версія 4.0:
 ├── Архітектура: ████████████████████░ 95% (Config Validation ✅)
@@ -790,152 +648,7 @@ print(string.format("[%s %s] ✅ Initialized", SCRIPT_NAME, module.Version))
 ├── E2E Testing: ░░░░░░░░░░░░░░░░░░░░ 0%
 └── Documentation: ███████████░░░░░░░░░ 60%
 
-================================================================================
-📋 SCOPE ВЕРСІЇ 4.1 - HIERARCHICAL MODEL STRUCTURE  
-================================================================================
-Пріоритет: КРИТИЧНИЙ
-Базується на: актуальній структурі ServerStorage з LogOutput.luau
-Мета: Стандартизувати структуру моделей для вирішення проблем з координатами
-
-🎯 **ПОТОЧНИЙ СТАН (з LogOutput):**
-
-✅ **Space/SpaceStation/Workspace/** - є SpaceStation Model (368 parts):
-   - 🏗️ SpaceStation (Model) з Architecture моделями:
-     - 🏗️ 4-way, 5-way bottom, Airlock, Control tower, Room, Window
-     - 🧱 SpaceStationPrimaryPart (Part) [x2] 
-     - 🧱 SpawnLocation (Part) - окремо від моделі
-   
-✅ **Planets/Planet_1/Locations/[1-3]/Workspace/** - є структури:
-   - 🧱 Baseplate (Part) з моделями всередині
-   - 📁 InteractionObjects/ з ResourceNode_1, ResourceNode_2
-   - 🧱 SpawnLocation (Part) - окремо від основних об'єктів
-
-❌ **ПРОБЛЕМИ ДЛЯ ВИРІШЕННЯ:**
-   - SpawnLocation існує як окремий Part, не всередині головної моделі
-   - SpaceStation Model не має PrimaryPart (є SpaceStationPrimaryPart Parts)
-   - Немає стандартних Attributes для LocationId, LocationType
-   - Embedded моделі не організовані в логічні секції
-   - При PivotTo() SpaceStation модель рухається, але SpawnLocation залишається
-
-================================================================================
-📋 ЗАВДАННЯ v4.1 - ПОКРОКОВО
-================================================================================
-
-🔧 **ЕТАП 1: RESTRUCTURE SPACESTATION MODEL**
-   Статус: 📋 TODO
-   Час: 2-3 години
-   
-   Завдання:
-   ├── 1.1 Перейменувати SpaceStation Model → LocationModel
-   ├── 1.2 Додати Attributes до LocationModel:
-   │   ├── LocationId = "SpaceStation"
-   │   ├── LocationType = "Space"  
-   │   └── DisplayName = "Cosmic Research Station"
-   ├── 1.3 Встановити PrimaryPart для LocationModel (один з SpaceStationPrimaryPart)
-   ├── 1.4 Перенести SpawnLocation ВСЕРЕДИНУ LocationModel/Gameplay/
-   ├── 1.5 Організувати embedded моделі в секції:
-   │   ├── Architecture/ - 4-way, 5-way bottom, Airlock, Control tower, Room, Window
-   │   ├── Equipment/ - (готово для майбутнього PlanetSurfaceScanner)
-   │   ├── Environment/ - декорації та effects
-   │   └── Gameplay/ - SpawnLocation, CheckPoints, SafeZones
-   └── 1.6 Тестувати що PivotTo() рухає всю модель разом
-
-🔧 **ЕТАП 2: UPDATE ENVIRONMENTLOADER FOR SPACESTATION**
-   Статус: 📋 TODO  
-   Час: 1-2 години
-   
-   Завдання:
-   ├── 2.1 Оновити EnvironmentLoader.LoadSpaceEnvironment():
-   │   ├── Знаходити "LocationModel" замість "SpaceStation"
-   │   ├── Перевіряти LocationId attribute = "SpaceStation"
-   │   └── Логувати LocationId та DisplayName при завантаженні
-   ├── 2.2 Оновити LocationManager.positionSpaceStation():
-   │   └── Шукати "LocationModel" для PivotTo()
-   ├── 2.3 Оновити GameInit.spawnPlayerAtLocation():
-   │   └── Шукати SpawnLocation в LocationModel.Gameplay
-   └── 2.4 Тестувати завантаження космічної станції
-
-🔧 **ЕТАП 3: UPDATE CLIENT SCRIPTS FOR SPACESTATION**  
-   Статус: 📋 TODO
-   Час: 1 година
-   
-   Завдання:
-   ├── 3.1 Оновити ScannerUI.local.luau:
-   │   ├── Шукати LocationModel замість окремих моделей
-   │   ├── Перевіряти LocationId = "SpaceStation"  
-   │   └── Шукати PlanetSurfaceScanner в Equipment/ секції
-   ├── 3.2 Оновити StationUI.local.luau:
-   │   ├── Отримувати DisplayName з LocationModel attributes
-   │   └── Використовувати LocationId для логіки
-   └── 3.3 Тестувати що UI працює з новою структурою
-
-🔧 **ЕТАП 4: RESTRUCTURE PLANET LOCATIONS**
-   Статус: 📋 TODO
-   Час: 2-3 години  
-   
-   Завдання:
-   ├── 4.1 Для кожної Planet_1/Location_[1-3]/Workspace/:
-   │   ├── Створити LocationModel як головну модель
-   │   ├── Перенести Baseplate всередину як Environment/Baseplate
-   │   ├── Перенести InteractionObjects як Resources/
-   │   ├── Перенести SpawnLocation як Gameplay/SpawnLocation
-   │   └── Встановити PrimaryPart = Baseplate
-   ├── 4.2 Додати Attributes до кожної LocationModel:
-   │   ├── LocationId = "CrystalCaverns" | "IronMines" | "CopperDeposits"
-   │   ├── LocationType = "Planet"
-   │   ├── PlanetId = "Planet_1"  
-   │   └── DisplayName = "Садочок" | "Гута" | "Канапка"
-   └── 4.3 Тестувати що всі об'єкти залишаються в правильних позиціях
-
-🔧 **ЕТАП 5: UPDATE ENVIRONMENTLOADER FOR PLANETS**
-   Статус: 📋 TODO
-   Час: 1-2 години
-   
-   Завдання:  
-   ├── 5.1 Оновити EnvironmentLoader.LoadPlanetEnvironment():
-   │   ├── Знаходити "LocationModel" в location/Workspace/
-   │   ├── Перевіряти LocationId та PlanetId attributes  
-   │   └── Логувати завантажену локацію з DisplayName
-   ├── 5.2 Оновити LocationManager для планетних локацій:
-   │   └── Шукати "LocationModel" для позиціонування (якщо потрібно)
-   └── 5.3 Тестувати завантаження всіх планетних локацій
-
-🔧 **ЕТАП 6: FULL INTEGRATION TESTING**
-   Статус: 📋 TODO  
-   Час: 2-3 години
-   
-   Завдання:
-   ├── 6.1 Тестувати повний цикл:
-   │   ├── SpaceStation завантаження та spawn
-   │   ├── Телепортація SpaceStation → Planet locations  
-   │   ├── Телепортація між планетними локаціями
-   │   └── Телепортація назад до SpaceStation
-   ├── 6.2 Перевірити що координати правильні:
-   │   ├── SpawnLocation в правильних позиціях
-   │   ├── PivotTo() рухає все разом
-   │   └── Немає "floating" об'єктів  
-   ├── 6.3 Перевірити що UI працює:
-   │   ├── StationUI показує правильні назви
-   │   ├── ScannerUI знаходить equipment
-   │   └── TeleportationUI працює з новою структурою
-   └── 6.4 Виправити знайдені проблеми
-
-================================================================================
-🎯 РЕЗУЛЬТАТ v4.1:
-================================================================================
-✅ Стандартна назва "LocationModel" для всіх локацій
-✅ Attributes замість хардкодингу (LocationId, LocationType, DisplayName)  
-✅ SpawnLocation всередині головної моделі
-✅ Embedded моделі в логічних секціях
-✅ PivotTo() рухає всю локацію разом
-✅ Скрипти адаптовані під нову структуру
-✅ Повна сумісність з існуючою архітектурою
-
-Версія 4.2 (заплановано):
-├── Resource Collection: ░░░░░░░░░░░░░░░░░░░░ 0%
-├── NPC System: ░░░░░░░░░░░░░░░░░░░░ 0%
-├── Quest System: ░░░░░░░░░░░░░░░░░░░░ 0%
-└── Inventory System: ░░░░░░░░░░░░░░░░░░░░ 0%
+Версія 5.0:
 
 Загальний прогрес гри: ████████░░░░░░░░░░░░ 40%
 

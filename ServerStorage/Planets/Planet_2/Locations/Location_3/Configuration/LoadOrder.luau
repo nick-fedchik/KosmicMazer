@@ -1,11 +1,11 @@
 --[[
 ================================================================================
-KOSMICMAZER — Location_3 Load Order Configuration
+KOSMICMAZER — Location_1 Load Order Configuration
 ================================================================================
 
-Purpose: Defines the loading order for Location_3 content
+Purpose: Defines the loading order for Location_1 content
 Version: 2.0
-Location: Planet_2 / Location_3 (Канапка)
+Location: Planet_1 / Location_1 (Садочок)
 
 Features:
 - Priority-based loading for Location Workspace objects
@@ -28,13 +28,90 @@ Called from:
 - EnvironmentLoader.LoadPlanetEnvironment()
 
 Dependencies:
-- ServerStorage.Planets.Planet_2.Locations.Location_3.Workspace
-- ServerStorage.Planets.Planet_2.Locations.Location_3.Scripts
-- ServerStorage.Planets.Planet_2.Scripts (Planet-level scripts)
+- ServerStorage.Planets.Planet_1.Locations.Location_1.Workspace
+- ServerStorage.Planets.Planet_1.Locations.Location_1.Scripts
+- ServerStorage.Planets.Planet_1.Scripts (Planet-level scripts)
 
 ChangeLog:
 - Version 2.0: Added ServerScripts, ClientScripts, Settings sections
 - Version 1.0: Initial implementation (WorkspaceObjects only)
+
+================================================================================
+]]
+
+--[[
+================================================================================
+ІНСТРУКЦІЯ З НАЛАШТУВАННЯ
+================================================================================
+
+📋 СТРУКТУРА КОНФІГУРАЦІЇ:
+
+LoadOrder на рівні локації визначає порядок завантаження:
+
+1. WorkspaceObjects - об'єкти з папки Location/Workspace/
+   Копіюються в game.Workspace
+   Приклад: Baseplate, Buildings, Props, NPCs, SpawnLocation
+
+2. ServerScripts - скрипти локації з Scripts/Server/
+   Специфічні для цієї локації
+   Приклад: LocationGameServer, ResourceController
+
+3. ClientScripts - клієнтські скрипти з Scripts/Client/
+   UI та логіка для цієї локації
+   Приклад: LocationUI, DialogSystem, InteractionPrompts
+
+⚙️ ПРАВИЛА ПРІОРИТЕТУ:
+
+- 1-100: Базова інфраструктура (Baseplate, terrain)
+- 101-500: Стандартний контент (Buildings, NPCs, game logic)
+- 501-998: Опціональний контент (Props, effects, specialized UI)
+- 999: SpawnLocation та критичні фіналізатори (ЗАВЖДИ останнім!)
+- 500: За замовчуванням
+
+📝 ТИПОВІ ОБ'ЄКТИ ТА ЇХ ПРІОРИТЕТИ:
+
+Baseplate/Terrain     → 1     (підлога завжди перша)
+Buildings             → 100   (будівлі на підлозі)
+Props                 → 200   (декорації після будівель)
+NPCs                  → 300   (персонажі в готовому середовищі)
+InteractionObjects    → 400   (інтерактивні об'єкти)
+Effects              → 500   (візуальні ефекти)
+SpawnLocation        → 999   (ЗАВЖДИ останнім!)
+
+🎮 ПРИКЛАД SERVERSCRIPTS:
+
+{name = "LocationGameServer", priority = 1, action = "require", 
+ description = "Головна ігрова логіка локації"},
+
+{name = "ResourceController", priority = 2, action = "require", 
+ description = "Керування ресурсами"},
+
+{name = "QuestManager", priority = 3, action = "require", 
+ description = "Система квестів"},
+
+💻 ПРИКЛАД CLIENTSCRIPTS:
+
+{name = "LocationUI", priority = 1, 
+ description = "Основний UI локації"},
+
+{name = "DialogSystem", priority = 2, 
+ description = "Система діалогів з NPC"},
+
+{name = "InteractionPrompts", priority = 3, 
+ description = "Підказки взаємодії з об'єктами"},
+
+⚠️ ВАЖЛИВО:
+- SpawnLocation ЗАВЖДИ має бути priority = 999
+- Якщо об'єкт залежить від іншого, дайте йому більший пріоритет
+- Terrain/Baseplate завжди першими (priority = 1)
+- LocationGameServer часто потребує PlanetConfig з Planet-level
+
+🔄 ПОСЛІДОВНІСТЬ ЗАВАНТАЖЕННЯ:
+1. Planet LoadOrder (PlanetConfig, Planet scripts)
+2. Location LoadOrder (LocationGameServer, Location objects)
+3. LocationGameServer.Initialize() викликається після завантаження
+
+📚 Детальна документація: ReplicatedStorage/Docs/LoadOrderSystem.luau
 
 ================================================================================
 ]]

@@ -5,7 +5,7 @@ KOSMICMAZER — Location_1 Load Order Configuration
 
 Purpose: Defines the loading order for Location_1 content
 Version: 2.0
-Location: Planet_2 / Location_1 (Манівці)
+Location: Planet_1 / Location_1 (Садочок)
 
 Features:
 - Priority-based loading for Location Workspace objects
@@ -28,9 +28,9 @@ Called from:
 - EnvironmentLoader.LoadPlanetEnvironment()
 
 Dependencies:
-- ServerStorage.Planets.Planet_2.Locations.Location_1.Workspace
-- ServerStorage.Planets.Planet_2.Locations.Location_1.Scripts
-- ServerStorage.Planets.Planet_2.Scripts (Planet-level scripts)
+- ServerStorage.Planets.Planet_1.Locations.Location_1.Workspace
+- ServerStorage.Planets.Planet_1.Locations.Location_1.Scripts
+- ServerStorage.Planets.Planet_1.Scripts (Planet-level scripts)
 
 ChangeLog:
 - Version 2.0: Added ServerScripts, ClientScripts, Settings sections
@@ -200,11 +200,11 @@ function LoadOrder.SortObjects(objects: {Instance}): {Instance}
 	for _, obj in ipairs(objects) do
 		table.insert(sorted, obj)
 	end
-	
+
 	table.sort(sorted, function(a, b)
 		return LoadOrder.GetWorkspacePriority(a.Name) < LoadOrder.GetWorkspacePriority(b.Name)
 	end)
-	
+
 	return sorted
 end
 

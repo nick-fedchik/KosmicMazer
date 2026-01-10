@@ -200,11 +200,11 @@ function LoadOrder.SortObjects(objects: {Instance}): {Instance}
 	for _, obj in ipairs(objects) do
 		table.insert(sorted, obj)
 	end
-	
+
 	table.sort(sorted, function(a, b)
 		return LoadOrder.GetWorkspacePriority(a.Name) < LoadOrder.GetWorkspacePriority(b.Name)
 	end)
-	
+
 	return sorted
 end
 

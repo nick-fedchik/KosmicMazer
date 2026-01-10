@@ -5,7 +5,7 @@ KOSMICMAZER — Planet Surface Scanner UI Client
 
 Purpose: Створює та керує інтерфейсом сканера планетної поверхні згідно GuiConvention
 Version: 2.1
-
++++
 Features:
 - Відображення результатів сканування планетної поверхні (Windows 95 стиль)
 - Анімований індикатор сканування з прогрес баром
@@ -97,22 +97,22 @@ local MAX_RESULTS = 10
 
 -- @const table Кольори Windows 95 (локально визначені)
 local WIN95_COLORS = {
-    WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
-    ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
-    ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
-    ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
-    TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
-    TitleText = Color3.fromRGB(255, 255, 255),         -- White
-    ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
-    WindowText = Color3.fromRGB(0, 0, 0),              -- Black
+	WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
+	ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
+	ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
+	ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
+	TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
+	TitleText = Color3.fromRGB(255, 255, 255),         -- White
+	ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
+	WindowText = Color3.fromRGB(0, 0, 0),              -- Black
 }
 
 -- @const table Кольори сповіщень (локально визначені)
 local NOTIFICATION_COLORS = {
-    Success = Color3.fromRGB(39, 174, 96),    -- Green
-    Error = Color3.fromRGB(231, 76, 60),      -- Red
-    Warning = Color3.fromRGB(241, 196, 15),   -- Yellow
-    Info = Color3.fromRGB(52, 152, 219),      -- Blue
+	Success = Color3.fromRGB(39, 174, 96),    -- Green
+	Error = Color3.fromRGB(231, 76, 60),      -- Red
+	Warning = Color3.fromRGB(241, 196, 15),   -- Yellow
+	Info = Color3.fromRGB(52, 152, 219),      -- Blue
 }
 
 -- @const number Тривалість UI анімацій
@@ -731,7 +731,7 @@ task.spawn(function()
 		-- Валідуємо що це SpaceStation LocationModel
 		local locationId = locationModel:GetAttribute("LocationId")
 		local locationType = locationModel:GetAttribute("LocationType")
-		
+
 		if locationId == "SpaceStation" and locationType == "Space" then
 			-- Шукаємо PlanetSurfaceScanner в Equipment секції
 			local equipmentFolder = locationModel:FindFirstChild("Equipment")

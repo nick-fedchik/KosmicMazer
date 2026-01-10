@@ -681,9 +681,11 @@ local function onTouched(otherPart)
 				warn("  └─ Скрипт має бути в StarterPlayerScripts/TeleportationClient.luau")
 			end
 		else
+			--[[
 			warn("[TeleportationManager] ❌ PlayerScripts NOT found for " .. player.Name)
 			warn("  └─ Очікуваний шлях: Players/" .. player.Name .. "/PlayerScripts")
 			warn("  └─ Гравець можливо ще не повністю завантажився")
+			]]
 		end
 
 		-- UI state debounce to prevent flickering

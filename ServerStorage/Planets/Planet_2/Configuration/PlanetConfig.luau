@@ -49,6 +49,42 @@ PlanetConfig.PLANET_NAME = "Zalizyaka"
 PlanetConfig.DISPLAY_NAME = "Залізяка"
 
 --============================================================================--
+-- ЛОКАЦІЇ ПЛАНЕТИ / PLANET LOCATIONS
+--============================================================================--
+
+PlanetConfig.LOCATIONS = {
+	Location_1 = {
+		Name = "Location_1",
+		DisplayName = "Манівці",
+		Folder = "Location_1",
+		SpawnPoint = "SpawnLocation",
+		TeleportPoint = "SpawnLocation",
+		isDiscovered = false,
+		isVisited = false,
+		TeleportTo = false,
+	},
+	Location_2 = {
+		Name = "Location_2",
+		DisplayName = "Обабіч",
+		Folder = "Location_2",
+		SpawnPoint = "SpawnLocation",
+		TeleportPoint = "SpawnLocation",
+		isDiscovered = false,
+		isVisited = false,
+		TeleportTo = false,
+	},
+	Location_3 = {
+		Name = "Location_3",
+		DisplayName = "Видноколо",
+		Folder = "Location_3",
+		SpawnPoint = "SpawnLocation",
+		TeleportPoint = "SpawnLocation",
+		isDiscovered = false,
+		isVisited = false,
+		TeleportTo = false,
+	},
+}
+--============================================================================--
 -- ФІЗИЧНІ ВЛАСТИВОСТІ / PHYSICAL PROPERTIES
 --============================================================================--
 
@@ -85,16 +121,16 @@ PlanetConfig.GAME_RULES = {
 	AllowResourceCollection = true,
 	ResourceRespawnTime = 60, -- секунди
 	MaxResourcesPerPlayer = 100,
-	
+
 	-- PvP
 	AllowPvP = false,
-	
+
 	-- Будівництво
 	AllowBuilding = false,
-	
+
 	-- Міні-ігри
 	AllowMinigames = true,
-	
+
 	-- Квести
 	AllowQuests = true
 }
@@ -194,16 +230,16 @@ end
 ]]
 function PlanetConfig.IsLocationUnlocked(locationId, playerData)
 	local condition = PlanetConfig.LOCATION_UNLOCK_CONDITIONS[locationId]
-	
+
 	if not condition then
 		return false
 	end
-	
+
 	-- Перевірка завжди відкритих локацій
 	if condition.Unlocked then
 		return true
 	end
-	
+
 	-- Перевірка рівня
 	if playerData and playerData.Level and playerData.Level >= condition.RequiredLevel then
 		-- Перевірка квестів
@@ -216,7 +252,7 @@ function PlanetConfig.IsLocationUnlocked(locationId, playerData)
 		end
 		return true
 	end
-	
+
 	return false
 end
 
@@ -228,11 +264,11 @@ end
 ]]
 function PlanetConfig.ApplyPlanetPhysics()
 	local Workspace = game:GetService("Workspace")
-	
+
 	-- Застосувати гравітацію
 	Workspace.Gravity = 196.2 * PlanetConfig.GRAVITY -- 196.2 - стандартна гравітація Roblox
-	
-	print("[PlanetConfig 1.0] ✅ Застосовано гравітацію:", PlanetConfig.GRAVITY, "(" .. Workspace.Gravity .. ")")
+
+	print("[PlanetConfig] ✅ Застосовано гравітацію:", PlanetConfig.GRAVITY, "(" .. Workspace.Gravity .. ")")
 end
 
 return PlanetConfig

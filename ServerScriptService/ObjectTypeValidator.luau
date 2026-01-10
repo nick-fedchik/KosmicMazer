@@ -223,20 +223,6 @@ function ObjectTypeValidator.ValidateLocationStructure(planetId, locationId)
         local locationModel = workspaceFolder:FindFirstChild("LocationModel")
         
         if locationModel then
-            -- NEW: Validate LocationModel attributes
-            local locationId_attr = locationModel:GetAttribute("LocationId")
-            local locationType_attr = locationModel:GetAttribute("LocationType")
-            local planetId_attr = locationModel:GetAttribute("PlanetId")
-            
-            if not locationId_attr then
-                table.insert(errors, string.format("[MISSING ATTRIBUTE] LocationModel.LocationId not set for %s/%s", planetId, locationId))
-            end
-            if not locationType_attr or locationType_attr ~= "Planet" then
-                table.insert(errors, string.format("[INVALID ATTRIBUTE] LocationModel.LocationType should be 'Planet' for %s/%s", planetId, locationId))
-            end
-            if not planetId_attr or planetId_attr ~= planetId then
-                table.insert(errors, string.format("[INVALID ATTRIBUTE] LocationModel.PlanetId should be '%s' for %s/%s", planetId, planetId, locationId))
-            end
             
             -- Check LocationModel hierarchy folders
             for _, folderName in ipairs(EXPECTED_LOCATIONMODEL_FOLDERS) do

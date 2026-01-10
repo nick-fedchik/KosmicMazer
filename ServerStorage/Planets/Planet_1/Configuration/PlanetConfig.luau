@@ -89,16 +89,16 @@ PlanetConfig.GAME_RULES = {
 	AllowResourceCollection = true,
 	ResourceRespawnTime = 60, -- секунди
 	MaxResourcesPerPlayer = 100,
-	
+
 	-- PvP
 	AllowPvP = false,
-	
+
 	-- Будівництво
 	AllowBuilding = false,
-	
+
 	-- Міні-ігри
 	AllowMinigames = true,
-	
+
 	-- Квести
 	AllowQuests = true
 }
@@ -234,16 +234,16 @@ end
 ]]
 function PlanetConfig.IsLocationUnlocked(locationId, playerData)
 	local condition = PlanetConfig.LOCATION_UNLOCK_CONDITIONS[locationId]
-	
+
 	if not condition then
 		return false
 	end
-	
+
 	-- Перевірка завжди відкритих локацій
 	if condition.Unlocked then
 		return true
 	end
-	
+
 	-- Перевірка рівня
 	if playerData and playerData.Level and playerData.Level >= condition.RequiredLevel then
 		-- Перевірка квестів
@@ -256,7 +256,7 @@ function PlanetConfig.IsLocationUnlocked(locationId, playerData)
 		end
 		return true
 	end
-	
+
 	return false
 end
 

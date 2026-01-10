@@ -35,7 +35,7 @@ local SpaceConfig = {}
 --============================================================================--
 
 SpaceConfig.STATION_ID = "SpaceStation"
-SpaceConfig.STATION_NAME = "Cosmic Research Station"
+SpaceConfig.STATION_NAME = "Cosmic Research Station Discoverer-1"
 SpaceConfig.DISPLAY_NAME = "Космічна Станція"
 
 --============================================================================--

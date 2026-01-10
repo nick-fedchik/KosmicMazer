@@ -427,7 +427,7 @@ local function loadLocation(planetId, locationId)
 						currentLocationGameServer = require(locationServerModule)
 						
 						-- Initialize with location model from Workspace
-						local locationModel = Workspace:FindFirstChild(locationId)
+						local locationModel = Workspace:FindFirstChild("LocationModel")
 						if locationModel then
 							currentLocationGameServer.Initialize(locationModel)
 							print("[Location] ✅ LocationGameServer ініціалізовано для", locationId)

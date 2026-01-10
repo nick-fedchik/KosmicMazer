@@ -76,14 +76,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- @const table Кольори Windows 95 (локально визначені)
 local WIN95_COLORS = {
-    WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
-    ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
-    ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
-    ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
-    TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
-    TitleText = Color3.fromRGB(255, 255, 255),         -- White
-    ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
-    WindowText = Color3.fromRGB(0, 0, 0),              -- Black
+	WindowBackground = Color3.fromRGB(192, 192, 192),  -- Light gray
+	ButtonHighlight = Color3.fromRGB(255, 255, 255),   -- White
+	ButtonShadow = Color3.fromRGB(128, 128, 128),      -- Dark gray
+	ButtonDarkShadow = Color3.fromRGB(64, 64, 64),     -- Very dark gray
+	TitleBarActive = Color3.fromRGB(0, 0, 128),        -- Dark blue
+	TitleText = Color3.fromRGB(255, 255, 255),         -- White
+	ButtonFace = Color3.fromRGB(192, 192, 192),        -- Light gray
+	WindowText = Color3.fromRGB(0, 0, 0),              -- Black
 }
 
 -- @const string ID поточної планети за замовчуванням
