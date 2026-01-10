@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: Migrate GameConfig.Planets to ServerStorage/PlanetConfig\n\nBREAKING CHANGE: GameConfig.Planets removed, migrated to modular PlanetConfig files\n\nCore Changes:\n- Added PlanetConfigLoader v1.0 for dynamic planet config loading from ServerStorage\n- Added PlanetConfig.LOCATIONS table with Location_1, Location_2, Location_3\n- Migrated PlanetSurfaceScanner v4.5→v4.6 to use PlanetConfigLoader\n- Cleaned up ConfigValidator v1.2→v1.3 from legacy GameConfig.Planets validators\n\nVersion Logging:\n- Added scriptVersion variables to all ServerStorage modules\n- Updated Initialize\\(\\) logs to follow CodeConvention 5.3 format: [ScriptName VERSION]\n- PlanetSurfaceScanner: now logs [PlanetSurfaceScanner 4.6]\n- LocationGameServer: now logs [LocationGameServer 2.0]\n- PlanetConfig: now logs [PlanetConfig 1.1]\n- PlanetSurfaceScannerUI: now logs [PlanetSurfaceScannerUI 1.9]\n\nFiles Modified \\(ServerStorage\\):\n- ServerStorage/Space/SpaceStation/Scripts/Server/PlanetSurfaceScanner.luau \\(v4.6\\)\n- ServerStorage/Planets/Planet_1/Configuration/PlanetConfig.luau \\(v1.1\\)\n- ServerStorage/Planets/Planet_1/Locations/*/Scripts/Server/LocationGameServer.luau \\(v2.0\\)\n- ServerStorage/Space/SpaceStation/Scripts/Client/PlanetSurfaceScannerUI.local.luau \\(v1.9\\)\n\nBenefits:\n- Scanner now shows ONLY current planet''s locations \\(inter-planetary flight ready\\)\n- Modular planet configs can be hot-reloaded\n- Easy to add new planets \\(just add folder + PlanetConfig\\)\n- Version tracking in logs helps identify outdated ServerStorage scripts\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

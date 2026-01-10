@@ -4,7 +4,7 @@ KOSMICMAZER — Space Station UI Client
 ================================================================================
 
 Purpose: Створює та керує статус баром космічної станції згідно GuiConvention
-Version: 1.5
+Version: 1.6
 
 Features:
 - Горизонтальний статус бар вгорі праворуч екрану (Windows 95 стиль)
@@ -36,7 +36,12 @@ Dependencies:
 - TweenService: Анімації
 
 ChangeLog:
-- Version 1.5: Removed GuiConvention dependency, colors defined locally
+- Version 1.6 (2026-01-10): FIXED UI visibility and timing issues
+  - Added 2 second delay after character load to avoid appearing over loading screen
+  - Fixed text visibility by adding ZIndex (+2) to all labels and buttons
+  - Status bar now appears only when player is fully loaded
+  - Added version tracking to Initialize() logs
+- Version 1.6: Removed GuiConvention dependency, colors defined locally
 - Version 1.4: Renamed from StationUI to SpaceStationUI for clarity
 - Version 1.3: Updated for LocationModel hierarchical structure compatibility (ETAP 3)
 - Version 1.3: Tested and verified compatibility with new space station structure
@@ -269,7 +274,7 @@ local function createExitDialog()
 
 	yesBtn.MouseButton1Click:Connect(function()
 		-- TODO: Реалізувати вихід з гри зі збереженням
-		print("[SpaceStationUI 1.5] 🚪 Player confirmed exit - implementing save and quit...")
+		print("[SpaceStationUI 1.6] 🚪 Player confirmed exit - implementing save and quit...")
 		Players.LocalPlayer:Kick("Дякуємо за гру!")
 	end)
 
@@ -383,6 +388,7 @@ local function createStatusBar()
 	stationIcon.Font = Enum.Font.SourceSans
 	stationIcon.TextSize = 20
 	stationIcon.TextXAlignment = Enum.TextXAlignment.Center
+	stationIcon.ZIndex = statusBar.ZIndex + 2
 	stationIcon.Parent = stationSection
 
 	stationNameLabel = Instance.new("TextLabel")
@@ -396,6 +402,7 @@ local function createStatusBar()
 	stationNameLabel.Font = Enum.Font.SourceSansBold
 	stationNameLabel.TextSize = 14
 	stationNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	stationNameLabel.ZIndex = statusBar.ZIndex + 2
 	stationNameLabel.Parent = stationSection
 
 	local planetSection = Instance.new("Frame")
@@ -416,6 +423,7 @@ local function createStatusBar()
 	planetIcon.Font = Enum.Font.SourceSans
 	planetIcon.TextSize = 20
 	planetIcon.TextXAlignment = Enum.TextXAlignment.Center
+	planetIcon.ZIndex = statusBar.ZIndex + 2
 	planetIcon.Parent = planetSection
 
 	planetNameLabel = Instance.new("TextLabel")
@@ -429,6 +437,7 @@ local function createStatusBar()
 	planetNameLabel.Font = Enum.Font.SourceSansBold
 	planetNameLabel.TextSize = 14
 	planetNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	planetNameLabel.ZIndex = statusBar.ZIndex + 2
 	planetNameLabel.Parent = planetSection
 
 	local exitSection = Instance.new("Frame")
@@ -450,12 +459,13 @@ local function createStatusBar()
 	exitButton.TextScaled = false
 	exitButton.Font = Enum.Font.SourceSansBold
 	exitButton.TextSize = 12
+	exitButton.ZIndex = statusBar.ZIndex + 2
 	exitButton.Parent = exitSection
 
 	create3DEffect(exitButton, true)
 
 	exitButton.MouseButton1Click:Connect(function()
-		print("[SpaceStationUI 1.5] 🚪 Exit button clicked!")
+		print("[SpaceStationUI 1.6] 🚪 Exit button clicked!")
 		createExitDialog()
 	end)
 
@@ -488,7 +498,19 @@ local SpaceStationUI = {}
 @return nil
 ]]
 function SpaceStationUI.Initialize(): nil
-	print("[SpaceStationUI 1.5] 🚀 Initializing Station UI...")
+	local scriptName = "SpaceStationUI"
+	local scriptVersion = "1.6"
+
+	print(string.format("[%s %s] 🚀 Initializing Station UI...", scriptName, scriptVersion))
+
+	-- Чекаємо поки гравець повністю завантажиться
+	local character = player.Character or player.CharacterAdded:Wait()
+	character:WaitForChild("Humanoid")
+
+	-- Додаткова затримка для завантажувального екрану (щоб заставка гри зникла)
+	task.wait(2)
+
+	print(string.format("[%s %s] ✅ Player ready, creating status bar", scriptName, scriptVersion))
 	createStatusBar()
 	return
 end
@@ -505,9 +527,9 @@ function SpaceStationUI.UpdatePlanetName(planetId: string): nil
 		currentPlanetId = planetId
 		currentPlanetName = PLANET_NAMES[planetId] or "Невідома планета"
 		planetNameLabel.Text = currentPlanetName
-		print("[SpaceStationUI 1.5] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
+		print("[SpaceStationUI 1.6] 🪐 Planet updated to:", planetId, "-", currentPlanetName)
 	else
-		warn("[SpaceStationUI 1.5] ⚠️ Planet label not initialized")
+		warn("[SpaceStationUI 1.6] ⚠️ Planet label not initialized")
 	end
 end
 

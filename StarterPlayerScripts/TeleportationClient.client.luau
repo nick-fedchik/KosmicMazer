@@ -66,16 +66,19 @@ local player = Players.LocalPlayer
 -- Load RemoteEventsRegistry
 local RemoteEventsRegistry = require(ReplicatedStorage:WaitForChild("RemoteEventsRegistry"))
 
+-- Version tracking
+local scriptVersion = "2.2"
+
 -- RemoteEvents (using registry for better error handling)
-print("[TeleportClient] Очікування RemoteEvents...")
+print(string.format("[TeleportClient %s] Очікування RemoteEvents...", scriptVersion))
 local teleportEvent = RemoteEventsRegistry.WaitFor("TeleportationEvent", 30)
 local teleportStateEvent = RemoteEventsRegistry.WaitFor("TeleportationStateEvent", 30)
 
 if not teleportEvent or not teleportStateEvent then
-	error("[TeleportClient] ❌ Не вдалося отримати RemoteEvents! Гра не може працювати.")
+	error(string.format("[TeleportClient %s] ❌ Не вдалося отримати RemoteEvents! Гра не може працювати.", scriptVersion))
 end
 
-print("[TeleportClient] ✅ RemoteEvents готові")
+print(string.format("[TeleportClient %s] ✅ RemoteEvents готові", scriptVersion))
 
 -- UI state
 local teleportGui = nil
@@ -532,4 +535,4 @@ end
 teleportEvent.OnClientEvent:Connect(onTeleportEvent)
 teleportStateEvent.OnClientEvent:Connect(onTeleportationStateChange)
 
-print("[TeleportClient] 🚀 Клієнт телепортації завантажено")
+print(string.format("[TeleportClient %s] 🚀 Клієнт телепортації завантажено", scriptVersion))
