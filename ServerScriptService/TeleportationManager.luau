@@ -4,7 +4,7 @@ KOSMICMAZER — Teleportation Manager (Module)
 ================================================================================
 
 Purpose: Complete teleportation system that activates after planet scanning
-Version: 4.9
+Version: 5.0
 
 Features:
 - Manages teleportation activation state
@@ -43,6 +43,9 @@ Dependencies:
 - DebrisService
 
 ChangeLog:
+- Version 5.0: CRITICAL FIX - Fixed player spawning below Baseplate (root cause in EnvironmentLoader) (2026-01-11)
+- Version 5.0: Enhanced diagnostic logging for spawn position tracking
+- Version 5.0: Fallback logic for origin (0,0,0) detection remains as safety measure
 - Version 4.9: MIGRATION - Use PlanetConfigLoader instead of GameConfig.Planets (2026-01-10)
 - Version 4.9: Filter locations ONLY from current planet (DEFAULT_PLANET)
 - Version 4.9: Enhanced logging for planet/location filtering

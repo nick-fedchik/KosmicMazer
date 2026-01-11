@@ -4,7 +4,7 @@ KOSMICMAZER — Environment Loader
 ================================================================================
 
 Purpose: Handles loading/unloading of game environments (Space/Planet)
-Version: 1.12
+Version: 1.13
 
 Features:
 - Loads Space Environment (Planet + LocationModel)
@@ -31,6 +31,10 @@ Dependencies:
 - Workspace: Target for loading
 
 ChangeLog:
+- Version 1.13: CRITICAL FIX - Move LocationModel to world position Y=0 after cloning (2026-01-11)
+- Version 1.13: Fixed player spawning below Baseplate by repositioning cloned LocationModel from Y=-8 to Y=0
+- Version 1.13: Template in ServerStorage has Y=-8, runtime positioning corrects to Y=0 for proper spawning
+- Version 1.13: Added task.wait() and world positioning for both SpaceStation and Planet LocationModels
 - Version 1.12: Added diagnostic print for PlanetSurfaceScanner children after copy (2026-01-08)
 - Version 1.11: CRITICAL FIX - Client scripts now copy to PlayerGui instead of StarterPlayerScripts (2026-01-08)
 - Version 1.11: Fixed SpaceStationUI and PlanetSurfaceScannerUI not appearing for already spawned players
@@ -164,19 +168,57 @@ local function copyFolderContents(sourceFolder, targetParent, loadOrder)
     
     for index, child in ipairs(children) do
         local clone = child:Clone()
-        clone.Parent = targetParent
-        
-        -- Додаткове логування для SpawnLocation
-        if child.Name == "SpawnLocation" and child:IsA("SpawnLocation") then
-            print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
-                index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
-            print("[EnvironmentLoader] 🔍 DUMP: Original SpawnLocation:")
+
+        -- CRITICAL FIX: LocationModel needs to be positioned correctly in world space
+        if child:IsA("Model") and child.Name == "LocationModel" then
+            print("[EnvironmentLoader] 🔍 DUMP: Original LocationModel:")
             print(dumpObjectProperties(child, "    "))
-            print("[EnvironmentLoader] 🔍 DUMP: Cloned SpawnLocation:")
+
+            local originalPivot = child:GetPivot()
+            print(string.format("[EnvironmentLoader] 📍 Original LocationModel Pivot: %s", tostring(originalPivot.Position)))
+
+            -- Set parent first
+            clone.Parent = targetParent
+
+            -- CRITICAL: Wait for physics to settle before setting position
+            task.wait()
+
+            -- CRITICAL FIX: Move LocationModel to proper world position (above ground)
+            -- The template in ServerStorage has Y=-8, but we need it at Y=0 for proper spawning
+            local targetPivot = CFrame.new(0, 0, 0) * originalPivot.Rotation
+            clone:PivotTo(targetPivot)
+            print(string.format("[EnvironmentLoader] 📍 Moved LocationModel to world position: %s", tostring(targetPivot.Position)))
+
+            print("[EnvironmentLoader] 🔍 DUMP: Cloned LocationModel:")
             print(dumpObjectProperties(clone, "    "))
-        else
-            print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s", 
+
+            -- Verify all descendants have correct positions
+            local gameplay = clone:FindFirstChild("Gameplay")
+            if gameplay then
+                local spawnLocation = gameplay:FindFirstChild("SpawnLocation")
+                if spawnLocation and spawnLocation:IsA("SpawnLocation") then
+                    print(string.format("[EnvironmentLoader] 🔍 SpawnLocation Position after reposition: %s", tostring(spawnLocation.Position)))
+                    print(string.format("[EnvironmentLoader] 🔍 SpawnLocation CFrame after reposition: %s", tostring(spawnLocation.CFrame)))
+                end
+            end
+
+            print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s with world positioning",
                 index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+        else
+            clone.Parent = targetParent
+
+            -- Додаткове логування для SpawnLocation
+            if child.Name == "SpawnLocation" and child:IsA("SpawnLocation") then
+                print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s",
+                    index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+                print("[EnvironmentLoader] 🔍 DUMP: Original SpawnLocation:")
+                print(dumpObjectProperties(child, "    "))
+                print("[EnvironmentLoader] 🔍 DUMP: Cloned SpawnLocation:")
+                print(dumpObjectProperties(clone, "    "))
+            else
+                print(string.format("[EnvironmentLoader] 📦 [%d/%d] Copied: %s (%s) to %s",
+                    index, #children, child.Name, child.ClassName, targetParent:GetFullName()))
+            end
         end
     end
     
@@ -411,12 +453,24 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
                 
                 if locationId == "SpaceStation" and locationType == "Space" then
                     print("[EnvironmentLoader] ✅ LocationModel validated:", displayName or "SpaceStation")
-                    
+
+                    -- CRITICAL FIX: Move SpaceStation LocationModel to proper world position
+                    local originalPivot = locationModel:GetPivot()
+                    print(string.format("[EnvironmentLoader] 📍 Original SpaceStation LocationModel Pivot: %s", tostring(originalPivot.Position)))
+
                     -- Clone LocationModel to Workspace
                     local clonedModel = locationModel:Clone()
                     clonedModel.Parent = Workspace
-                    
-                    print("[EnvironmentLoader] ✅ LocationModel copied to Workspace")
+
+                    -- CRITICAL: Wait for physics to settle
+                    task.wait()
+
+                    -- CRITICAL FIX: Move LocationModel to proper world position (Y=0)
+                    local targetPivot = CFrame.new(0, 0, 0) * originalPivot.Rotation
+                    clonedModel:PivotTo(targetPivot)
+                    print(string.format("[EnvironmentLoader] 📍 Moved SpaceStation LocationModel to world position: %s", tostring(targetPivot.Position)))
+
+                    print("[EnvironmentLoader] ✅ LocationModel copied to Workspace with world positioning")
                     print("[EnvironmentLoader] 📋 LocationModel contains:")
                     for _, section in ipairs(clonedModel:GetChildren()) do
                         if section:IsA("Folder") then
@@ -425,6 +479,16 @@ function EnvironmentLoader.LoadSpaceEnvironment(planetId, loadOrder)
                             print("[EnvironmentLoader]   🧱 " .. section.Name .. " (PrimaryPart)")
                         else
                             print("[EnvironmentLoader]   - " .. section.Name .. " (" .. section.ClassName .. ")")
+                        end
+                    end
+
+                    -- Verify SpawnLocation position
+                    local gameplay = clonedModel:FindFirstChild("Gameplay")
+                    if gameplay then
+                        local spawnLocation = gameplay:FindFirstChild("SpawnLocation")
+                        if spawnLocation and spawnLocation:IsA("SpawnLocation") then
+                            print(string.format("[EnvironmentLoader] 🔍 SpaceStation SpawnLocation Position: %s", tostring(spawnLocation.Position)))
+                            print(string.format("[EnvironmentLoader] 🔍 SpaceStation SpawnLocation CFrame: %s", tostring(spawnLocation.CFrame)))
                         end
                     end
                 else
